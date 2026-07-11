@@ -6,3 +6,8 @@ async function bootstrap() {
   await app.listen(process.env.PORT ?? 3001);
 }
 bootstrap();
+
+// TODO: Setup Redis
+// TODO: Setup Authentication
+// TODO: Setup Socket.IO
+// TODO: Setup Worker

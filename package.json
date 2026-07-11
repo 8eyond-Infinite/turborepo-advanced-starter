@@ -7,11 +7,14 @@
     "dev:client": "turbo run dev --filter=client",
     "dev:server": "turbo run dev --filter=server",
     "dev:admin": "turbo run dev --filter=admin",
+    "db:generate": "dotenv -e .env -- turbo run db:generate",
+    "db:migrate": "dotenv -e .env -- pnpm --filter=@repo/database db:migrate",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo run check-types"
   },
   "devDependencies": {
+    "dotenv-cli": "^11.0.0",
     "prettier": "^3.7.4",
     "turbo": "^2.10.4",
     "typescript": "5.9.2"
