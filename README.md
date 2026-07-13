@@ -1,159 +1,44 @@
-# Turborepo starter
+# Turborepo Advanced Starter Kit (Vietnamese Edition)
 
-This Turborepo starter is maintained by the Turborepo core team.
+Dự án này là một **Monorepo Starter Kit** hoàn chỉnh và nâng cao sử dụng **Turborepo** để quản lý cấu trúc đa dự án (Multiproject), tích hợp đầy đủ công nghệ tốt nhất để xây dựng ứng dụng Web & API Server hiệu năng cao:
 
-## Using this example
+*   **API Server (`apps/server`)**: NestJS áp dụng **Clean Architecture**, **DDD (Domain-Driven Design)**, **CQRS**, **EDA**, **Redis Caching**, và **BullMQ Worker**.
+*   **Web Portal (`apps/client` & `apps/admin`)**: Các frontend apps sẵn sàng hoạt động.
+*   **Shared Packages (`packages/database`)**: Kết nối PostgreSQL sử dụng Prisma, dùng chung schema và migrations trên toàn monorepo.
 
-Run the following command:
+---
 
-```sh
-npx create-turbo@latest
+## 1. Bản Đồ Tài Liệu Hướng Dẫn Chi Tiết
+
+Để thuận tiện cho việc đọc và tra cứu trực tiếp trên GitHub, hệ thống tài liệu tiếng Việt đã được phân chia như sau:
+
+*   📖 **[Tài liệu chi tiết kiến trúc & các luồng xử lý chính](https://github.com/8eyond-Infinite/turborepo-advanced-starter/blob/main/docs/architecture.md)**: Giải thích sâu về Clean Architecture, cấu trúc thư mục, các mẫu thiết kế (Value Objects, Aggregate Root, Result Pattern, Event-Driven Architecture) và luồng chạy thực tế.
+*   💻 **[Tài liệu chi tiết Backend API Server](https://github.com/8eyond-Infinite/turborepo-advanced-starter/blob/main/apps/server/README.md)**: Hướng dẫn cấu hình, cài đặt, chạy test và API Swagger UI cho gói máy chủ Backend.
+
+---
+
+## 2. Hướng Dẫn Chạy Dự Án Nhanh (Quick Start)
+
+### 2.1. Cài đặt các gói phụ thuộc
+Tại thư mục gốc của Monorepo:
+```bash
+pnpm install
 ```
 
-## What's inside?
-
-This Turborepo includes the following packages/apps:
-
-### Apps and Packages
-
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
-
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo build
+### 2.2. Khởi động PostgreSQL và Redis
+Chạy container Docker được cấu hình sẵn:
+```bash
+pnpm db:up
 ```
 
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo build
-pnpm dlx turbo build
-pnpm exec turbo build
+### 2.3. Khởi chạy toàn bộ môi trường Dev
+Chạy đồng thời tất cả các frontend apps, admin panel và backend server:
+```bash
+pnpm dev
 ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo build --filter=docs
+### 2.4. Chạy kiểm thử tự động (E2E Tests)
+Kiểm tra tính đúng đắn của toàn bộ luồng nghiệp vụ của Server:
+```bash
+pnpm --filter=server test:e2e
 ```
-
-Without global `turbo`:
-
-```sh
-npx turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-```
-
-### Develop
-
-To develop all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo dev
-```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo dev
-pnpm exec turbo dev
-pnpm exec turbo dev
-```
-
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo dev --filter=web
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-```
-
-### Remote Caching
-
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo login
-```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo login
-pnpm exec turbo login
-pnpm exec turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo link
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo link
-pnpm exec turbo link
-pnpm exec turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
