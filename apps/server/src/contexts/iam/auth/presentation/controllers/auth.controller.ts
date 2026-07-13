@@ -1,7 +1,7 @@
 import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards, Req } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
-import { RegisterDto, LoginDto } from '../../application/dtos';
+import { RegisterDto, LoginDto } from '../dtos';
 import { RegisterCommand } from '../../application/commands/register.command';
 import { LoginQuery } from '../../application/queries/login.query';
 import { RefreshQuery } from '../../application/queries/refresh.query';
