@@ -4,6 +4,9 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { DomainExceptionFilter } from '../src/shared/infrastructure/filters/domain-exception.filter';
 import { RedisService } from '../src/shared/infrastructure/cache/redis.service';
+import { getQueueToken } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
+import { USER_QUEUE } from '../src/contexts/iam/users/application/queues/user-queue.constants';
 
 describe('AuthController (E2E)', () => {
     let app: INestApplication;
@@ -35,6 +38,13 @@ describe('AuthController (E2E)', () => {
             .expect(201);
 
         expect(response.body.message).toEqual('User registered successfully');
+
+        // Verify that the welcome email job was added to BullMQ
+        const userQueue = app.get<Queue>(getQueueToken(USER_QUEUE));
+        const jobs = await userQueue.getJobs(['waiting', 'active', 'completed', 'failed']);
+        const welcomeJob = jobs.find((job) => job.data.email === testEmail);
+        expect(welcomeJob).toBeDefined();
+        expect(welcomeJob?.name).toEqual('send-welcome-email');
     });
 
     it('/auth/login (POST) -> Nên trả về Access & Refresh Token', async () => {
