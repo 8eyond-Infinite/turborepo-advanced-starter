@@ -1,17 +1,17 @@
 import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
 import { Inject } from '@nestjs/common';
-import { GetUserByIdQuery } from '../get-user-by-id.query';
+import { GetUsersQuery } from '../get-users.query';
 import type { UserRepository } from '@iam/users/domain/ports/user.repository';
 import { UserEntity } from '@iam/users/domain/user.entity';
 
-@QueryHandler(GetUserByIdQuery)
-export class GetUserByIdQueryHandler implements IQueryHandler<GetUserByIdQuery> {
+@QueryHandler(GetUsersQuery)
+export class GetUsersQueryHandler implements IQueryHandler<GetUsersQuery> {
     constructor(
         @Inject('UserRepository')
         private readonly userRepository: UserRepository,
     ) { }
 
-    async execute(query: GetUserByIdQuery): Promise<UserEntity | null> {
-        return await this.userRepository.findById(query.id);
+    async execute(query: GetUsersQuery): Promise<UserEntity[]> {
+        return await this.userRepository.findAll();
     }
 }

@@ -70,4 +70,44 @@ describe('AuthController (E2E)', () => {
                 expect(res.body).toHaveProperty('refreshToken');
             });
     });
+
+    it('/users/me (GET) -> Nên lấy được thông tin cá nhân của người dùng đăng nhập', async () => {
+        const loginRes = await request(app.getHttpServer())
+            .post('/auth/login')
+            .send({
+                email: testEmail,
+                password: testPassword,
+            })
+            .expect(200);
+
+        const { accessToken } = loginRes.body;
+
+        const response = await request(app.getHttpServer())
+            .get('/users/me')
+            .set('Authorization', `Bearer ${accessToken}`)
+            .expect(200);
+
+        expect(response.body).toHaveProperty('id');
+        expect(response.body.email).toEqual(testEmail);
+    });
+
+    it('/users (GET) -> Nên lấy được danh sách user vì mặc định có quyền user:read', async () => {
+        const loginRes = await request(app.getHttpServer())
+            .post('/auth/login')
+            .send({
+                email: testEmail,
+                password: testPassword,
+            })
+            .expect(200);
+
+        const { accessToken } = loginRes.body;
+
+        const response = await request(app.getHttpServer())
+            .get('/users')
+            .set('Authorization', `Bearer ${accessToken}`)
+            .expect(200);
+
+        expect(Array.isArray(response.body)).toBe(true);
+        expect(response.body.length).toBeGreaterThan(0);
+    });
 });

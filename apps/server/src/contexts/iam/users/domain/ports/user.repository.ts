@@ -5,4 +5,5 @@ export interface UserRepository {
     findById(id: string): Promise<UserEntity | null>;
     findByEmail(email: string): Promise<UserEntity | null>;
     getPermissions(userId: string): Promise<string[]>;
+    findAll(): Promise<UserEntity[]>;
 }

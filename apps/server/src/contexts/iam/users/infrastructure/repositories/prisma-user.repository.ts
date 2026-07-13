@@ -89,4 +89,11 @@ export class PrismaUserRepository implements UserRepository {
         }
         return Array.from(permissions);
     }
+
+    async findAll(): Promise<UserEntity[]> {
+        const raws = await this.prisma.user.findMany({
+            where: { isDeleted: false },
+        });
+        return raws.map((raw) => UserMapper.toDomain(raw));
+    }
 }
