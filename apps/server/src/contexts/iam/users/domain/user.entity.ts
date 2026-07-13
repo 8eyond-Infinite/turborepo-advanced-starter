@@ -1,3 +1,6 @@
+import { UserRegisteredEvent } from './events/user-registered.event';
+import { DomainEvent } from '@shared/domain/events/domain-event';
+
 export interface UserProps {
     id: string;
     email: string;
@@ -10,18 +13,32 @@ export interface UserProps {
     updatedBy?: string | null;
 }
 
+import { InvalidEmailException } from './exceptions/invalid-email.exception';
+
 export class UserEntity {
+    private domainEvents: DomainEvent[] = [];
+
     private constructor(private readonly props: UserProps) { }
+
+    public addDomainEvent(event: DomainEvent): void {
+        this.domainEvents.push(event);
+    }
+
+    public pullDomainEvents(): DomainEvent[] {
+        const events = [...this.domainEvents];
+        this.domainEvents = [];
+        return events;
+    }
 
     public static create(props: UserProps): UserEntity {
         if (!props.email.includes('@')) {
-            throw new Error('Invalid email format');
+            throw new InvalidEmailException(props.email);
         }
         return new UserEntity(props);
     }
 
     public static register(props: { id: string; email: string; passwordHash: string; createdBy?: string }): UserEntity {
-        return UserEntity.create({
+        const user = UserEntity.create({
             id: props.id,
             email: props.email,
             password: props.passwordHash,
@@ -32,6 +49,9 @@ export class UserEntity {
             createdBy: props.createdBy || null,
             updatedBy: null,
         });
+
+        user.addDomainEvent(new UserRegisteredEvent(user.id, user.email));
+        return user;
     }
 
     public get id(): string { return this.props.id; }

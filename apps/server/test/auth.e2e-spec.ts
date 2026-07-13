@@ -37,7 +37,7 @@ describe('AuthController (E2E)', () => {
             })
             .expect(201);
 
-        expect(response.body.message).toEqual('User registered successfully');
+        expect(response.body.email).toEqual(testEmail);
 
         // Verify that the welcome email job was added to BullMQ
         const userQueue = app.get<Queue>(getQueueToken(USER_QUEUE));

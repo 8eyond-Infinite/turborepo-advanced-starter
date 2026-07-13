@@ -5,6 +5,7 @@ import { AppService } from './app.service';
 import { PrismaModule } from '@shared/infrastructure/prisma/prisma.module';
 import { RedisModule } from '@shared/infrastructure/cache/redis.module';
 import { QueueModule } from '@shared/infrastructure/queue/queue.module';
+import { EventDispatcherModule } from '@shared/infrastructure/event/event-dispatcher.module';
 import { IamModule } from './contexts/iam/iam.module';
 
 @Module({
@@ -16,6 +17,7 @@ import { IamModule } from './contexts/iam/iam.module';
     PrismaModule,
     RedisModule,
     QueueModule,
+    EventDispatcherModule,
     IamModule,
   ],
   controllers: [AppController],
