@@ -89,6 +89,7 @@ describe('AuthController (E2E)', () => {
 
         expect(response.body).toHaveProperty('id');
         expect(response.body.email).toEqual(testEmail);
+        expect(response.body).not.toHaveProperty('password');
     });
 
     it('/users (GET) -> Nên lấy được danh sách user vì mặc định có quyền user:read', async () => {
@@ -109,5 +110,6 @@ describe('AuthController (E2E)', () => {
 
         expect(Array.isArray(response.body)).toBe(true);
         expect(response.body.length).toBeGreaterThan(0);
+        expect(response.body[0]).not.toHaveProperty('password');
     });
 });

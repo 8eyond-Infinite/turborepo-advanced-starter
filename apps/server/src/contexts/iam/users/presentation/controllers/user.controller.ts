@@ -15,7 +15,9 @@ export class UserController {
     @Get('me')
     async getMe(@GetUser('id') userId: string) {
         const user = await this.queryBus.execute(new GetUserByIdQuery(userId));
-        return user ? user.toPrimitives() : null;
+        if (!user) return null;
+        const { password, ...safeUser } = user.toPrimitives();
+        return safeUser;
     }
 
     @Get()
@@ -23,6 +25,9 @@ export class UserController {
     @RequirePermissions('user:read')
     async getUsers() {
         const users = await this.queryBus.execute(new GetUsersQuery());
-        return users.map((user: any) => user.toPrimitives());
+        return users.map((user: any) => {
+            const { password, ...safeUser } = user.toPrimitives();
+            return safeUser;
+        });
     }
 }
