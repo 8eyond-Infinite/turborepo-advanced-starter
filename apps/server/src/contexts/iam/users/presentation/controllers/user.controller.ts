@@ -6,6 +6,7 @@ import { RequirePermissions } from '../../../auth/application/decorators/permiss
 import { GetUser } from '@shared/infrastructure/decorators/get-user.decorator';
 import { GetUsersQuery } from '../../application/queries/get-users.query';
 import { GetUserByIdQuery } from '../../application/queries/get-user-by-id.query';
+import { UserPresenter } from '../presenters/user.presenter';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard)
@@ -15,9 +16,7 @@ export class UserController {
     @Get('me')
     async getMe(@GetUser('id') userId: string) {
         const user = await this.queryBus.execute(new GetUserByIdQuery(userId));
-        if (!user) return null;
-        const { password, ...safeUser } = user.toPrimitives();
-        return safeUser;
+        return user ? UserPresenter.toResponse(user) : null;
     }
 
     @Get()
@@ -25,9 +24,6 @@ export class UserController {
     @RequirePermissions('user:read')
     async getUsers() {
         const users = await this.queryBus.execute(new GetUsersQuery());
-        return users.map((user: any) => {
-            const { password, ...safeUser } = user.toPrimitives();
-            return safeUser;
-        });
+        return users.map((user: any) => UserPresenter.toResponse(user));
     }
 }
