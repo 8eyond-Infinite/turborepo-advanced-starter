@@ -48,7 +48,7 @@ services:
     ports:
       - "3002:3002"
     env_file:
-      - .env
+      - ./apps/server/.env
     environment:
       DATABASE_URL: postgresql://postgres:password@postgres:5432/starter_db?schema=public
       REDIS_HOST: redis
