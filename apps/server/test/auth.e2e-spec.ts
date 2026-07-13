@@ -49,4 +49,25 @@ describe('AuthController (E2E)', () => {
                 expect(res.body).toHaveProperty('refreshToken');
             });
     });
+
+    it('/auth/refresh (POST) -> Nên làm mới token thành công', async () => {
+        const loginRes = await request(app.getHttpServer())
+            .post('/auth/login')
+            .send({
+                email: testEmail,
+                password: testPassword,
+            })
+            .expect(200);
+
+        const { refreshToken } = loginRes.body;
+
+        return request(app.getHttpServer())
+            .post('/auth/refresh')
+            .set('Authorization', `Bearer ${refreshToken}`)
+            .expect(200)
+            .expect((res) => {
+                expect(res.body).toHaveProperty('accessToken');
+                expect(res.body).toHaveProperty('refreshToken');
+            });
+    });
 });

@@ -11,6 +11,7 @@
     "dev:admin": "turbo run dev --filter=admin",
     "db:generate": "dotenv -e .env -- pnpm --filter=@repo/database db:generate",
     "db:migrate": "dotenv -e .env -- pnpm --filter=@repo/database db:migrate",
+    "db:seed": "dotenv -e .env -- pnpm --filter=@repo/database db:seed",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo run check-types"

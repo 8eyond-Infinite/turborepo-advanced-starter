@@ -19,16 +19,24 @@
         "build": "tsup",
         "dev": "tsup --watch",
         "clean": "rimraf dist",
-        "db:generate": "dotenv -e .env -- prisma generate",
-        "db:migrate": "dotenv -e .env -- prisma migrate dev"
+        "db:generate": "prisma generate",
+        "db:migrate": "prisma migrate dev",
+        "db:seed": "prisma db seed"
+    },
+    "prisma": {
+        "seed": "ts-node prisma/seed.ts"
     },
     "dependencies": {
         "@prisma/client": "^7.8.0"
     },
     "devDependencies": {
+        "@prisma/adapter-pg": "^7.8.0",
         "@repo/typescript-config": "workspace:*",
         "@types/node": "^26.1.1",
+        "@types/pg": "^8.20.0",
+        "pg": "^8.22.0",
         "prisma": "^7.8.0",
+        "ts-node": "^10.9.2",
         "tsup": "^8",
         "typescript": "^5.9.2"
     }

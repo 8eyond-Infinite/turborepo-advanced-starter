@@ -4,6 +4,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { RegisterHandler } from './application/commands/handlers/register.handler';
 import { LoginQueryHandler } from './application/queries/handlers/login.handler';
+import { RefreshQueryHandler } from './application/queries/handlers/refresh.handler';
 import { UsersModule } from '../users/users.module';
 import { AuthController } from './presentation/controllers/auth.controller';
 import { JwtStrategy } from './application/strategies/jwt.strategy';
@@ -20,6 +21,7 @@ import { JwtRefreshStrategy } from './application/strategies/jwt-refresh.strateg
     providers: [
         RegisterHandler,
         LoginQueryHandler,
+        RefreshQueryHandler,
         JwtStrategy,
         JwtRefreshStrategy,
     ],

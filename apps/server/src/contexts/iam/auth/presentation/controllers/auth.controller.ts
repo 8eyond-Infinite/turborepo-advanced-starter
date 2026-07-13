@@ -1,8 +1,10 @@
-import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards, Req } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { RegisterDto, LoginDto } from '../../application/dtos';
 import { RegisterCommand } from '../../application/commands/register.command';
 import { LoginQuery } from '../../application/queries/login.query';
+import { RefreshQuery } from '../../application/queries/refresh.query';
+import { JwtRefreshAuthGuard } from '../../application/guards/jwt-refresh-auth.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -22,5 +24,13 @@ export class AuthController {
     @HttpCode(HttpStatus.OK)
     async login(@Body() dto: LoginDto) {
         return await this.queryBus.execute(new LoginQuery(dto.email, dto.password));
+    }
+
+    @UseGuards(JwtRefreshAuthGuard)
+    @Post('refresh')
+    @HttpCode(HttpStatus.OK)
+    async refresh(@Req() req: any) {
+        const { user } = req;
+        return await this.queryBus.execute(new RefreshQuery(user.user.id, user.user.email));
     }
 }
