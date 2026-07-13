@@ -1,11 +1,14 @@
 import { UserRegisteredEvent } from './events/user-registered.event';
 import { DomainEvent } from '@shared/domain/events/domain-event';
 import { AggregateRoot } from '@shared/domain/aggregate-root';
+import { UserId } from './value-objects/user-id.value-object';
+import { Email } from './value-objects/email.value-object';
+import { Password } from './value-objects/password.value-object';
 
 export interface UserProps {
-    id: string;
-    email: string;
-    password: string;
+    id: UserId;
+    email: Email;
+    password: Password;
     isActive: boolean;
     isDeleted: boolean;
     createdAt: Date;
@@ -14,25 +17,20 @@ export interface UserProps {
     updatedBy?: string | null;
 }
 
-import { InvalidEmailException } from './exceptions/invalid-email.exception';
-
 export class UserEntity extends AggregateRoot {
     private constructor(private readonly props: UserProps) {
         super();
     }
 
     public static create(props: UserProps): UserEntity {
-        if (!props.email.includes('@')) {
-            throw new InvalidEmailException(props.email);
-        }
         return new UserEntity(props);
     }
 
     public static register(props: { id: string; email: string; passwordHash: string; createdBy?: string }): UserEntity {
         const user = UserEntity.create({
-            id: props.id,
-            email: props.email,
-            password: props.passwordHash,
+            id: new UserId(props.id),
+            email: new Email(props.email),
+            password: new Password(props.passwordHash),
             isActive: true,
             isDeleted: false,
             createdAt: new Date(),
@@ -45,9 +43,9 @@ export class UserEntity extends AggregateRoot {
         return user;
     }
 
-    public get id(): string { return this.props.id; }
-    public get email(): string { return this.props.email; }
-    public get password(): string { return this.props.password; }
+    public get id(): string { return this.props.id.value; }
+    public get email(): string { return this.props.email.value; }
+    public get password(): string { return this.props.password.value; }
     public get isActive(): boolean { return this.props.isActive; }
     public get isDeleted(): boolean { return this.props.isDeleted; }
     public get createdAt(): Date { return this.props.createdAt; }
@@ -80,7 +78,17 @@ export class UserEntity extends AggregateRoot {
         this.props.updatedAt = new Date();
     }
 
-    public toPrimitives(): UserProps {
-        return { ...this.props };
+    public toPrimitives(): any {
+        return {
+            id: this.props.id.value,
+            email: this.props.email.value,
+            password: this.props.password.value,
+            isActive: this.props.isActive,
+            isDeleted: this.props.isDeleted,
+            createdAt: this.props.createdAt,
+            updatedAt: this.props.updatedAt,
+            createdBy: this.props.createdBy,
+            updatedBy: this.props.updatedBy,
+        };
     }
 }
