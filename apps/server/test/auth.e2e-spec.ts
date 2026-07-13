@@ -3,6 +3,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { DomainExceptionFilter } from '../src/shared/infrastructure/filters/domain-exception.filter';
+import { RedisService } from '../src/shared/infrastructure/cache/redis.service';
 
 describe('AuthController (E2E)', () => {
     let app: INestApplication;
@@ -90,6 +91,13 @@ describe('AuthController (E2E)', () => {
         expect(response.body).toHaveProperty('id');
         expect(response.body.email).toEqual(testEmail);
         expect(response.body).not.toHaveProperty('password');
+
+        // Verify that the response is cached in Redis
+        const redisService = app.get(RedisService);
+        const cacheKey = `users:me:${response.body.id}`;
+        const cachedData = await redisService.get<any>(cacheKey);
+        expect(cachedData).toBeDefined();
+        expect(cachedData).toHaveProperty('email', testEmail);
     });
 
     it('/users (GET) -> Nên lấy được danh sách user vì mặc định có quyền user:read', async () => {
