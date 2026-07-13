@@ -11,23 +11,41 @@ export class PrismaUserRepository implements UserRepository {
     async save(user: UserEntity): Promise<void> {
         const data = user.toPrimitives();
 
-        await this.prisma.user.upsert({
-            where: { id: data.id },
-            update: {
-                email: data.email,
-                password: data.password,
-                isActive: data.isActive,
-                isDeleted: data.isDeleted,
-                updatedBy: data.updatedBy,
-            },
-            create: {
-                id: data.id,
-                email: data.email,
-                password: data.password,
-                isActive: data.isActive,
-                isDeleted: data.isDeleted,
-                createdBy: data.createdBy,
-            },
+        await this.prisma.$transaction(async (tx) => {
+            const isNewUser = !(await tx.user.findFirst({ where: { id: data.id } }));
+
+            await tx.user.upsert({
+                where: { id: data.id },
+                update: {
+                    email: data.email,
+                    password: data.password,
+                    isActive: data.isActive,
+                    isDeleted: data.isDeleted,
+                    updatedBy: data.updatedBy,
+                },
+                create: {
+                    id: data.id,
+                    email: data.email,
+                    password: data.password,
+                    isActive: data.isActive,
+                    isDeleted: data.isDeleted,
+                    createdBy: data.createdBy,
+                },
+            });
+
+            if (isNewUser) {
+                const defaultRole = await tx.role.findFirst({
+                    where: { name: 'USER' },
+                });
+                if (defaultRole) {
+                    await tx.userRole.create({
+                        data: {
+                            userId: data.id,
+                            roleId: defaultRole.id,
+                        },
+                    });
+                }
+            }
         });
     }
 
