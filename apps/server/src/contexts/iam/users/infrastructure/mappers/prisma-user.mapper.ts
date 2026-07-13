@@ -1,7 +1,7 @@
 import { User as PrismaUser } from '@repo/database';
 import { UserEntity } from '../../domain/user.entity';
 
-export class UserMapper {
+export class PrismaUserMapper {
     public static toDomain(raw: PrismaUser): UserEntity {
         return UserEntity.create({
             id: raw.id,

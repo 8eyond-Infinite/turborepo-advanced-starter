@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@shared/infrastructure/prisma/prisma.service';
 import { UserRepository } from '../../domain/ports/user.repository';
 import { UserEntity } from '../../domain/user.entity';
-import { UserMapper } from '../mappers/user.mapper';
+import { PrismaUserMapper } from '../mappers/prisma-user.mapper';
 import * as crypto from 'crypto';
 
 @Injectable()
@@ -54,14 +54,14 @@ export class PrismaUserRepository implements UserRepository {
         const raw = await this.prisma.user.findFirst({
             where: { id, isDeleted: false }
         });
-        return raw ? UserMapper.toDomain(raw) : null;
+        return raw ? PrismaUserMapper.toDomain(raw) : null;
     }
 
     async findByEmail(email: string): Promise<UserEntity | null> {
         const raw = await this.prisma.user.findFirst({
             where: { email, isDeleted: false }
         });
-        return raw ? UserMapper.toDomain(raw) : null;
+        return raw ? PrismaUserMapper.toDomain(raw) : null;
     }
 
     async getPermissions(userId: string): Promise<string[]> {
@@ -95,7 +95,7 @@ export class PrismaUserRepository implements UserRepository {
         const raws = await this.prisma.user.findMany({
             where: { isDeleted: false },
         });
-        return raws.map((raw) => UserMapper.toDomain(raw));
+        return raws.map((raw) => PrismaUserMapper.toDomain(raw));
     }
 
     nextIdentity(): string {
