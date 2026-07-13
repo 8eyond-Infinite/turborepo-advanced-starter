@@ -1,5 +1,6 @@
 import { UserRegisteredEvent } from './events/user-registered.event';
 import { DomainEvent } from '@shared/domain/events/domain-event';
+import { AggregateRoot } from '@shared/domain/aggregate-root';
 
 export interface UserProps {
     id: string;
@@ -15,19 +16,9 @@ export interface UserProps {
 
 import { InvalidEmailException } from './exceptions/invalid-email.exception';
 
-export class UserEntity {
-    private domainEvents: DomainEvent[] = [];
-
-    private constructor(private readonly props: UserProps) { }
-
-    public addDomainEvent(event: DomainEvent): void {
-        this.domainEvents.push(event);
-    }
-
-    public pullDomainEvents(): DomainEvent[] {
-        const events = [...this.domainEvents];
-        this.domainEvents = [];
-        return events;
+export class UserEntity extends AggregateRoot {
+    private constructor(private readonly props: UserProps) {
+        super();
     }
 
     public static create(props: UserProps): UserEntity {
