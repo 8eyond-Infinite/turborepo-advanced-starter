@@ -3,6 +3,7 @@ import { PrismaService } from '@shared/infrastructure/prisma/prisma.service';
 import { UserRepository } from '../../domain/ports/user.repository';
 import { UserEntity } from '../../domain/user.entity';
 import { UserMapper } from '../mappers/user.mapper';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class PrismaUserRepository implements UserRepository {
@@ -95,5 +96,23 @@ export class PrismaUserRepository implements UserRepository {
             where: { isDeleted: false },
         });
         return raws.map((raw) => UserMapper.toDomain(raw));
+    }
+
+    nextIdentity(): string {
+        return crypto.randomUUID();
+    }
+
+    async exists(id: string): Promise<boolean> {
+        const count = await this.prisma.user.count({
+            where: { id, isDeleted: false },
+        });
+        return count > 0;
+    }
+
+    async delete(id: string): Promise<void> {
+        await this.prisma.user.update({
+            where: { id },
+            data: { isDeleted: true },
+        });
     }
 }

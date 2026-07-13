@@ -3,7 +3,6 @@ import { Inject } from '@nestjs/common';
 import { RegisterCommand } from '../register.command';
 import { UserEntity } from '@iam/users/domain/user.entity';
 import { UserAlreadyExistsException } from '@iam/users/domain/exceptions/user-already-exists.exception';
-import * as crypto from 'crypto';
 import { Result } from '@shared/domain/result';
 import { DomainException } from '@shared/domain/exceptions/domain.exception';
 import { DomainEventDispatcher } from '@shared/application/events/domain-event-dispatcher';
@@ -32,7 +31,7 @@ export class RegisterHandler implements ICommandHandler<RegisterCommand, Result<
         const passwordHash = await this.passwordHasher.hash(passwordRaw);
 
         const user = UserEntity.register({
-            id: crypto.randomUUID(),
+            id: this.userRepository.nextIdentity(),
             email,
             passwordHash,
         });
