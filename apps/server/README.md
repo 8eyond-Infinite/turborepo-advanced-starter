@@ -1,98 +1,122 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Turborepo Advanced Starter - API Server
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Dịch vụ Backend API Server được xây dựng trên nền tảng **NestJS**, áp dụng triết lý thiết kế **Clean Architecture (Hexagonal Architecture)** kết hợp với các mẫu thiết kế cao cấp: **DDD (Domain-Driven Design)**, **CQRS (Command Query Responsibility Segregation)**, **EDA (Event-Driven Architecture)**, **Redis Caching**, và hàng đợi **BullMQ Worker**.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+---
 
-## Description
+## 1. Luồng Giao Tiếp Hệ Thống (Request & Event Flow)
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+Sự kết hợp giữa Clean Architecture, CQRS và EDA giúp hệ thống phân tách rạch ròi trách nhiệm của từng Layer:
 
-## Project setup
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Client
+    participant Presentation as Tầng Presentation<br/>(Controller, DTO, Presenter)
+    participant Application as Tầng Application<br/>(Commands/Queries Handlers)
+    participant Domain as Tầng Domain<br/>(Entities, Value Objects, Ports)
+    participant Infra as Tầng Infrastructure<br/>(Repository Impl, Queue, Redis)
 
-```bash
-$ pnpm install
+    Client->>Presentation: POST /auth/register { email, password }
+    Note over Presentation: Validate dữ liệu đầu vào (DTO)<br/>bằng class-validator
+    Presentation->>Application: Dispatch RegisterCommand
+    
+    Note over Application: Thực thi RegisterHandler
+    Application->>Infra: Check trùng bằng userRepository.findByEmail()
+    Infra-->>Application: Trả về kết quả
+    
+    Note over Application: Khởi tạo UserEntity
+    Note over Domain: Khởi tạo UserId, Email, Password VOs<br/>(Tự động Validate định dạng)
+    Note over Domain: Đăng ký UserRegisteredEvent vào thực thể
+    
+    Application->>Infra: Lưu thực thể bằng userRepository.save(user)
+    Application->>Infra: domainEventDispatcher.dispatch(user)
+    
+    Note over Infra: Bắn UserRegisteredEvent ra EventBus
+    Note over Infra: UserRegisteredEventHandler bắt sự kiện<br/>và đẩy Job vào BullMQ (Redis)
+    
+    Application-->>Presentation: Trả về Result.ok(user)
+    Note over Presentation: Unwrap Result<br/>(Throw DomainException nếu lỗi)
+    Note over Presentation: Định dạng qua UserPresenter
+    Presentation-->>Client: Trả về JSON thông tin User (201 Created)
+
+    Note over Infra: Asynchronous Job Worker<br/>(UserQueueProcessor chạy ngầm gửi email)
 ```
 
-## Compile and run the project
+---
 
-```bash
-# development
-$ pnpm run start
+## 2. Cấu Trúc Thư Mục và Trách Nhiệm File
 
-# watch mode
-$ pnpm run start:dev
+Mã nguồn được phân bổ trong thư mục `src/` theo cấu trúc Modular Contexts:
 
-# production mode
-$ pnpm run start:prod
+```text
+src/
+├── app.module.ts                         # Module khởi chạy ứng dụng
+├── main.ts                               # Điểm bắt đầu (Bootstrap), cấu hình Swagger và Exception Filters
+├── shared/                               # Các thành phần dùng chung toàn cục
+│   ├── domain/
+│   │   ├── aggregate-root.ts             # Lớp cơ sở AggregateRoot quản lý Domain Events
+│   │   ├── result.ts                     # Wrapper Result Pattern xử lý lỗi nghiệp vụ an toàn
+│   │   └── events/domain-event.ts        # Lớp cơ sở Type-safe Domain Event
+│   ├── application/
+│   │   └── events/domain-event-dispatcher.ts # Trích xuất và phát Domain Events toàn cục
+│   └── infrastructure/
+│       ├── cache/                        # Cấu hình Redis Caching & Cache Interceptor
+│       ├── queue/                        # Cấu hình BullMQ Queue Module
+│       └── filters/                      # DomainExceptionFilter ánh xạ lỗi Domain thành lỗi HTTP (400, 401, 403, 409)
+└── contexts/                             # Ranh giới ngữ cảnh nghiệp vụ (Bounded Contexts)
+    └── iam/                              # Ngữ cảnh Quản lý Định danh & Quyền hạn (Identity & Access Management)
+        ├── auth/                         # Nghiệp vụ xác thực (Đăng ký, Đăng nhập, Refresh Token)
+        │   ├── application/              # Use Cases (Commands, Queries)
+        │   └── presentation/             # HTTP boundary (Controllers, DTOs)
+        └── users/                        # Nghiệp vụ quản lý tài khoản người dùng
+            ├── domain/                   # Lõi nghiệp vụ (Entities, Value Objects, Ports)
+            │   ├── user.entity.ts        # Aggregate Root của User
+            │   ├── value-objects/        # UserId, Email, Password Value Objects
+            │   ├── ports/                # Cổng giao tiếp UserRepository (Interface)
+            │   └── exceptions/           # Lỗi nghiệp vụ chuyên biệt (UserAlreadyExists, InvalidEmail,...)
+            ├── application/              # Hàng đợi (Queues) và Event Handlers
+            └── infrastructure/           # Database adapter (PrismaUserRepository, PrismaUserMapper)
 ```
 
-## Run tests
+---
 
+## 3. Triết Lý Thiết Kế Chính
+
+### 3.1. Persistence Ignorance & Ports
+Tầng **Domain** không biết cơ sở dữ liệu phía sau là gì. Nó chỉ định nghĩa cổng **`UserRepository`** (interface). Tầng **Infrastructure** sẽ dùng Prisma để hiện thực cổng này qua **`PrismaUserRepository`**.
+Tầng Application sử dụng **`nextIdentity()`** của Repository để sinh ID, loại bỏ sự phụ thuộc vào các thư viện bên ngoài như UUID hay Crypto trong tầng nghiệp vụ chính.
+
+### 3.2. Value Objects
+Các trường dữ liệu quan trọng như Email, Password, UserId không lưu dưới dạng `string` thô mà được đóng gói trong các **Value Object** chuyên biệt để tự validate tính hợp lệ ngay khi khởi tạo.
+
+### 3.3. Advanced Result Pattern
+Thay vì ném lỗi (`throw Error`) bừa bãi trong tầng nghiệp vụ, các Handler trả về một Wrapper dạng **`Result<T, E>`**. 
+Ở Controller, ta chỉ cần gọi `.unwrap()`. Nếu Use Case thất bại, nó sẽ tự động ném ra lỗi `DomainException` và được bộ lọc toàn cục **`DomainExceptionFilter`** ánh xạ trực tiếp sang mã HTTP thích hợp (ví dụ: `InvalidEmailException` ➔ `400 Bad Request`, `UserAlreadyExistsException` ➔ `409 Conflict`).
+
+### 3.4. Decoupled Event-Driven Architecture (EDA)
+Khi đăng ký thành công, `RegisterHandler` chỉ phát ra sự kiện `UserRegisteredEvent` được gắn trên chính thực thể User.
+Hệ thống bắn sự kiện này ra EventBus. Một listener độc lập **`UserRegisteredEventHandler`** bắt sự kiện này và đẩy job gửi email vào hàng đợi BullMQ. Việc này giúp tách rời hoàn toàn nghiệp vụ Đăng ký khỏi dịch vụ Gửi mail nền.
+
+---
+
+## 4. Hướng Dẫn Phát Triển (Developer Guide)
+
+### Khởi chạy môi trường Dev (với Docker Compose cho Postgres/Redis)
+1. Đảm bảo Docker đang chạy, sau đó chạy lệnh để khởi động DB & Redis:
+   ```bash
+   pnpm db:up
+   ```
+2. Khởi chạy server và các dự án vệ tinh ở chế độ watch mode:
+   ```bash
+   pnpm dev
+   ```
+
+### Chạy kiểm thử tự động (E2E Tests)
+Kiểm thử toàn bộ luồng đăng ký, đăng nhập, phân quyền, cache hit/miss và hàng đợi BullMQ:
 ```bash
-# unit tests
-$ pnpm run test
-
-# e2e tests
-$ pnpm run test:e2e
-
-# test coverage
-$ pnpm run test:cov
+pnpm --filter=server test:e2e
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+### Xem tài liệu API (Swagger UI)
+Truy cập trực tiếp tại: **`http://localhost:3001/api`** (hỗ trợ nhập Bearer Token để chạy thử trực tiếp các API cần bảo mật).
