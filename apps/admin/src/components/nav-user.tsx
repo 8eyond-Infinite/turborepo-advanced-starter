@@ -1,13 +1,23 @@
-import { useNavigate } from "react-router-dom"
-import { useAuthStore } from "@/features/auth/store/auth.store"
-import { ApiClient } from "@/lib/api-client"
+"use client"
+
+import {
+  BadgeCheck,
+  Bell,
+  ChevronsUpDown,
+  CreditCard,
+  LogOut,
+  Sparkles,
+} from "lucide-react"
+
 import {
   Avatar,
   AvatarFallback,
+  AvatarImage,
 } from "@/components/ui/avatar"
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -19,14 +29,23 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { ChevronsUpDownIcon, LogOutIcon, GlobeIcon } from "lucide-react"
 
-export function NavUser() {
+import { useNavigate } from "react-router-dom"
+import { useAuthStore } from "@/features/auth/store/auth.store"
+import { ApiClient } from "@/lib/api-client"
+
+export function NavUser({
+  user,
+}: {
+  user: {
+    name: string
+    email: string
+    avatar: string
+  }
+}) {
   const { isMobile } = useSidebar()
-  const { user, clearAuth } = useAuthStore()
+  const { clearAuth } = useAuthStore()
   const navigate = useNavigate()
-
-  if (!user) return null
 
   const handleLogout = async () => {
     try {
@@ -50,63 +69,74 @@ export function NavUser() {
     }
   }
 
-  const userInitials = user.email.substring(0, 2).toUpperCase()
-
   return (
     <SidebarMenu>
       <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <SidebarMenuButton size="lg" className="aria-expanded:bg-muted">
+            <SidebarMenuButton
+              size="lg"
+              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+            >
               <Avatar className="h-8 w-8 rounded-lg">
-                <AvatarFallback className="bg-zinc-800 text-zinc-300 text-xs">
-                  {userInitials}
-                </AvatarFallback>
+                <AvatarImage src={user.avatar} alt={user.name} />
+                <AvatarFallback className="rounded-lg">CN</AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold text-zinc-300">
-                  {user.email.split('@')[0]}
-                </span>
-                <span className="truncate text-xs text-zinc-500">{user.email}</span>
+                <span className="truncate font-medium">{user.name}</span>
+                <span className="truncate text-xs">{user.email}</span>
               </div>
-              <ChevronsUpDownIcon className="ml-auto size-4 text-zinc-500" />
+              <ChevronsUpDown className="ml-auto size-4" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
-            className="w-56 bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-xl p-1"
+            className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
             side={isMobile ? "bottom" : "right"}
             align="end"
             sideOffset={4}
           >
             <DropdownMenuLabel className="p-0 font-normal">
-              <div className="flex items-center gap-2 px-2 py-1.5 text-left text-sm">
+              <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg">
-                  <AvatarFallback className="bg-zinc-800 text-zinc-300 text-xs">
-                    {userInitials}
-                  </AvatarFallback>
+                  <AvatarImage src={user.avatar} alt={user.name} />
+                  <AvatarFallback className="rounded-lg">CN</AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold text-zinc-300">
-                    {user.email.split('@')[0]}
-                  </span>
-                  <span className="truncate text-xs text-zinc-500">{user.email}</span>
+                  <span className="truncate font-medium">{user.name}</span>
+                  <span className="truncate text-xs">{user.email}</span>
                 </div>
               </div>
             </DropdownMenuLabel>
-            <DropdownMenuSeparator className="bg-zinc-800" />
-            <DropdownMenuItem
-              onClick={handleLogout}
-              className="flex items-center gap-2 px-2 py-2 rounded-lg text-sm text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 cursor-pointer"
-            >
-              <LogOutIcon className="h-4 w-4 text-zinc-400" />
-              <span>Đăng xuất</span>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuItem>
+                <Sparkles />
+                Upgrade to Pro
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuItem>
+                <BadgeCheck />
+                Account
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <CreditCard />
+                Billing
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <Bell />
+                Notifications
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-zinc-300 hover:text-zinc-100">
+              <LogOut />
+              Log out
             </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={handleGlobalLogout}
-              className="flex items-center gap-2 px-2 py-2 rounded-lg text-sm text-red-400 hover:bg-red-950/30 hover:text-red-300 cursor-pointer"
-            >
-              <GlobeIcon className="h-4 w-4 text-red-500" />
-              <span>Đăng xuất toàn cầu</span>
+            <DropdownMenuItem onClick={handleGlobalLogout} className="cursor-pointer text-red-400 hover:text-red-300">
+              <LogOut className="text-red-500" />
+              Log out globally
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
