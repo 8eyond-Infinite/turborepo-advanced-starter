@@ -57,7 +57,8 @@ export class AuthController {
     @ApiResponse({ status: 401, description: 'Invalid refresh token' })
     async refresh(@Req() req: any) {
         const { user } = req;
-        return await this.queryBus.execute(new RefreshQuery(user.user.id, user.user.email, user.jti));
+        const result = await this.queryBus.execute(new RefreshQuery(user.user.id, user.user.email, user.jti));
+        return result.unwrap();
     }
 
     @UseGuards(JwtRefreshAuthGuard)
@@ -69,7 +70,8 @@ export class AuthController {
     @ApiResponse({ status: 401, description: 'Invalid refresh token' })
     async logout(@Req() req: any) {
         const { user } = req;
-        await this.commandBus.execute(new LogoutCommand(user.user.id, user.jti));
+        const result = await this.commandBus.execute(new LogoutCommand(user.user.id, user.jti));
+        result.unwrap();
         return { success: true };
     }
 
@@ -82,7 +84,8 @@ export class AuthController {
     @ApiResponse({ status: 401, description: 'Invalid access token' })
     async logoutAll(@Req() req: any) {
         const { user } = req;
-        await this.commandBus.execute(new LogoutAllCommand(user.id));
+        const result = await this.commandBus.execute(new LogoutAllCommand(user.id));
+        result.unwrap();
         return { success: true };
     }
 }

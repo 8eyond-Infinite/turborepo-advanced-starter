@@ -3,10 +3,12 @@ import { Inject } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { RefreshQuery } from '../refresh.query';
 import { RedisService } from '@shared/infrastructure/cache/redis.service';
+import { Result } from '@shared/domain/result';
+import { DomainException } from '@shared/domain/exceptions/domain.exception';
 import type { UserRepository } from '@iam/users/domain/ports/user.repository';
 
 @QueryHandler(RefreshQuery)
-export class RefreshQueryHandler implements IQueryHandler<RefreshQuery, { accessToken: string; refreshToken: string }> {
+export class RefreshQueryHandler implements IQueryHandler<RefreshQuery, Result<{ accessToken: string; refreshToken: string }, DomainException>> {
     constructor(
         private readonly jwtService: JwtService,
         @Inject('UserRepository')
@@ -14,7 +16,7 @@ export class RefreshQueryHandler implements IQueryHandler<RefreshQuery, { access
         private readonly redisService: RedisService,
     ) { }
 
-    async execute(query: RefreshQuery): Promise<{ accessToken: string; refreshToken: string }> {
+    async execute(query: RefreshQuery): Promise<Result<{ accessToken: string; refreshToken: string }, DomainException>> {
         const { userId, email, jti: oldJti } = query;
 
         const newJti = this.userRepository.nextIdentity();
@@ -37,6 +39,6 @@ export class RefreshQueryHandler implements IQueryHandler<RefreshQuery, { access
         // Delete old refresh token (rotation)
         await this.redisService.del(`refresh_token:${userId}:${oldJti}`);
 
-        return { accessToken, refreshToken };
+        return Result.ok({ accessToken, refreshToken });
     }
 }
