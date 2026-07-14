@@ -6,6 +6,7 @@ import { InvalidCredentialsException } from '@iam/users/domain/exceptions/invali
 import { UserDeactivatedException } from '@iam/users/domain/exceptions/user-deactivated.exception';
 import { Result } from '@shared/domain/result';
 import { DomainException } from '@shared/domain/exceptions/domain.exception';
+import { RedisService } from '@shared/infrastructure/cache/redis.service';
 import type { UserRepository } from '@iam/users/domain/ports/user.repository';
 import type { PasswordHasher } from '@iam/users/domain/ports/password-hasher';
 
@@ -17,6 +18,7 @@ export class LoginQueryHandler implements IQueryHandler<LoginQuery, Result<{ acc
         @Inject('PasswordHasher')
         private readonly passwordHasher: PasswordHasher,
         private readonly jwtService: JwtService,
+        private readonly redisService: RedisService,
     ) { }
 
     async execute(query: LoginQuery): Promise<Result<{ accessToken: string; refreshToken: string }, DomainException>> {
@@ -36,17 +38,22 @@ export class LoginQueryHandler implements IQueryHandler<LoginQuery, Result<{ acc
             return Result.fail(new InvalidCredentialsException());
         }
 
-        const payload = { sub: user.id, email: user.email };
+        const jti = this.userRepository.nextIdentity();
+        const accessPayload = { sub: user.id, email: user.email };
+        const refreshPayload = { sub: user.id, email: user.email, jti };
 
-        const accessToken = this.jwtService.sign(payload, {
+        const accessToken = this.jwtService.sign(accessPayload, {
             secret: process.env.JWT_ACCESS_SECRET,
             expiresIn: '15m',
         });
 
-        const refreshToken = this.jwtService.sign(payload, {
+        const refreshToken = this.jwtService.sign(refreshPayload, {
             secret: process.env.JWT_REFRESH_SECRET,
             expiresIn: '7d',
         });
+
+        // Store refresh token whitelist in Redis with a 7-day TTL
+        await this.redisService.set(`refresh_token:${user.id}:${jti}`, '1', 604800);
 
         return Result.ok({ accessToken, refreshToken });
     }

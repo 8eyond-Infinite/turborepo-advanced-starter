@@ -3,6 +3,8 @@ import { CqrsModule } from '@nestjs/cqrs';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { RegisterHandler } from './application/commands/handlers/register.handler';
+import { LogoutCommandHandler } from './application/commands/handlers/logout.handler';
+import { LogoutAllCommandHandler } from './application/commands/handlers/logout-all.handler';
 import { LoginQueryHandler } from './application/queries/handlers/login.handler';
 import { RefreshQueryHandler } from './application/queries/handlers/refresh.handler';
 import { UsersModule } from '../users/users.module';
@@ -20,6 +22,8 @@ import { JwtRefreshStrategy } from './application/strategies/jwt-refresh.strateg
     controllers: [AuthController],
     providers: [
         RegisterHandler,
+        LogoutCommandHandler,
+        LogoutAllCommandHandler,
         LoginQueryHandler,
         RefreshQueryHandler,
         JwtStrategy,

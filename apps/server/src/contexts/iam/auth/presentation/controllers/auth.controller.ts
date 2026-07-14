@@ -11,8 +11,11 @@ import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { RegisterDto, LoginDto } from '../dtos';
 import { RegisterCommand } from '../../application/commands/register.command';
+import { LogoutCommand } from '../../application/commands/logout.command';
+import { LogoutAllCommand } from '../../application/commands/logout-all.command';
 import { LoginQuery } from '../../application/queries/login.query';
 import { RefreshQuery } from '../../application/queries/refresh.query';
+import { JwtAuthGuard } from '../../application/guards/jwt-auth.guard';
 import { JwtRefreshAuthGuard } from '../../application/guards/jwt-refresh-auth.guard';
 import { UserPresenter } from '@iam/users/presentation/presenters/user.presenter';
 
@@ -54,6 +57,32 @@ export class AuthController {
     @ApiResponse({ status: 401, description: 'Invalid refresh token' })
     async refresh(@Req() req: any) {
         const { user } = req;
-        return await this.queryBus.execute(new RefreshQuery(user.user.id, user.user.email));
+        return await this.queryBus.execute(new RefreshQuery(user.user.id, user.user.email, user.jti));
+    }
+
+    @UseGuards(JwtRefreshAuthGuard)
+    @Post('logout')
+    @HttpCode(HttpStatus.OK)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Logout from the current session' })
+    @ApiResponse({ status: 200, description: 'Successfully logged out' })
+    @ApiResponse({ status: 401, description: 'Invalid refresh token' })
+    async logout(@Req() req: any) {
+        const { user } = req;
+        await this.commandBus.execute(new LogoutCommand(user.user.id, user.jti));
+        return { success: true };
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Post('logout/global')
+    @HttpCode(HttpStatus.OK)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Logout from all devices / active sessions' })
+    @ApiResponse({ status: 200, description: 'Successfully logged out from all sessions' })
+    @ApiResponse({ status: 401, description: 'Invalid access token' })
+    async logoutAll(@Req() req: any) {
+        const { user } = req;
+        await this.commandBus.execute(new LogoutAllCommand(user.id));
+        return { success: true };
     }
 }

@@ -130,4 +130,95 @@ describe('AuthController (E2E)', () => {
         expect(response.body.length).toBeGreaterThan(0);
         expect(response.body[0]).not.toHaveProperty('password');
     });
+
+    it('/auth/refresh (POST) -> Đăng ký rotation: Token cũ phải không dùng lại được', async () => {
+        const loginRes = await request(app.getHttpServer())
+            .post('/auth/login')
+            .send({
+                email: testEmail,
+                password: testPassword,
+            })
+            .expect(200);
+
+        const { refreshToken: token1 } = loginRes.body;
+
+        // Lần 1: Refresh thành công
+        const refreshRes1 = await request(app.getHttpServer())
+            .post('/auth/refresh')
+            .set('Authorization', `Bearer ${token1}`)
+            .expect(200);
+
+        const { refreshToken: token2 } = refreshRes1.body;
+        expect(token2).toBeDefined();
+
+        // Lần 2: Dùng lại token1 (cũ) phải bị lỗi 401
+        await request(app.getHttpServer())
+            .post('/auth/refresh')
+            .set('Authorization', `Bearer ${token1}`)
+            .expect(401);
+    });
+
+    it('/auth/logout (POST) -> Đăng xuất đơn lẻ thành công', async () => {
+        const loginRes = await request(app.getHttpServer())
+            .post('/auth/login')
+            .send({
+                email: testEmail,
+                password: testPassword,
+            })
+            .expect(200);
+
+        const { refreshToken } = loginRes.body;
+
+        // Gọi logout với refresh token
+        await request(app.getHttpServer())
+            .post('/auth/logout')
+            .set('Authorization', `Bearer ${refreshToken}`)
+            .expect(200);
+
+        // Thử refresh lại phải bị lỗi 401
+        await request(app.getHttpServer())
+            .post('/auth/refresh')
+            .set('Authorization', `Bearer ${refreshToken}`)
+            .expect(401);
+    });
+
+    it('/auth/logout/global (POST) -> Đăng xuất tất cả thiết bị thành công', async () => {
+        // Tạo Session 1
+        const loginRes1 = await request(app.getHttpServer())
+            .post('/auth/login')
+            .send({
+                email: testEmail,
+                password: testPassword,
+            })
+            .expect(200);
+
+        // Tạo Session 2
+        const loginRes2 = await request(app.getHttpServer())
+            .post('/auth/login')
+            .send({
+                email: testEmail,
+                password: testPassword,
+            })
+            .expect(200);
+
+        const { accessToken: access1, refreshToken: refresh1 } = loginRes1.body;
+        const { refreshToken: refresh2 } = loginRes2.body;
+
+        // Gọi global logout sử dụng accessToken của Session 1
+        await request(app.getHttpServer())
+            .post('/auth/logout/global')
+            .set('Authorization', `Bearer ${access1}`)
+            .expect(200);
+
+        // Thử refresh cả 2 session đều phải lỗi 401
+        await request(app.getHttpServer())
+            .post('/auth/refresh')
+            .set('Authorization', `Bearer ${refresh1}`)
+            .expect(401);
+
+        await request(app.getHttpServer())
+            .post('/auth/refresh')
+            .set('Authorization', `Bearer ${refresh2}`)
+            .expect(401);
+    });
 });
