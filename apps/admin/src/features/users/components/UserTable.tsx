@@ -1,21 +1,26 @@
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ApiClient } from '@/lib/api-client';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
-import { RefreshCw, UserCheck, UserX, AlertCircle } from 'lucide-react';
+import { RefreshCw, UserCheck, UserX, AlertCircle, Search } from 'lucide-react';
 
 export const UserTable = () => {
     const queryClient = useQueryClient();
+    const [searchQuery, setSearchQuery] = useState('');
 
+    // 1. Fetch Users List using React Query
     const { data: users = [], isLoading, isError, error, refetch, isFetching } = useQuery<any[]>({
         queryKey: ['users'],
         queryFn: async () => {
             return await ApiClient.get<any[]>('/users');
         },
-        staleTime: 120000,
+        staleTime: 120000, // Matches 120s server cache TTL
     });
 
+    // 2. Deactivate User Mutation
     const deactivateMutation = useMutation({
         mutationFn: async (userId: string) => {
             return await ApiClient.patch(`/users/${userId}/deactivate`);
@@ -27,11 +32,21 @@ export const UserTable = () => {
 
     const handleToggleActive = (userId: string, currentActive: boolean) => {
         if (currentActive) {
-            deactivateMutation.mutate(userId);
+            const confirmed = window.confirm(
+                'Bạn có chắc chắn muốn khóa tài khoản này? Hành động này sẽ lập tức thu hồi toàn bộ token đăng nhập hợp lệ trong Redis Cache và buộc người dùng đăng xuất.'
+            );
+            if (confirmed) {
+                deactivateMutation.mutate(userId);
+            }
         } else {
             alert('Tính năng kích hoạt tài khoản đang được phát triển. Hiện tại backend chỉ hỗ trợ API Deactivate.');
         }
     };
+
+    // Filter users by search query
+    const filteredUsers = users.filter((user) =>
+        user.email.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
     if (isLoading) {
         return (
@@ -61,6 +76,7 @@ export const UserTable = () => {
 
     return (
         <div className="space-y-6">
+            {/* Header section */}
             <div className="flex items-center justify-between">
                 <div>
                     <h2 className="text-xl font-bold text-zinc-100">Danh sách người dùng</h2>
@@ -76,6 +92,18 @@ export const UserTable = () => {
                 </Button>
             </div>
 
+            {/* Filter Actions */}
+            <div className="flex items-center max-w-md relative">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+                <Input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Tìm kiếm người dùng theo email..."
+                    className="pl-10 pr-4 bg-zinc-900/20 border-zinc-800"
+                />
+            </div>
+
             {/* Users Table */}
             <div className="bg-zinc-900/40 border border-zinc-800/80 rounded-2xl overflow-hidden backdrop-blur">
                 <Table>
@@ -89,14 +117,14 @@ export const UserTable = () => {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {users.length === 0 ? (
+                        {filteredUsers.length === 0 ? (
                             <TableRow>
                                 <TableCell colSpan={5} className="py-12 text-center text-zinc-500">
-                                    Không có người dùng nào trên hệ thống.
+                                    {searchQuery ? 'Không tìm thấy người dùng nào khớp từ khóa.' : 'Không có người dùng nào trên hệ thống.'}
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            users.map((user) => (
+                            filteredUsers.map((user) => (
                                 <TableRow key={user.id}>
                                     <TableCell className="font-mono text-xs text-zinc-500">{user.id}</TableCell>
                                     <TableCell className="font-medium text-zinc-200">{user.email}</TableCell>
