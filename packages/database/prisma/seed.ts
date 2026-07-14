@@ -87,6 +87,34 @@ async function main() {
     });
   }
 
+  // 4. Seed Default Admin User
+  console.log('Seeding default Admin user...');
+  const adminUser = await prisma.user.upsert({
+    where: { email: 'admin@example.com' },
+    update: {},
+    create: {
+      email: 'admin@example.com',
+      password: '$2b$10$tZ216f9f3f.F8n4Jp1hMSuWqK9yLhEw0vG63hI1tB.g1rG5Rk3aL2', // adminpassword
+      isActive: true,
+      isDeleted: false,
+    },
+  });
+
+  // Assign ADMIN role
+  await prisma.userRole.upsert({
+    where: {
+      userId_roleId: {
+        userId: adminUser.id,
+        roleId: adminRole.id,
+      },
+    },
+    update: {},
+    create: {
+      userId: adminUser.id,
+      roleId: adminRole.id,
+    },
+  });
+
   console.log('Seeding finished successfully!');
 }
 

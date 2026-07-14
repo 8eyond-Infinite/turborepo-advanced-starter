@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Observable } from 'rxjs';
-import { tap } from 'rxjs/operators';
+import { mergeMap } from 'rxjs/operators';
 import { RedisService } from './redis.service';
 
 export const CACHE_INVALIDATE_METADATA = 'cache_invalidate';
@@ -22,7 +22,7 @@ export class CacheInvalidationInterceptor implements NestInterceptor {
     constructor(
         private readonly reflector: Reflector,
         private readonly redisService: RedisService,
-    ) {}
+    ) { }
 
     async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<any>> {
         const handler = context.getHandler();
@@ -31,9 +31,9 @@ export class CacheInvalidationInterceptor implements NestInterceptor {
         const invalidateKeys = this.reflector.getAllAndOverride<string[]>(CACHE_INVALIDATE_METADATA, [handler, controller]);
 
         return next.handle().pipe(
-            tap(async () => {
+            mergeMap(async (response) => {
                 if (!invalidateKeys || invalidateKeys.length === 0) {
-                    return;
+                    return response;
                 }
 
                 const request = context.switchToHttp().getRequest();
@@ -52,6 +52,8 @@ export class CacheInvalidationInterceptor implements NestInterceptor {
                         this.logger.error(`Error invalidating cache key ${key}: ${error.message}`);
                     }
                 }
+
+                return response;
             }),
         );
     }
@@ -66,14 +68,12 @@ export class CacheInvalidationInterceptor implements NestInterceptor {
             }
         }
 
-        // Replace query params, e.g. {queryParam}
         if (request.query) {
             for (const q of Object.keys(request.query)) {
                 key = key.replace(`{${q}}`, request.query[q]);
             }
         }
 
-        // Replace user ID, e.g. {userId}
         const user = request.user;
         if (user) {
             const actualUser = user.user || user;
