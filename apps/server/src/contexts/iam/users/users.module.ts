@@ -6,9 +6,11 @@ import { BcryptPasswordHasher } from './infrastructure/services/bcrypt-password-
 import { UserController } from './presentation/controllers/user.controller';
 import { GetUsersQueryHandler } from './application/queries/handlers/get-users.handler';
 import { GetUserByIdQueryHandler } from './application/queries/handlers/get-user-by-id.handler';
+import { DeactivateUserCommandHandler } from './application/commands/handlers/deactivate-user.handler';
 import { USER_QUEUE } from './application/queues/user-queue.constants';
 import { UserQueueProcessor } from './application/queues/user-queue.processor';
 import { UserRegisteredEventHandler } from './application/events/handlers/user-registered.event-handler';
+import { UserDeactivatedEventHandler } from './application/events/handlers/user-deactivated.event-handler';
 
 @Module({
     imports: [
@@ -27,8 +29,10 @@ import { UserRegisteredEventHandler } from './application/events/handlers/user-r
         },
         GetUsersQueryHandler,
         GetUserByIdQueryHandler,
+        DeactivateUserCommandHandler,
         UserQueueProcessor,
         UserRegisteredEventHandler,
+        UserDeactivatedEventHandler,
     ],
     exports: ['UserRepository', 'PasswordHasher', BullModule],
 })

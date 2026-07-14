@@ -4,6 +4,7 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { DomainExceptionFilter } from '../src/shared/infrastructure/filters/domain-exception.filter';
 import { RedisService } from '../src/shared/infrastructure/cache/redis.service';
+import { PrismaService } from '../src/shared/infrastructure/prisma/prisma.service';
 import { getQueueToken } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { USER_QUEUE } from '../src/contexts/iam/users/application/queues/user-queue.constants';
@@ -219,6 +220,83 @@ describe('AuthController (E2E)', () => {
         await request(app.getHttpServer())
             .post('/auth/refresh')
             .set('Authorization', `Bearer ${refresh2}`)
+            .expect(401);
+    });
+
+    it('/users/:id/deactivate (PATCH) -> Nên hủy kích hoạt user, xóa cache users:all, users:me và buộc đăng xuất', async () => {
+        // 1. Tạo User B
+        const userBEmail = `user.b.${Date.now()}@example.com`;
+        const userBPassword = 'userbpassword';
+        await request(app.getHttpServer())
+            .post('/auth/register')
+            .send({ email: userBEmail, password: userBPassword })
+            .expect(201);
+
+        // Login User B to get their tokens
+        const loginResB = await request(app.getHttpServer())
+            .post('/auth/login')
+            .send({ email: userBEmail, password: userBPassword })
+            .expect(200);
+
+        const { accessToken: accessB, refreshToken: refreshB } = loginResB.body;
+
+        // Fetch user:me for User B (populates cache)
+        const meResB = await request(app.getHttpServer())
+            .get('/users/me')
+            .set('Authorization', `Bearer ${accessB}`)
+            .expect(200);
+
+        const userBId = meResB.body.id;
+
+        // 2. Cấp quyền ADMIN cho testEmail (Admin)
+        const prisma = app.get(PrismaService);
+        const adminRole = await prisma.role.findFirst({ where: { name: 'ADMIN' } });
+        const adminUser = await prisma.user.findFirst({ where: { email: testEmail } });
+        if (adminRole && adminUser) {
+            await prisma.userRole.create({
+                data: {
+                    userId: adminUser.id,
+                    roleId: adminRole.id,
+                }
+            });
+        }
+
+        // Login Admin to get token (now as Admin)
+        const loginResAdmin = await request(app.getHttpServer())
+            .post('/auth/login')
+            .send({ email: testEmail, password: testPassword })
+            .expect(200);
+
+        const { accessToken: accessAdmin } = loginResAdmin.body;
+
+        // Fetch users list (populates users:all cache)
+        await request(app.getHttpServer())
+            .get('/users')
+            .set('Authorization', `Bearer ${accessAdmin}`)
+            .expect(200);
+
+        // Verify caches exist in Redis
+        const redisService = app.get(RedisService);
+        const cacheMeKey = `users:me:${userBId}`;
+        const cacheAllKey = `users:all`;
+
+        expect(await redisService.get(cacheMeKey)).toBeDefined();
+        expect(await redisService.get(cacheAllKey)).toBeDefined();
+
+        // 3. Admin hủy kích hoạt User B
+        await request(app.getHttpServer())
+            .patch(`/users/${userBId}/deactivate`)
+            .set('Authorization', `Bearer ${accessAdmin}`)
+            .expect(200);
+
+        // 4. Kiểm tra caches và refresh token trong Redis phải bị xóa sạch (evicted)
+        expect(await redisService.get(cacheMeKey)).toBeNull();
+        expect(await redisService.get(cacheAllKey)).toBeNull();
+
+        // Thử refresh token của User B phải bị lỗi 401
+        await request(app.getHttpServer())
+            .post('/auth/refresh')
+            .set('Authorization', `Bearer ${refreshB}`)
             .expect(401);
     });
 });

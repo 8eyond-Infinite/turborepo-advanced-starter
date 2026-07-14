@@ -1,4 +1,5 @@
 import { UserRegisteredEvent } from './events/user-registered.event';
+import { UserDeactivatedEvent } from './events/user-deactivated.event';
 import { DomainEvent } from '@shared/domain/events/domain-event';
 import { AggregateRoot } from '@shared/domain/aggregate-root';
 import { UserId } from './value-objects/user-id.value-object';
@@ -56,6 +57,7 @@ export class UserEntity extends AggregateRoot {
     public deactivate(updatedBy?: string): void {
         this.props.isActive = false;
         this.trackUpdate(updatedBy);
+        this.addDomainEvent(new UserDeactivatedEvent(this.id, this.email));
     }
 
     public activate(updatedBy?: string): void {
