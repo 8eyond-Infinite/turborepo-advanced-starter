@@ -25,7 +25,8 @@ export class UserController {
     @ApiResponse({ status: 200, description: 'Return current user details without password' })
     @ApiResponse({ status: 401, description: 'Unauthorized' })
     async getMe(@GetUser('id') userId: string) {
-        const user = await this.queryBus.execute(new GetUserByIdQuery(userId));
+        const result = await this.queryBus.execute(new GetUserByIdQuery(userId));
+        const user = result.unwrap();
         return user ? UserPresenter.toResponse(user) : null;
     }
 
@@ -40,7 +41,8 @@ export class UserController {
     @ApiResponse({ status: 401, description: 'Unauthorized' })
     @ApiResponse({ status: 403, description: 'Forbidden - requires user:read permission' })
     async getUsers() {
-        const users = await this.queryBus.execute(new GetUsersQuery());
+        const result = await this.queryBus.execute(new GetUsersQuery());
+        const users = result.unwrap();
         return users.map((user: any) => UserPresenter.toResponse(user));
     }
 }
