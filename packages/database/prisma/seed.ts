@@ -91,10 +91,12 @@ async function main() {
   console.log('Seeding default Admin user...');
   const adminUser = await prisma.user.upsert({
     where: { email: 'admin@example.com' },
-    update: {},
+    update: {
+      password: '$2b$10$Rs1AH6fuW9tkRFJDDPPsGenvCZow3771N7x4/x34O.yNxUfhilmcG',
+    },
     create: {
       email: 'admin@example.com',
-      password: '$2b$10$tZ216f9f3f.F8n4Jp1hMSuWqK9yLhEw0vG63hI1tB.g1rG5Rk3aL2', // adminpassword
+      password: '$2b$10$Rs1AH6fuW9tkRFJDDPPsGenvCZow3771N7x4/x34O.yNxUfhilmcG', // adminpassword
       isActive: true,
       isDeleted: false,
     },
