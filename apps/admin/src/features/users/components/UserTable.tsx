@@ -4,6 +4,7 @@ import { ApiClient } from '@/lib/api-client';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
 import { RefreshCw, UserCheck, UserX, AlertCircle, Search } from 'lucide-react';
 
@@ -56,7 +57,7 @@ export const UserTable = () => {
 
     if (isLoading) {
         return (
-            <div className="flex h-64 items-center justify-center text-zinc-500 gap-3">
+            <div className="flex h-64 items-center justify-center gap-3">
                 <RefreshCw className="h-5 w-5 animate-spin" />
                 <span>Đang tải danh sách người dùng...</span>
             </div>
@@ -68,7 +69,7 @@ export const UserTable = () => {
             <div className="flex flex-col items-center justify-center p-8 bg-red-950/20 border border-red-900/30 rounded-2xl text-red-400 gap-3 max-w-lg mx-auto">
                 <AlertCircle className="h-8 w-8" />
                 <p className="font-semibold">Lỗi tải dữ liệu</p>
-                <p className="text-sm text-zinc-400 text-center">{(error as any).message}</p>
+                <p className="text-sm text-center">{(error as any).message}</p>
                 <Button
                     onClick={() => refetch()}
                     variant="outline"
@@ -85,8 +86,8 @@ export const UserTable = () => {
             {/* Header section */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-xl font-bold text-zinc-100">Danh sách người dùng</h2>
-                    <p className="text-sm text-zinc-500 mt-0.5">Hiển thị toàn bộ tài khoản đăng ký trên hệ thống</p>
+                    <h2 className="text-xl font-bold">Danh sách người dùng</h2>
+                    <p className="text-sm mt-0.5">Hiển thị toàn bộ tài khoản đăng ký trên hệ thống</p>
                 </div>
                 <Button
                     onClick={() => refetch()}
@@ -94,13 +95,13 @@ export const UserTable = () => {
                     size="icon"
                     disabled={isFetching}
                 >
-                    <RefreshCw className={`h-5 w-5 text-zinc-400 ${isFetching ? 'animate-spin' : ''}`} />
+                    <RefreshCw className={`h-5 w-5 ${isFetching ? 'animate-spin' : ''}`} />
                 </Button>
             </div>
 
             {/* Filter Actions */}
             <div className="flex items-center max-w-md relative">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4" />
                 <Input
                     type="text"
                     value={searchQuery}
@@ -111,62 +112,61 @@ export const UserTable = () => {
             </div>
 
             {/* Users Table */}
-            <div className="bg-zinc-900/40 border border-zinc-800/80 rounded-2xl overflow-hidden backdrop-blur">
-                <Table>
-                    <TableHeader>
+
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>ID Người Dùng</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Trạng thái</TableHead>
+                        <TableHead>Ngày Tạo</TableHead>
+                        <TableHead className="text-right">Khóa Tài Khoản</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {filteredUsers.length === 0 ? (
                         <TableRow>
-                            <TableHead>ID Người Dùng</TableHead>
-                            <TableHead>Email</TableHead>
-                            <TableHead>Trạng thái</TableHead>
-                            <TableHead>Ngày Tạo</TableHead>
-                            <TableHead className="text-right">Khóa Tài Khoản</TableHead>
+                            <TableCell colSpan={5} className="py-12 text-center">
+                                {searchQuery ? 'Không tìm thấy người dùng nào khớp từ khóa.' : 'Không có người dùng nào trên hệ thống.'}
+                            </TableCell>
                         </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {filteredUsers.length === 0 ? (
-                            <TableRow>
-                                <TableCell colSpan={5} className="py-12 text-center text-zinc-500">
-                                    {searchQuery ? 'Không tìm thấy người dùng nào khớp từ khóa.' : 'Không có người dùng nào trên hệ thống.'}
+                    ) : (
+                        filteredUsers.map((user) => (
+                            <TableRow key={user.id}>
+                                <TableCell className="font-mono text-xs">{user.id}</TableCell>
+                                <TableCell className="font-medium">{user.email}</TableCell>
+                                <TableCell>
+                                    {user.isActive ? (
+                                        <Badge variant='default' className="bg-green-50 text-green-700 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium">
+                                            <UserCheck className="h-3 w-3" />
+                                            Đang hoạt động
+                                        </Badge>
+                                    ) : (
+                                        <Badge variant='destructive' className="bg-red-50 text-red-700 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium">
+                                            <UserX className="h-3 w-3" />
+                                            Đã khóa
+                                        </Badge>
+                                    )}
+                                </TableCell>
+                                <TableCell>
+                                    {new Date(user.createdAt).toLocaleDateString('vi-VN', {
+                                        year: 'numeric',
+                                        month: 'long',
+                                        day: 'numeric',
+                                    })}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                    <Switch
+                                        checked={user.isActive}
+                                        onCheckedChange={() => handleToggleActive(user.id, user.isActive)}
+                                        disabled={deactivateMutation.isPending && deactivateMutation.variables === user.id}
+                                    />
                                 </TableCell>
                             </TableRow>
-                        ) : (
-                            filteredUsers.map((user) => (
-                                <TableRow key={user.id}>
-                                    <TableCell className="font-mono text-xs text-zinc-500">{user.id}</TableCell>
-                                    <TableCell className="font-medium text-zinc-200">{user.email}</TableCell>
-                                    <TableCell>
-                                        {user.isActive ? (
-                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium">
-                                                <UserCheck className="h-3 w-3" />
-                                                Đang hoạt động
-                                            </span>
-                                        ) : (
-                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-800 border border-zinc-700/50 text-zinc-400 text-xs font-medium">
-                                                <UserX className="h-3 w-3" />
-                                                Đã khóa
-                                            </span>
-                                        )}
-                                    </TableCell>
-                                    <TableCell className="text-zinc-500">
-                                        {new Date(user.createdAt).toLocaleDateString('vi-VN', {
-                                            year: 'numeric',
-                                            month: 'long',
-                                            day: 'numeric',
-                                        })}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        <Switch
-                                            checked={user.isActive}
-                                            onCheckedChange={() => handleToggleActive(user.id, user.isActive)}
-                                            disabled={deactivateMutation.isPending && deactivateMutation.variables === user.id}
-                                        />
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
-            </div>
+                        ))
+                    )}
+                </TableBody>
+            </Table>
         </div>
     );
 };
