@@ -3,6 +3,7 @@ import { ApiClient } from '@/lib/api-client';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Users, Activity, Database, Cpu, CheckCircle2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 
 export const DashboardOverview = () => {
     // 1. Query users to show total users count
@@ -53,36 +54,40 @@ export const DashboardOverview = () => {
     ];
 
     return (
-        <div className="space-y-8 relative">
+        <div className="space-y-6 bg-background text-foreground">
             {/* Page Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-2xl font-bold tracking-tight">Tổng quan hệ thống</h2>
-                    <p className="text-sm mt-1">Theo dõi hoạt động hạ tầng và người dùng thời gian thực</p>
+                    <h2 className="text-xl font-bold tracking-tight text-foreground">Tổng quan hệ thống</h2>
+                    <p className="text-sm text-muted-foreground mt-0.5">Theo dõi hoạt động hạ tầng và người dùng thời gian thực</p>
                 </div>
                 <Button
                     onClick={() => refetch()}
                     disabled={isFetching}
                     title="Tải lại dữ liệu"
                     variant="outline"
+                    size="sm"
                 >
-                    <RefreshCw className={`h-5 w-5 ${isFetching ? 'animate-spin' : ''}`} />
+                    <RefreshCw className={`h-4 w-4 mr-1.5 ${isFetching ? 'animate-spin' : ''}`} />
+                    Tải lại
                 </Button>
             </div>
 
             {/* Metrics Grid */}
-            <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 {stats.map((stat) => {
+                    const Icon = stat.icon;
                     return (
-                        <Card key={stat.title}>
-                            <CardHeader className="flex flex-row items-center justify-between pb-3">
-                                <CardTitle className="text-xs font-bold uppercase tracking-wider">
+                        <Card key={stat.title} className="border-border bg-card">
+                            <CardHeader className="flex flex-row items-center justify-between pb-2">
+                                <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                                     {stat.title}
                                 </CardTitle>
+                                <Icon className="h-4 w-4 text-muted-foreground" />
                             </CardHeader>
                             <CardContent className="pt-1">
-                                <div className="text-3xl font-extrabold tracking-tight">{stat.value}</div>
-                                <p className="text-xs mt-2 font-medium">{stat.description}</p>
+                                <div className="text-2xl font-bold tracking-tight text-foreground">{stat.value}</div>
+                                <p className="text-xs text-muted-foreground mt-1">{stat.description}</p>
                             </CardContent>
                         </Card>
                     );
@@ -92,62 +97,62 @@ export const DashboardOverview = () => {
             {/* Detail Layout */}
             <div className="grid gap-6 md:grid-cols-2">
                 {/* Tech Stack Stats */}
-                <Card className="border border-zinc-800/80">
+                <Card className="border-border bg-card">
                     <CardHeader>
-                        <CardTitle className="text-lg font-bold ">Trạng thái hạ tầng</CardTitle>
-                        <CardDescription className="text-xs">Các cấu phần lõi của Monorepo Starter</CardDescription>
+                        <CardTitle className="text-base font-bold text-foreground">Trạng thái hạ tầng</CardTitle>
+                        <CardDescription className="text-xs text-muted-foreground">Các cấu phần lõi của Monorepo Starter</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <div className="flex items-center justify-between p-3.5 rounded-xl border border-zinc-900">
+                        <div className="flex items-center justify-between p-4 rounded-xl border border-border bg-muted/10">
                             <div className="flex items-center gap-3">
-                                <Database className="h-5 w-5 text-blue-400" />
+                                <Database className="h-4 w-4 text-muted-foreground" />
                                 <div>
-                                    <p className="text-sm font-semibold">Database Engine</p>
-                                    <p className="text-xs mt-0.5">Prisma ORM + PostgreSQL</p>
+                                    <p className="text-sm font-semibold text-foreground">Database Engine</p>
+                                    <p className="text-xs text-muted-foreground mt-0.5">Prisma ORM + PostgreSQL</p>
                                 </div>
                             </div>
-                            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-semibold">
-                                <CheckCircle2 className="h-3.5 w-3.5" /> Healthy
-                            </span>
+                            <Badge variant="outline" className="flex items-center gap-1">
+                                <CheckCircle2 className="h-3 w-3 text-primary" /> Healthy
+                            </Badge>
                         </div>
 
-                        <div className="flex items-center justify-between p-3.5 rounded-xl border border-zinc-900">
+                        <div className="flex items-center justify-between p-4 rounded-xl border border-border bg-muted/10">
                             <div className="flex items-center gap-3">
-                                <Cpu className="h-5 w-5 text-amber-400" />
+                                <Cpu className="h-4 w-4 text-muted-foreground" />
                                 <div>
-                                    <p className="text-sm font-semibold">In-Memory Cache & Session</p>
-                                    <p className="text-xs mt-0.5">IORedis Service Connection</p>
+                                    <p className="text-sm font-semibold text-foreground">In-Memory Cache & Session</p>
+                                    <p className="text-xs text-muted-foreground mt-0.5">IORedis Service Connection</p>
                                 </div>
                             </div>
-                            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-semibold">
-                                <CheckCircle2 className="h-3.5 w-3.5" /> Active
-                            </span>
+                            <Badge variant="outline" className="flex items-center gap-1">
+                                <CheckCircle2 className="h-3 w-3 text-primary" /> Active
+                            </Badge>
                         </div>
                     </CardContent>
                 </Card>
 
                 {/* Audit Simulation Logs */}
-                <Card className="border border-zinc-800/80">
+                <Card className="border-border bg-card">
                     <CardHeader>
-                        <CardTitle className="text-lg font-bold ">Nhật ký hệ thống gần đây</CardTitle>
-                        <CardDescription className="text-xs">Hoạt động an ninh và thay đổi trạng thái</CardDescription>
+                        <CardTitle className="text-base font-bold text-foreground">Nhật ký hệ thống gần đây</CardTitle>
+                        <CardDescription className="text-xs text-muted-foreground">Hoạt động an ninh và thay đổi trạng thái</CardDescription>
                     </CardHeader>
-                    <CardContent className="max-h-72 overflow-y-auto">
-                        {logs.map((log) => (
-                            <div key={log.id} className="py-3 flex items-start justify-between gap-4 first:pt-0 last:pb-0">
+                    <CardContent className="max-h-72 overflow-y-auto space-y-4">
+                        {logs.map((log, index) => (
+                            <div key={log.id} className={`flex items-start justify-between gap-4 pb-3 ${index !== logs.length - 1 ? 'border-b border-border' : ''}`}>
                                 <div>
-                                    <p className="text-sm font-semibold">{log.action}</p>
-                                    <p className="text-xs mt-0.5">{log.details}</p>
-                                    <span className="inline-block font-mono text-[10px] px-1.5 py-0.5 rounded mt-1">
+                                    <p className="text-sm font-semibold text-foreground">{log.action}</p>
+                                    <p className="text-xs text-muted-foreground mt-0.5">{log.details}</p>
+                                    <span className="inline-block font-mono text-[9px] text-muted-foreground px-1.5 py-0.5 rounded mt-1 bg-muted border border-border">
                                         {log.target}
                                     </span>
                                 </div>
                                 <div className="text-right shrink-0">
-                                    <span className="text-[10px]">{log.time}</span>
+                                    <span className="text-[10px] text-muted-foreground">{log.time}</span>
                                     <div className="mt-1">
-                                        <span className="inline-block text-[10px] font-semibold uppercase tracking-wider">
+                                        <Badge variant="secondary" className="text-[9px] uppercase tracking-wider">
                                             {log.status}
-                                        </span>
+                                        </Badge>
                                     </div>
                                 </div>
                             </div>
