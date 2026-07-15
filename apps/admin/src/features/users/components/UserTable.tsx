@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
 import { RefreshCw, UserCheck, UserX, AlertCircle, Search } from 'lucide-react';
-
 import { toast } from "sonner";
 
 export const UserTable = () => {
@@ -57,8 +56,8 @@ export const UserTable = () => {
 
     if (isLoading) {
         return (
-            <div className="flex h-64 items-center justify-center gap-3">
-                <RefreshCw className="h-5 w-5 animate-spin" />
+            <div className="flex h-64 items-center justify-center gap-2 text-muted-foreground text-sm">
+                <RefreshCw className="h-4 w-4 animate-spin" />
                 <span>Đang tải danh sách người dùng...</span>
             </div>
         );
@@ -66,14 +65,15 @@ export const UserTable = () => {
 
     if (isError) {
         return (
-            <div className="flex flex-col items-center justify-center p-8 bg-red-950/20 border border-red-900/30 rounded-2xl text-red-400 gap-3 max-w-lg mx-auto">
-                <AlertCircle className="h-8 w-8" />
-                <p className="font-semibold">Lỗi tải dữ liệu</p>
-                <p className="text-sm text-center">{(error as any).message}</p>
+            <div className="flex flex-col items-center justify-center p-8 border border-destructive/20 bg-destructive/5 rounded-xl text-destructive gap-2 max-w-md mx-auto mt-12">
+                <AlertCircle className="h-6 w-6" />
+                <p className="font-semibold text-sm">Lỗi tải dữ liệu</p>
+                <p className="text-xs text-muted-foreground text-center">{(error as any).message}</p>
                 <Button
                     onClick={() => refetch()}
                     variant="outline"
-                    className="mt-2 text-red-400 hover:text-red-300 border-red-900/40 hover:bg-red-950/40"
+                    size="sm"
+                    className="mt-2"
                 >
                     Thử lại
                 </Button>
@@ -82,91 +82,95 @@ export const UserTable = () => {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 bg-background text-foreground">
             {/* Header section */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-xl font-bold">Danh sách người dùng</h2>
-                    <p className="text-sm mt-0.5">Hiển thị toàn bộ tài khoản đăng ký trên hệ thống</p>
+                    <h2 className="text-xl font-bold text-foreground">Danh sách người dùng</h2>
+                    <p className="text-sm text-muted-foreground mt-0.5">Hiển thị toàn bộ tài khoản đăng ký trên hệ thống</p>
                 </div>
                 <Button
                     onClick={() => refetch()}
                     variant="outline"
-                    size="icon"
+                    size="sm"
                     disabled={isFetching}
                 >
-                    <RefreshCw className={`h-5 w-5 ${isFetching ? 'animate-spin' : ''}`} />
+                    <RefreshCw className={`h-4 w-4 mr-1.5 ${isFetching ? 'animate-spin' : ''}`} />
+                    Tải lại
                 </Button>
             </div>
 
             {/* Filter Actions */}
-            <div className="flex items-center max-w-md relative">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4" />
+            <div className="flex items-center max-w-sm relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Tìm kiếm người dùng theo email..."
-                    className="pl-10 pr-4 bg-zinc-900/20 border-zinc-800"
+                    className="pl-9 bg-transparent border-input"
                 />
             </div>
 
             {/* Users Table */}
-
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>ID Người Dùng</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Trạng thái</TableHead>
-                        <TableHead>Ngày Tạo</TableHead>
-                        <TableHead className="text-right">Khóa Tài Khoản</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {filteredUsers.length === 0 ? (
+            <div className="rounded-lg border border-border bg-card overflow-hidden">
+                <Table>
+                    <TableHeader className="bg-muted/50">
                         <TableRow>
-                            <TableCell colSpan={5} className="py-12 text-center">
-                                {searchQuery ? 'Không tìm thấy người dùng nào khớp từ khóa.' : 'Không có người dùng nào trên hệ thống.'}
-                            </TableCell>
+                            <TableHead className="text-xs font-semibold uppercase">ID Người Dùng</TableHead>
+                            <TableHead className="text-xs font-semibold uppercase">Email</TableHead>
+                            <TableHead className="text-xs font-semibold uppercase">Trạng thái</TableHead>
+                            <TableHead className="text-xs font-semibold uppercase">Ngày Tạo</TableHead>
+                            <TableHead className="text-right text-xs font-semibold uppercase">Khóa Tài Khoản</TableHead>
                         </TableRow>
-                    ) : (
-                        filteredUsers.map((user) => (
-                            <TableRow key={user.id}>
-                                <TableCell className="font-mono text-xs">{user.id}</TableCell>
-                                <TableCell className="font-medium">{user.email}</TableCell>
-                                <TableCell>
-                                    {user.isActive ? (
-                                        <Badge variant='default' className="bg-green-50 text-green-700 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium">
-                                            <UserCheck className="h-3 w-3" />
-                                            Đang hoạt động
-                                        </Badge>
-                                    ) : (
-                                        <Badge variant='destructive' className="bg-red-50 text-red-700 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium">
-                                            <UserX className="h-3 w-3" />
-                                            Đã khóa
-                                        </Badge>
-                                    )}
-                                </TableCell>
-                                <TableCell>
-                                    {new Date(user.createdAt).toLocaleDateString('vi-VN', {
-                                        year: 'numeric',
-                                        month: 'long',
-                                        day: 'numeric',
-                                    })}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                    <Switch
-                                        checked={user.isActive}
-                                        onCheckedChange={() => handleToggleActive(user.id, user.isActive)}
-                                        disabled={deactivateMutation.isPending && deactivateMutation.variables === user.id}
-                                    />
+                    </TableHeader>
+                    <TableBody>
+                        {filteredUsers.length === 0 ? (
+                            <TableRow>
+                                <TableCell colSpan={5} className="py-12 text-center text-sm text-muted-foreground">
+                                    {searchQuery ? 'Không tìm thấy người dùng nào khớp từ khóa.' : 'Không có người dùng nào trên hệ thống.'}
                                 </TableCell>
                             </TableRow>
-                        ))
-                    )}
-                </TableBody>
-            </Table>
+                        ) : (
+                            filteredUsers.map((user) => (
+                                <TableRow key={user.id} className="hover:bg-muted/5">
+                                    <TableCell className="font-mono text-xs text-muted-foreground">{user.id}</TableCell>
+                                    <TableCell className="font-medium text-foreground">{user.email}</TableCell>
+                                    <TableCell>
+                                        {user.isActive ? (
+                                            <Badge variant="outline" className="flex items-center gap-1 w-fit bg-transparent">
+                                                <UserCheck className="h-3 w-3 text-primary" />
+                                                Đang hoạt động
+                                            </Badge>
+                                        ) : (
+                                            <Badge variant="destructive" className="flex items-center gap-1 w-fit">
+                                                <UserX className="h-3 w-3" />
+                                                Đã khóa
+                                            </Badge>
+                                        )}
+                                    </TableCell>
+                                    <TableCell className="text-sm text-muted-foreground">
+                                        {new Date(user.createdAt).toLocaleDateString('vi-VN', {
+                                            year: 'numeric',
+                                            month: 'long',
+                                            day: 'numeric',
+                                        })}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        <div className="flex justify-end">
+                                            <Switch
+                                                checked={user.isActive}
+                                                onCheckedChange={() => handleToggleActive(user.id, user.isActive)}
+                                                disabled={deactivateMutation.isPending && deactivateMutation.variables === user.id}
+                                            />
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        )}
+                    </TableBody>
+                </Table>
+            </div>
         </div>
     );
 };

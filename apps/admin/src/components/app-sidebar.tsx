@@ -1,5 +1,3 @@
-"use client"
-
 import * as React from "react"
 import {
   Settings2,
@@ -80,9 +78,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     }
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-zinc-800" {...props}>
-      {/* Brand Header */}
-      <SidebarHeader className="h-16 border-b border-zinc-800 flex flex-row items-center px-4 gap-2">
+    <Sidebar collapsible="icon" {...props}>
+      <SidebarHeader className="h-16 flex flex-row items-center px-4 gap-2">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" className="hover:bg-transparent cursor-default active:translate-y-0">

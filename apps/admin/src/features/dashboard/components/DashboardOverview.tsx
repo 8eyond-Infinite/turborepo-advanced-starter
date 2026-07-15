@@ -78,9 +78,9 @@ export const DashboardOverview = () => {
                 {stats.map((stat) => {
                     const Icon = stat.icon;
                     return (
-                        <Card key={stat.title} className="border-border bg-card">
+                        <Card key={stat.title}>
                             <CardHeader className="flex flex-row items-center justify-between pb-2">
-                                <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                <CardTitle>
                                     {stat.title}
                                 </CardTitle>
                                 <Icon className="h-4 w-4 text-muted-foreground" />
