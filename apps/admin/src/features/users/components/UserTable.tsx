@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
 import { RefreshCw, UserCheck, UserX, AlertCircle, Search } from 'lucide-react';
 
+import { toast } from "sonner";
+
 export const UserTable = () => {
     const queryClient = useQueryClient();
     const [searchQuery, setSearchQuery] = useState('');
@@ -27,7 +29,11 @@ export const UserTable = () => {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['users'] });
+            toast.success("Khóa tài khoản người dùng thành công!");
         },
+        onError: (err: any) => {
+            toast.error("Khóa tài khoản thất bại: " + err.message);
+        }
     });
 
     const handleToggleActive = (userId: string, currentActive: boolean) => {
@@ -39,7 +45,7 @@ export const UserTable = () => {
                 deactivateMutation.mutate(userId);
             }
         } else {
-            alert('Tính năng kích hoạt tài khoản đang được phát triển. Hiện tại backend chỉ hỗ trợ API Deactivate.');
+            toast.info('Tính năng kích hoạt tài khoản đang được phát triển. Hiện tại backend chỉ hỗ trợ API Deactivate.');
         }
     };
 

@@ -4,6 +4,7 @@ import { ProtectedRoute } from './protected-route';
 import { LoginForm } from '@/features/auth/components/LoginForm';
 import { UserTable } from '@/features/users/components/UserTable';
 import { DashboardOverview } from '@/features/dashboard/components/DashboardOverview';
+import { RolesManagement } from '@/features/roles/components/RolesManagement';
 
 export const router = createBrowserRouter([
     {
@@ -23,6 +24,10 @@ export const router = createBrowserRouter([
                     {
                         path: '/users',
                         element: <UserTable />,
+                    },
+                    {
+                        path: '/roles',
+                        element: <RolesManagement />,
                     },
                 ],
             },

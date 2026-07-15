@@ -74,22 +74,22 @@ export const DashboardOverview = () => {
             </div>
 
             {/* Metrics Grid */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
                 {stats.map((stat) => {
                     const Icon = stat.icon;
                     return (
-                        <Card key={stat.title} className="p-1 border border-zinc-800/80">
-                            <CardHeader className="flex flex-row items-center justify-between pb-2">
-                                <CardTitle className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                        <Card key={stat.title} className="relative overflow-hidden bg-zinc-900/40 border border-zinc-800/80 hover:border-zinc-700/80 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-violet-500/5 group">
+                            <CardHeader className="flex flex-row items-center justify-between pb-3">
+                                <CardTitle className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
                                     {stat.title}
                                 </CardTitle>
-                                <div className={`p-2 rounded-lg border ${stat.color}`}>
-                                    <Icon className="h-4 w-4" />
+                                <div className={`p-2 rounded-xl border transition-all duration-300 group-hover:scale-110 ${stat.color}`}>
+                                    <Icon className="h-4.5 w-4.5" />
                                 </div>
                             </CardHeader>
-                            <CardContent className="pt-2">
-                                <div className="text-2xl font-bold text-zinc-100">{stat.value}</div>
-                                <p className="text-xs text-zinc-500 mt-1.5">{stat.description}</p>
+                            <CardContent className="pt-1">
+                                <div className="text-3xl font-extrabold text-zinc-50 tracking-tight">{stat.value}</div>
+                                <p className="text-xs text-zinc-500 mt-2 font-medium">{stat.description}</p>
                             </CardContent>
                         </Card>
                     );

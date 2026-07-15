@@ -4,6 +4,8 @@ import { useAuthStore } from '../store/auth.store';
 import { ApiClient } from '@/lib/api-client';
 import { Shield, Mail, Lock, Loader2, AlertCircle } from 'lucide-react';
 
+import { toast } from "sonner";
+
 export const LoginForm = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -28,9 +30,12 @@ export const LoginForm = () => {
             const user = await ApiClient.get<any>('/users/me');
 
             setAuth(user, tokens.accessToken, tokens.refreshToken);
+            toast.success("Đăng nhập thành công! Chào mừng quay trở lại.");
             navigate('/', { replace: true });
         } catch (err: any) {
-            setError(err.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.');
+            const errMsg = err.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.';
+            setError(errMsg);
+            toast.error(errMsg);
         } finally {
             setLoading(false);
         }

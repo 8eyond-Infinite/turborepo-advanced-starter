@@ -36,6 +36,10 @@ const data = {
           title: "Quản lý Users",
           url: "/users",
         },
+        {
+          title: "Phân quyền Roles",
+          url: "/roles",
+        },
       ],
     },
     {

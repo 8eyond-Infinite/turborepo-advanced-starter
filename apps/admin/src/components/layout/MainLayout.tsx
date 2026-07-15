@@ -1,4 +1,4 @@
-import { Outlet, useLocation } from 'react-router-dom'
+import { Outlet, useLocation, Link } from 'react-router-dom'
 import { AppSidebar } from "@/components/app-sidebar"
 import {
   Breadcrumb,
@@ -22,6 +22,7 @@ export const MainLayout = () => {
   const navItems = [
     { path: '/', label: 'Tổng quan' },
     { path: '/users', label: 'Quản lý Users' },
+    { path: '/roles', label: 'Phân quyền Roles' },
   ]
 
   const currentLabel = navItems.find((item) => item.path === location.pathname)?.label || 'Dashboard'
@@ -42,8 +43,8 @@ export const MainLayout = () => {
               <Breadcrumb>
                 <BreadcrumbList>
                   <BreadcrumbItem className="hidden md:block">
-                    <BreadcrumbLink href="/" className="text-zinc-500 hover:text-zinc-300">
-                      Admin Panel
+                    <BreadcrumbLink asChild className="text-zinc-500 hover:text-zinc-300">
+                      <Link to="/">Admin Panel</Link>
                     </BreadcrumbLink>
                   </BreadcrumbItem>
                   <BreadcrumbSeparator className="hidden md:block text-zinc-600" />
