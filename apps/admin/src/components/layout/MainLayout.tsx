@@ -1,5 +1,5 @@
 import { Outlet, useLocation, Link } from 'react-router-dom'
-import { AppSidebar } from "@/components/app-sidebar"
+import { AppSidebar, ModeToggle } from "@/components"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -31,33 +31,34 @@ export const MainLayout = () => {
     <SidebarProvider>
       <TooltipProvider>
         <AppSidebar />
-        <SidebarInset className="bg-zinc-950 text-zinc-100 flex flex-col min-h-screen">
+        <SidebarInset className="bg-background text-foreground flex flex-col min-h-screen">
           {/* Header */}
-          <header className="flex h-16 shrink-0 items-center gap-2 border-b border-zinc-800 bg-zinc-900/60 backdrop-blur px-6">
+          <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-border bg-background/60 backdrop-blur px-6">
             <div className="flex items-center gap-2">
-              <SidebarTrigger className="-ml-1 text-zinc-400 hover:text-zinc-200 cursor-pointer" />
+              <SidebarTrigger className="-ml-1 text-muted-foreground hover:text-foreground cursor-pointer" />
               <Separator
                 orientation="vertical"
-                className="mr-2 data-[orientation=vertical]:h-4 bg-zinc-800"
+                className="mr-2 data-[orientation=vertical]:h-4 bg-border"
               />
               <Breadcrumb>
                 <BreadcrumbList>
                   <BreadcrumbItem className="hidden md:block">
-                    <BreadcrumbLink asChild className="text-zinc-500 hover:text-zinc-300">
-                      <Link to="/">Admin Panel</Link>
+                    <BreadcrumbLink asChild className="text-muted-foreground hover:text-foreground">
+                      <Link to="/">Administrator</Link>
                     </BreadcrumbLink>
                   </BreadcrumbItem>
-                  <BreadcrumbSeparator className="hidden md:block text-zinc-600" />
+                  <BreadcrumbSeparator className="hidden md:block text-zinc-500" />
                   <BreadcrumbItem>
-                    <BreadcrumbPage className="text-zinc-200 font-semibold">{currentLabel}</BreadcrumbPage>
+                    <BreadcrumbPage className="text-foreground font-semibold">{currentLabel}</BreadcrumbPage>
                   </BreadcrumbItem>
                 </BreadcrumbList>
               </Breadcrumb>
             </div>
+            <div className="flex items-center gap-2">
+              <ModeToggle />
+            </div>
           </header>
-
-          {/* Subpage Container */}
-          <main className="flex-1 p-8 overflow-y-auto">
+          <main className="flex-1 p-8 overflow-y-auto bg-background">
             <Outlet />
           </main>
         </SidebarInset>

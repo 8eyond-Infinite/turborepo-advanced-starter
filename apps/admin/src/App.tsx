@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { router } from '@/routes';
 import { useAuthStore } from '@/features/auth/store/auth.store';
 import { Toaster } from "@/components/ui/sonner";
+import { ThemeProvider } from './components/theme-provider';
 
 // 1. Initialize TanStack Query Client
 const queryClient = new QueryClient({
@@ -19,10 +20,8 @@ function App() {
   const { initialize, clearAuth, isLoading } = useAuthStore();
 
   useEffect(() => {
-    // Restore user session on startup
     initialize();
 
-    // Listen to global unauthorized logout events
     const handleGlobalLogout = () => {
       clearAuth();
       router.navigate('/login');
@@ -44,10 +43,13 @@ function App() {
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-      <Toaster />
-    </QueryClientProvider>
+    <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+        <Toaster />
+      </QueryClientProvider>
+    </ThemeProvider>
+
   );
 }
 
