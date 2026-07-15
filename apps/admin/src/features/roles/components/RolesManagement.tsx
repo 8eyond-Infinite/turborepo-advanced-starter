@@ -1,18 +1,10 @@
-import { useState } from 'react';
+import React from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Shield, Key, Plus, Save, Trash2 } from 'lucide-react';
-
-import { toast } from "sonner";
-
-interface Role {
-    id: string;
-    name: string;
-    description: string;
-    permissions: string[];
-}
+import { useRoles, type Role } from '../hooks/useRoles';
 
 interface PermissionGroup {
     category: string;
@@ -68,62 +60,26 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
 ];
 
 export const RolesManagement = () => {
-    const [roles, setRoles] = useState<Role[]>(DEFAULT_ROLES);
-    const [selectedRoleId, setSelectedRoleId] = useState<string>('1');
-    const [newRoleName, setNewRoleName] = useState('');
-    const [newRoleDesc, setNewRoleDesc] = useState('');
-    const [isAdding, setIsAdding] = useState(false);
+    const {
+        roles,
+        selectedRoleId,
+        setSelectedRoleId,
+        newRoleName,
+        setNewRoleName,
+        newRoleDesc,
+        setNewRoleDesc,
+        isAdding,
+        setIsAdding,
+        activeRole,
+        togglePermission,
+        createRole,
+        deleteRole,
+        saveChanges,
+    } = useRoles(DEFAULT_ROLES);
 
-    const activeRole = roles.find((r) => r.id === selectedRoleId) || roles[0];
-
-    const handleTogglePermission = (permissionId: string) => {
-        setRoles((prev) =>
-            prev.map((role) => {
-                if (role.id !== selectedRoleId) return role;
-
-                const hasPerm = role.permissions.includes(permissionId);
-                const updatedPerms = hasPerm
-                    ? role.permissions.filter((p) => p !== permissionId)
-                    : [...role.permissions, permissionId];
-
-                return { ...role, permissions: updatedPerms };
-            })
-        );
-    };
-
-    const handleCreateRole = (e: React.FormEvent) => {
+    const handleCreateRoleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newRoleName.trim()) return;
-
-        const newRole: Role = {
-            id: String(roles.length + 1),
-            name: newRoleName.trim(),
-            description: newRoleDesc.trim() || 'Không có mô tả.',
-            permissions: ['users:read'], // Default permission
-        };
-
-        setRoles((prev) => [...prev, newRole]);
-        setSelectedRoleId(newRole.id);
-        setNewRoleName('');
-        setNewRoleDesc('');
-        setIsAdding(false);
-        toast.success(`Đã tạo vai trò "${newRole.name}" thành công!`);
-    };
-
-    const handleDeleteRole = (roleId: string, roleName: string) => {
-        if (roleId === '1') {
-            toast.error('Không thể xóa vai trò Super Administrator mặc định!');
-            return;
-        }
-        if (window.confirm(`Bạn có chắc chắn muốn xóa vai trò "${roleName}"?`)) {
-            setRoles((prev) => prev.filter((r) => r.id !== roleId));
-            setSelectedRoleId('1');
-            toast.success(`Đã xóa vai trò "${roleName}"!`);
-        }
-    };
-
-    const handleSaveChanges = () => {
-        toast.success("Lưu ma trận phân quyền thành công (Simulated)!");
+        createRole();
     };
 
     return (
@@ -145,7 +101,6 @@ export const RolesManagement = () => {
                             onClick={() => setIsAdding(!isAdding)}
                             variant="outline"
                             size="sm"
-                            className="text-xs flex items-center gap-1 border-zinc-800 hover:bg-zinc-800 cursor-pointer"
                         >
                             <Plus className="h-3.5 w-3.5" /> Thêm mới
                         </Button>
@@ -153,7 +108,7 @@ export const RolesManagement = () => {
 
                     {isAdding && (
                         <Card className="border border-violet-500/20 bg-zinc-900/30 p-4">
-                            <form onSubmit={handleCreateRole} className="space-y-3.5">
+                            <form onSubmit={handleCreateRoleSubmit} className="space-y-3.5">
                                 <div>
                                     <label className="text-xs font-semibold text-zinc-400">Tên vai trò</label>
                                     <Input
@@ -179,16 +134,14 @@ export const RolesManagement = () => {
                                         onClick={() => setIsAdding(false)}
                                         variant="ghost"
                                         size="sm"
-                                        className="text-xs cursor-pointer"
                                     >
                                         Hủy
                                     </Button>
                                     <Button
                                         type="submit"
                                         size="sm"
-                                        className="text-xs bg-violet-600 hover:bg-violet-700 text-white cursor-pointer"
                                     >
-                                        Tạo ngay
+                                        Tạo vai trò
                                     </Button>
                                 </div>
                             </form>
@@ -200,10 +153,11 @@ export const RolesManagement = () => {
                             <div
                                 key={role.id}
                                 onClick={() => setSelectedRoleId(role.id)}
-                                className={`p-4 rounded-xl border transition-all cursor-pointer flex justify-between items-start gap-4 relative overflow-hidden group ${selectedRoleId === role.id
+                                className={`p-4 rounded-xl border transition-all cursor-pointer flex justify-between items-start gap-4 relative overflow-hidden group ${
+                                    selectedRoleId === role.id
                                         ? 'bg-violet-600/10 border-violet-500/30 text-zinc-100 shadow-md shadow-violet-500/5'
                                         : 'bg-zinc-900/20 border-zinc-800/80 text-zinc-400 hover:border-zinc-700/80 hover:text-zinc-200'
-                                    }`}
+                                }`}
                             >
                                 <div className="space-y-1 select-none flex-1">
                                     <div className="flex items-center gap-2">
@@ -216,7 +170,7 @@ export const RolesManagement = () => {
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            handleDeleteRole(role.id, role.name);
+                                            deleteRole(role.id, role.name);
                                         }}
                                         className="text-zinc-600 hover:text-red-400 p-1 rounded hover:bg-red-950/20 opacity-0 group-hover:opacity-100 transition-all cursor-pointer shrink-0"
                                         title="Xóa vai trò"
@@ -229,7 +183,6 @@ export const RolesManagement = () => {
                     </div>
                 </div>
 
-                {/* Right Panel: Permission Matrix */}
                 <div className="md:col-span-2 space-y-4">
                     <div className="flex items-center justify-between">
                         <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider">
@@ -237,8 +190,7 @@ export const RolesManagement = () => {
                         </h3>
                         <div className="flex items-center gap-3">
                             <Button
-                                onClick={handleSaveChanges}
-                                className="bg-violet-600 hover:bg-violet-700 text-white flex items-center gap-1.5 cursor-pointer text-xs"
+                                onClick={saveChanges}
                             >
                                 <Save className="h-3.5 w-3.5" /> Lưu thay đổi
                             </Button>
@@ -248,7 +200,7 @@ export const RolesManagement = () => {
                     <Card className="border border-zinc-800/80 bg-zinc-900/20 backdrop-blur">
                         <CardHeader className="border-b border-zinc-800/60 pb-4">
                             <CardTitle className="text-base font-bold text-zinc-200 flex items-center gap-2">
-                                <Key className="h-5 w-5 text-violet-400" /> Ma Trận Phân Quyền
+                                <Key className="h-5 w-5 text-violet-400" /> Ma trận phân quyền
                             </CardTitle>
                             <CardDescription className="text-xs text-zinc-500">
                                 Hãy bật/tắt các switch để cấp/thu hồi quyền truy cập tương ứng cho nhóm người dùng này.
@@ -277,7 +229,7 @@ export const RolesManagement = () => {
                                                     </div>
                                                     <Switch
                                                         checked={isChecked}
-                                                        onCheckedChange={() => handleTogglePermission(perm.id)}
+                                                        onCheckedChange={() => togglePermission(perm.id)}
                                                     />
                                                 </div>
                                             );

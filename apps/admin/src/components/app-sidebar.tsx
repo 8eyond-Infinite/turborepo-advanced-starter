@@ -87,8 +87,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" className="hover:bg-transparent cursor-default active:translate-y-0">
               <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
-                <span className="truncate font-bold tracking-wider text-zinc-200">
-                  STARTER ADMIN
+                <span className="truncate font-bold tracking-wider text-zinc-200 uppercase">
+                  Administrator
                 </span>
                 <span className="truncate text-xs text-zinc-500">v1.0.0</span>
               </div>
