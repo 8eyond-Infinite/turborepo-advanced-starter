@@ -11,7 +11,7 @@ model User {
   email     String   @unique
   password  String
   isActive Boolean @default(true)
-  isDeleted Boolean @default(true)
+  isDeleted Boolean @default(false)
 
   userRoles UserRole[]
 
@@ -44,6 +44,8 @@ model Permission {
   id              String           @id @default(uuid())
   name            String           @unique
   description     String?
+  displayName     String?
+  module          String?
   
   rolePermissions RolePermission[]
 

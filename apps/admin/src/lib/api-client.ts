@@ -126,6 +126,14 @@ export class ApiClient {
         });
     }
 
+    public static async put<T>(path: string, body?: any, options: RequestOptions = {}): Promise<T> {
+        return this.request<T>(path, {
+            ...options,
+            method: 'PUT',
+            body: body ? JSON.stringify(body) : undefined,
+        });
+    }
+
     public static async patch<T>(path: string, body?: any, options: RequestOptions = {}): Promise<T> {
         return this.request<T>(path, {
             ...options,

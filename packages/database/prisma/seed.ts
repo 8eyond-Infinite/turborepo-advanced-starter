@@ -12,10 +12,30 @@ async function main() {
 
   // 1. Seed Permissions
   const permissions = [
-    { name: 'user:create', description: 'Create new users' },
-    { name: 'user:read', description: 'Read user information' },
-    { name: 'user:update', description: 'Update user information' },
-    { name: 'user:delete', description: 'Soft delete users' },
+    {
+      name: 'user:create',
+      displayName: 'Thêm mới tài khoản',
+      description: 'Cho phép đăng ký và tạo tài khoản người dùng mới trên hệ thống.',
+      module: 'Quản lý Người Dùng',
+    },
+    {
+      name: 'user:read',
+      displayName: 'Xem hồ sơ & Danh sách',
+      description: 'Cho phép xem danh sách và thông tin hồ sơ chi tiết của thành viên.',
+      module: 'Quản lý Người Dùng',
+    },
+    {
+      name: 'user:update',
+      displayName: 'Cập nhật & Phân quyền',
+      description: 'Cho phép thay đổi thông tin người dùng, trạng thái hoạt động và ma trận phân quyền.',
+      module: 'Quản lý Người Dùng',
+    },
+    {
+      name: 'user:delete',
+      displayName: 'Khóa / Xóa tài khoản',
+      description: 'Cho phép tạm khóa hoạt động hoặc xóa tài khoản người dùng ra khỏi hệ thống.',
+      module: 'Quản lý Người Dùng',
+    },
   ];
 
   console.log('Seeding permissions...');
@@ -23,7 +43,11 @@ async function main() {
   for (const permission of permissions) {
     const p = await prisma.permission.upsert({
       where: { name: permission.name },
-      update: { description: permission.description },
+      update: {
+        description: permission.description,
+        displayName: permission.displayName,
+        module: permission.module,
+      },
       create: permission,
     });
     seededPermissions.push(p);

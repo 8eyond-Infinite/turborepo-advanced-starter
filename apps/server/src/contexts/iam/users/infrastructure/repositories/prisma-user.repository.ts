@@ -34,7 +34,24 @@ export class PrismaUserRepository implements UserRepository {
                 },
             });
 
-            if (isNewUser) {
+            // Synchronize User Roles
+            await tx.userRole.deleteMany({
+                where: { userId: data.id }
+            });
+
+            if (data.roles && data.roles.length > 0) {
+                const dbRoles = await tx.role.findMany({
+                    where: { name: { in: data.roles } }
+                });
+                if (dbRoles.length > 0) {
+                    await tx.userRole.createMany({
+                        data: dbRoles.map((r) => ({
+                            userId: data.id,
+                            roleId: r.id
+                        }))
+                    });
+                }
+            } else if (isNewUser) {
                 const defaultRole = await tx.role.findFirst({
                     where: { name: 'USER' },
                 });
@@ -52,14 +69,28 @@ export class PrismaUserRepository implements UserRepository {
 
     async findById(id: string): Promise<UserEntity | null> {
         const raw = await this.prisma.user.findFirst({
-            where: { id, isDeleted: false }
+            where: { id, isDeleted: false },
+            include: {
+                userRoles: {
+                    include: {
+                        role: true,
+                    },
+                },
+            },
         });
         return raw ? PrismaUserMapper.toDomain(raw) : null;
     }
 
     async findByEmail(email: string): Promise<UserEntity | null> {
         const raw = await this.prisma.user.findFirst({
-            where: { email, isDeleted: false }
+            where: { email, isDeleted: false },
+            include: {
+                userRoles: {
+                    include: {
+                        role: true,
+                    },
+                },
+            },
         });
         return raw ? PrismaUserMapper.toDomain(raw) : null;
     }
@@ -94,6 +125,13 @@ export class PrismaUserRepository implements UserRepository {
     async findAll(): Promise<UserEntity[]> {
         const raws = await this.prisma.user.findMany({
             where: { isDeleted: false },
+            include: {
+                userRoles: {
+                    include: {
+                        role: true,
+                    },
+                },
+            },
         });
         return raws.map((raw) => PrismaUserMapper.toDomain(raw));
     }

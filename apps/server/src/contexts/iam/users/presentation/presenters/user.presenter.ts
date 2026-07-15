@@ -8,6 +8,7 @@ export class UserPresenter {
             email: data.email,
             isActive: data.isActive,
             isDeleted: data.isDeleted,
+            roles: data.roles || [],
             createdAt: data.createdAt,
             updatedAt: data.updatedAt,
             createdBy: data.createdBy,

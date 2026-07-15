@@ -7,6 +7,9 @@ import { UserController } from './presentation/controllers/user.controller';
 import { GetUsersQueryHandler } from './application/queries/handlers/get-users.handler';
 import { GetUserByIdQueryHandler } from './application/queries/handlers/get-user-by-id.handler';
 import { DeactivateUserCommandHandler } from './application/commands/handlers/deactivate-user.handler';
+import { CreateUserCommandHandler } from './application/commands/handlers/create-user.handler';
+import { DeleteUserCommandHandler } from './application/commands/handlers/delete-user.handler';
+import { ToggleUserStatusCommandHandler } from './application/commands/handlers/toggle-user-status.handler';
 import { USER_QUEUE } from './application/queues/user-queue.constants';
 import { UserQueueProcessor } from './application/queues/user-queue.processor';
 import { UserRegisteredEventHandler } from './application/events/handlers/user-registered.event-handler';
@@ -30,6 +33,9 @@ import { UserDeactivatedEventHandler } from './application/events/handlers/user-
         GetUsersQueryHandler,
         GetUserByIdQueryHandler,
         DeactivateUserCommandHandler,
+        CreateUserCommandHandler,
+        DeleteUserCommandHandler,
+        ToggleUserStatusCommandHandler,
         UserQueueProcessor,
         UserRegisteredEventHandler,
         UserDeactivatedEventHandler,

@@ -12,6 +12,7 @@ export interface UserProps {
     password: Password;
     isActive: boolean;
     isDeleted: boolean;
+    roles: string[];
     createdAt: Date;
     updatedAt: Date;
     createdBy?: string | null;
@@ -27,13 +28,14 @@ export class UserEntity extends AggregateRoot {
         return new UserEntity(props);
     }
 
-    public static register(props: { id: string; email: string; passwordHash: string; createdBy?: string }): UserEntity {
+    public static register(props: { id: string; email: string; passwordHash: string; roles?: string[]; createdBy?: string }): UserEntity {
         const user = UserEntity.create({
             id: new UserId(props.id),
             email: new Email(props.email),
             password: new Password(props.passwordHash),
             isActive: true,
             isDeleted: false,
+            roles: props.roles || ['USER'],
             createdAt: new Date(),
             updatedAt: new Date(),
             createdBy: props.createdBy || null,
@@ -49,10 +51,16 @@ export class UserEntity extends AggregateRoot {
     public get password(): string { return this.props.password.value; }
     public get isActive(): boolean { return this.props.isActive; }
     public get isDeleted(): boolean { return this.props.isDeleted; }
+    public get roles(): string[] { return this.props.roles; }
     public get createdAt(): Date { return this.props.createdAt; }
     public get updatedAt(): Date { return this.props.updatedAt; }
     public get createdBy(): string | null | undefined { return this.props.createdBy; }
     public get updatedBy(): string | null | undefined { return this.props.updatedBy; }
+
+    public updateRoles(roles: string[], updatedBy?: string): void {
+        this.props.roles = roles;
+        this.trackUpdate(updatedBy);
+    }
 
     public deactivate(updatedBy?: string): void {
         this.props.isActive = false;
@@ -87,6 +95,7 @@ export class UserEntity extends AggregateRoot {
             password: this.props.password.value,
             isActive: this.props.isActive,
             isDeleted: this.props.isDeleted,
+            roles: this.props.roles,
             createdAt: this.props.createdAt,
             updatedAt: this.props.updatedAt,
             createdBy: this.props.createdBy,
