@@ -1,7 +1,7 @@
-import { PaginatedMeta } from '@repo/types';
+import type { PaginatedResult } from '@repo/types';
 
 export class PaginatedResponsePresenter<T> {
-    static toResponse<T>(data: T[], totalItems: number, page: number, limit: number) {
+    static toResponse<T>(data: T[], totalItems: number, page: number, limit: number): PaginatedResult<T> {
         const totalPages = Math.ceil(totalItems / limit);
         
         return {
