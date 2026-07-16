@@ -25,7 +25,20 @@ Module này quản lý và lưu trữ toàn bộ các lịch sử thao tác, tha
 
 ---
 
-## 3. Sơ đồ tuần tự Ghi log tự động qua Interceptor (Mermaid)
+## 3. Chi tiết cấu trúc thư mục và Vai trò từng File
+
+```
+audit/
+├── presentation/                                # LỚP GIAO TIẾP (PRESENTATION LAYER)
+│   └── controllers/
+│       └── audit-log.controller.ts              # REST Controller tiếp nhận các yêu cầu truy vấn log
+│
+└── audit-log.module.ts                          # Khai báo NestJS Module đăng ký Controller và Prisma
+```
+
+---
+
+## 4. Sơ đồ tuần tự Ghi log tự động qua Interceptor (Mermaid)
 
 ```mermaid
 sequenceDiagram
@@ -65,12 +78,31 @@ sequenceDiagram
 
 ---
 
-## 4. Chi tiết cấu trúc hoạt động
+## 5. Chi tiết hoạt động đi qua các Tầng (Layer Transition)
 
-* **`audit-log.decorator.ts`**:
-  * Định nghĩa decorator `@AuditLog(action, descriptionCallback)` để lập trình viên khai báo trực tiếp trên các endpoint Controller.
-* **`audit-log.interceptor.ts`**:
-  * Đăng ký hoạt động toàn cục (`APP_INTERCEPTOR` trong `AppModule`).
-  * Sử dụng RxJS `tap` operator để chỉ bắt các request thành công (không lưu log nếu API lỗi 400 hoặc 500).
-* **`audit-log.controller.ts`**:
-  * Cung cấp API truy vấn phân trang danh sách audit log cho màn hình Timeline ở Admin Panel.
+Dưới đây là hành trình xử lý ghi nhận và đọc dữ liệu Nhật ký:
+
+### Luồng Ghi nhận Log (Khai báo tự động)
+
+#### 1. Khai báo decorator `@AuditLog` (`shared/infrastructure/decorators/audit-log.decorator.ts`)
+* Nhà phát triển gắn decorator lên đầu các hàm xử lý trong Controller nghiệp vụ (như `UserController`, `RolesController`).
+* Ghi nhận Metadata chứa loại hành động (`action`) và hàm xây dựng nội dung chi tiết động (`descriptionCallback`).
+
+#### 2. Xử lý Interceptor (`shared/infrastructure/interceptors/audit-log.interceptor.ts`)
+* Khi client gửi yêu cầu đến route được trang trí:
+  1. Request đi qua `AuditLogInterceptor`.
+  2. Interceptor lưu giữ context và chuyển tiếp cho route handler thực thi nghiệp vụ chính (ghi xuống DB).
+  3. Nếu luồng chính thành công (không ném Exception), Interceptor dùng toán tử `tap` của RxJS để bắt đầu ghi nhận log.
+  4. Lấy thông tin user đăng nhập (`req.user`), địa chỉ IP client, và User-Agent thiết bị.
+  5. Chạy hàm callback để tạo mô tả chi tiết thao tác.
+  6. Lưu bản ghi mới vào bảng `AuditLog` của Postgres bằng Prisma hoàn toàn không đồng bộ. Nếu quá trình lưu log lỗi, interceptor tự bắt lại (`catch`) để không làm ảnh hưởng đến response trả về cho Admin.
+
+---
+
+### Luồng Truy vấn đọc Log (REST API)
+
+#### 3. Đầu vào Controller (`presentation/controllers/audit-log.controller.ts`)
+* Cung cấp endpoint `GET /audit-logs`.
+* Chỉ cho phép tài khoản có quyền `user:read` được phép xem danh sách log.
+* Tiếp nhận các tham số phân trang (`page`, `limit`, `search`).
+* Truy vấn trực tiếp Prisma DB để lấy danh sách log sắp xếp giảm dần theo thời gian (`createdAt: 'desc'`) để hiển thị các hoạt động mới nhất lên đầu danh sách.

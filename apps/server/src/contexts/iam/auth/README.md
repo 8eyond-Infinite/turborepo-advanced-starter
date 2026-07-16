@@ -41,7 +41,43 @@ Module này chịu trách nhiệm quản lý toàn bộ các khía cạnh liên 
 
 ---
 
-## 4. Sơ đồ tuần tự Xác thực & Token Rotation (Mermaid)
+## 4. Chi tiết cấu trúc thư mục và Vai trò từng File
+
+```
+auth/
+├── application/                                 # LỚP ỨNG DỤNG/ĐIỀU HƯỚNG (APPLICATION LAYER)
+│   ├── commands/                                # Các hành động thay đổi trạng thái (Ghi)
+│   │   ├── register.command.ts                  # Data object chứa thông tin đăng ký
+│   │   ├── logout.command.ts                    # Data object chứa JTI phiên muốn xóa
+│   │   ├── logout-all.command.ts                # Data object chứa ID người dùng cần xóa hết token
+│   │   └── handlers/
+│   │       ├── register.handler.ts              # Xử lý đăng ký & lưu trữ User nghiệp vụ
+│   │       ├── logout.handler.ts                # Thực thi xóa khóa Redis của phiên đơn
+│   │       └── logout-all.handler.ts            # Quét và xóa toàn bộ khóa Redis của User
+│   ├── queries/                                 # Các hành động lấy dữ liệu (Đọc)
+│   │   ├── login.query.ts                       # Data object chứa email/mật khẩu
+│   │   ├── refresh.query.ts                     # Data object chứa token để quay vòng
+│   │   └── handlers/
+│   │       ├── login.handler.ts                 # Xác thực tài khoản, tạo JTI, lưu Redis và trả về token
+│   │       └── refresh.handler.ts               # Kiểm tra whitelist, thu hồi token cũ, cấp phát token mới
+│   ├── guards/
+│   │   ├── jwt-auth.guard.ts                    # Bảo vệ route yêu cầu Access Token hợp lệ
+│   │   ├── jwt-refresh-auth.guard.ts            # Bảo vệ route yêu cầu Refresh Token hợp lệ
+│   │   └── permissions.guard.ts                 # Bảo vệ route yêu cầu quyền hạn cụ thể (RBAC)
+│   ├── strategies/
+│   │   ├── jwt.strategy.ts                      # Cấu hình giải mã và xác minh Access Token
+│   │   └── jwt-refresh.strategy.ts              # Cấu hình giải mã và xác minh Refresh Token
+│   └── decorators/
+│       └── permissions.decorator.ts             # Metadata decorator khai báo quyền yêu cầu trên Controller
+│
+├── presentation/                                # LỚP GIAO TIẾP (PRESENTATION LAYER)
+│   └── controllers/
+│       └── auth.controller.ts                   # REST Controller phân phối các route đăng nhập/đăng xuất
+```
+
+---
+
+## 5. Sơ đồ tuần tự Xác thực & Token Rotation (Mermaid)
 
 ```mermaid
 sequenceDiagram
@@ -97,27 +133,60 @@ sequenceDiagram
 
 ---
 
-## 5. Chi tiết hoạt động đi qua các Tầng (Layer Transition)
+## 6. Chi tiết hoạt động đi qua các Tầng (Layer Transition)
 
-```
-[Presentation] -> [Application] -> [Infrastructure/Services]
-```
+Dưới đây là mô tả chi tiết cách thức hoạt động của từng tệp tin khi request đi qua các tầng của hệ thống:
 
-### Tầng 1: Presentation (Đón nhận & Xác thực)
-* **`presentation/controllers/auth.controller.ts`**:
-  * Cung cấp các REST endpoint xác thực.
-  * Tích hợp `JwtAuthGuard` và `JwtRefreshAuthGuard` để bảo vệ tài nguyên và phân tích token.
-  * Dispatch các command/query tương ứng.
+### Tầng 1: Presentation (Đón nhận & Điều hướng HTTP)
 
-### Tầng 2: Application (Phát hành Token & Hủy bỏ)
-* **`application/queries/handlers/login.handler.ts`**:
-  * Xác thực email/password.
-  * Sử dụng NestJS `JwtService` để ký cấp phát cặp token.
-  * Ghi nhận Token JTI vào Redis để whitelisting.
-* **`application/queries/handlers/refresh.handler.ts`**:
-  * Kiểm tra xem JTI cũ còn trong Redis whitelist không. Nếu không, coi như token đã bị chiếm đoạt/thu hồi và trả về lỗi 401.
-  * Xóa JTI cũ khỏi Redis để ngăn chặn replay attack và cấp mới cặp token.
+#### 1. `presentation/controllers/auth.controller.ts`
+* **Nhiệm vụ**: Cung cấp giao diện REST API cho client đăng nhập, đăng ký, đăng xuất, làm mới phiên.
+* **Hoạt động**:
+  1. Hứng request HTTP POST.
+  2. Bọc thông tin email/mật khẩu vào các DTO.
+  3. Gửi DTO đó đi dưới dạng Command (`RegisterCommand`) hoặc Query (`LoginQuery`) qua các Bus tương ứng.
+  4. Trả kết quả JSON chứa Access & Refresh Token hoặc thông tin phản hồi thành công về cho Client.
 
-### Tầng 3: Infrastructure (Caching & Hashing)
-* **`shared/infrastructure/cache/redis.service.ts`**:
-  * Quản lý kết nối Client Redis, lưu khóa bất đối xứng và kiểm tra thời gian hết hạn (TTL).
+---
+
+### Tầng 2: Application (Thực thi nghiệp vụ điều phối)
+
+#### 2. `application/queries/handlers/login.handler.ts`
+* **Nhiệm vụ**: Xác thực định danh người dùng và phát hành bộ Token.
+* **Hoạt động**:
+  1. Lấy thông tin user bằng email từ `UserRepository`.
+  2. Khớp mật khẩu đã băm bằng `bcrypt.compare`.
+  3. Tạo JWT ID (`jti`) duy nhất bằng UUID để theo dõi phiên làm việc.
+  4. Ký phát hành Access Token và Refresh Token.
+  5. Đăng ký JTI này vào Redis cache (`refresh_token:${userId}:${jti}`) với thời gian sống (TTL) là 7 ngày nhằm đánh dấu whitelist.
+
+#### 3. `application/queries/handlers/refresh.handler.ts`
+* **Nhiệm vụ**: Triển khai cơ chế Refresh Token Rotation (Quay vòng Refresh Token).
+* **Hoạt động**:
+  1. Đọc JTI từ Refresh Token do người dùng gửi lên.
+  2. Kiểm tra xem JTI đó còn tồn tại trong Redis whitelist hay không.
+  3. Nếu không tìm thấy, lập tức ném ra lỗi Unauthorized (401) vì token có thể đã bị đánh cắp hoặc thu hồi trước đó.
+  4. Nếu tìm thấy, lập tức xóa khóa JTI cũ này khỏi Redis.
+  5. Sinh mới một JTI và bộ token mới, tiếp tục đưa JTI mới vào Redis whitelist và trả về cho người dùng.
+
+#### 4. `application/commands/handlers/logout.handler.ts` và `logout-all.handler.ts`
+* **Nhiệm vụ**: Thu hồi quyền truy cập của người dùng.
+* **Hoạt động**:
+  * **Logout**: Xóa trực tiếp JTI của phiên hiện tại khỏi Redis.
+  * **Logout All**: Thực hiện quét mẫu `refresh_token:${userId}:*` bằng lệnh SCAN/KEYS của Redis để thu hồi toàn bộ khóa lưu trữ phiên của người dùng đó trên mọi thiết bị.
+
+---
+
+### Tầng 3: Infrastructure (Security Guards & Strategies)
+
+#### 5. `application/strategies/jwt.strategy.ts` và `jwt-refresh.strategy.ts`
+* **Nhiệm vụ**: Giải mã và xác thực chữ ký của Token (Passport).
+* **Hoạt động**:
+  1. Nhận chuỗi token từ Authorization Header.
+  2. Sử dụng Secret Key của hệ thống để giải mã thông tin payload (chứa `userId`, `jti`, `email`).
+  3. Đính đối tượng user đã giải mã vào context request (`req.user`) để các bộ lọc tiếp theo có thể sử dụng.
+
+#### 6. `application/guards/jwt-auth.guard.ts` và `jwt-refresh-auth.guard.ts`
+* **Nhiệm vụ**: Ngăn chặn request không có chữ ký hợp lệ.
+* **Hoạt động**:
+  * Chạy Passport strategy tương ứng, nếu xác minh chữ ký không hợp lệ, lập tức trả về lỗi **HTTP 401 Unauthorized** trước khi đi vào Controller.
