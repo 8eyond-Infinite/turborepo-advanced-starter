@@ -76,3 +76,16 @@ model RolePermission {
   @@id([roleId, permissionId])
   @@map("role_permissions")
 }
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  action     String
+  details    String
+  userId     String?
+  userEmail  String?
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@map("audit_logs")
+}

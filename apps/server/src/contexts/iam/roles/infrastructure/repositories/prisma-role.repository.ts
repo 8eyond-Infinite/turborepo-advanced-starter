@@ -36,8 +36,6 @@ export class PrismaRoleRepository implements RoleRepository {
                 });
             }
 
-            // Sync permissions (delete relations not in data.permissions, add missing ones)
-            // 1. Fetch current permission IDs corresponding to the names
             const dbPermissions = await tx.permission.findMany({
                 where: {
                     name: { in: data.permissions }

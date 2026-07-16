@@ -8,7 +8,5 @@ export interface RoleRepository {
     delete(id: string): Promise<void>;
     nextIdentity(): string;
     exists(id: string): Promise<boolean>;
-    
-    // For list of system permissions
     findAllPermissions(): Promise<{ id: string; name: string; description: string | null; displayName: string | null; module: string | null }[]>;
 }

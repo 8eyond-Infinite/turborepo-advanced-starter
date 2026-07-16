@@ -16,6 +16,7 @@ import { CacheInterceptor, CacheKey, CacheTTL } from '@shared/infrastructure/cac
 import { CacheInvalidationInterceptor, InvalidateCache } from '@shared/infrastructure/cache/cache-invalidation.interceptor';
 import { PaginationQueryDto } from '@shared/infrastructure/dto/pagination-query.dto';
 import { PaginatedResponsePresenter } from '@shared/infrastructure/presenters/pagination.presenter';
+import { AuditLog } from '@shared/infrastructure/decorators/audit-log.decorator';
 
 @ApiTags('Users')
 @ApiBearerAuth()
@@ -68,6 +69,7 @@ export class UserController {
     @InvalidateCache('users:all')
     @HttpCode(HttpStatus.CREATED)
     @ApiOperation({ summary: 'Create a new user directly by Admin' })
+    @AuditLog('USER_CREATE', (req) => `Tạo tài khoản mới: ${req.body.email} với quyền: ${req.body.roles?.join(', ') || 'USER'}`)
     async createUser(
         @Body() body: { email: string; password?: string; roles?: string[] },
         @GetUser('id') adminId: string,
@@ -89,6 +91,7 @@ export class UserController {
     @InvalidateCache('users:all', 'users:me:{id}')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({ summary: 'Toggle user active/inactive status' })
+    @AuditLog('USER_TOGGLE_STATUS', (req) => `Thay đổi trạng thái kích hoạt của tài khoản ID: ${req.params.id}`)
     async toggleUserStatus(@Param('id') id: string, @GetUser('id') adminId: string) {
         const result = await this.commandBus.execute(new ToggleUserStatusCommand(id, adminId));
         result.unwrap();
@@ -115,6 +118,7 @@ export class UserController {
     @InvalidateCache('users:all', 'users:me:{id}')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({ summary: 'Update user email and roles' })
+    @AuditLog('USER_UPDATE', (req) => `Cập nhật tài khoản ID: ${req.params.id}. Email mới: ${req.body.email}, Vai trò mới: ${req.body.roles?.join(', ')}`)
     async updateUser(
         @Param('id') id: string,
         @Body() body: { email: string; roles: string[] },
@@ -137,6 +141,7 @@ export class UserController {
     @InvalidateCache('users:all', 'users:me:{id}')
     @HttpCode(HttpStatus.NO_CONTENT)
     @ApiOperation({ summary: 'Soft delete a user account' })
+    @AuditLog('USER_DELETE', (req) => `Xóa tài khoản ID: ${req.params.id}`)
     async deleteUser(@Param('id') id: string, @GetUser('id') adminId: string) {
         const result = await this.commandBus.execute(new DeleteUserCommand(id, adminId));
         result.unwrap();

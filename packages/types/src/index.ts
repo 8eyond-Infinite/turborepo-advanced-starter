@@ -43,3 +43,14 @@ export interface Permission {
     name: string;
     description: string;
 }
+
+export interface AuditLog {
+    id: string;
+    action: string;
+    details: string;
+    userId?: string | null;
+    userEmail?: string | null;
+    ip?: string | null;
+    userAgent?: string | null;
+    createdAt: string;
+}

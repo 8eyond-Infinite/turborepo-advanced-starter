@@ -10,6 +10,7 @@ import { GetPermissionsQuery } from '../../application/queries/get-permissions.q
 import { CreateRoleCommand } from '../../application/commands/create-role.command';
 import { UpdateRolePermissionsCommand } from '../../application/commands/update-role-permissions.command';
 import { DeleteRoleCommand } from '../../application/commands/delete-role.command';
+import { AuditLog } from '@shared/infrastructure/decorators/audit-log.decorator';
 
 @ApiTags('Roles')
 @ApiBearerAuth()
@@ -48,6 +49,7 @@ export class RolesController {
     @RequirePermissions('user:update')
     @HttpCode(HttpStatus.CREATED)
     @ApiOperation({ summary: 'Create a new role' })
+    @AuditLog('ROLE_CREATE', (req) => `Tạo vai trò mới: ${req.body.name}`)
     async createRole(
         @Body() body: { name: string; description?: string },
         @GetUser() user: any,
@@ -70,6 +72,7 @@ export class RolesController {
     @Put(':id/permissions')
     @RequirePermissions('user:update')
     @ApiOperation({ summary: 'Update role permissions' })
+    @AuditLog('ROLE_UPDATE_PERMISSIONS', (req) => `Cập nhật quyền hạn cho vai trò ID: ${req.params.id}. Quyền mới: ${req.body.permissions?.join(', ')}`)
     async updatePermissions(
         @Param('id') id: string,
         @Body() body: { permissions: string[] },
@@ -94,6 +97,7 @@ export class RolesController {
     @RequirePermissions('user:update')
     @HttpCode(HttpStatus.NO_CONTENT)
     @ApiOperation({ summary: 'Delete a role' })
+    @AuditLog('ROLE_DELETE', (req) => `Xóa vai trò ID: ${req.params.id}`)
     async deleteRole(@Param('id') id: string) {
         const result = await this.commandBus.execute(new DeleteRoleCommand(id));
         result.unwrap();

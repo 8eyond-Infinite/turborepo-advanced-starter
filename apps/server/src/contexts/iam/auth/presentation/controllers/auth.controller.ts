@@ -26,6 +26,7 @@ import { JwtRefreshAuthGuard } from '../../application/guards/jwt-refresh-auth.g
 import { UserPresenter } from '@iam/users/presentation/presenters/user.presenter';
 import { PaginationQueryDto } from '@shared/infrastructure/dto/pagination-query.dto';
 import { PaginatedResponsePresenter } from '@shared/infrastructure/presenters/pagination.presenter';
+import { AuditLog } from '@shared/infrastructure/decorators/audit-log.decorator';
 import type { Request } from 'express';
 
 @ApiTags('Authentication')
@@ -93,6 +94,7 @@ export class AuthController {
     @ApiOperation({ summary: 'Logout from all devices / active sessions' })
     @ApiResponse({ status: 200, description: 'Successfully logged out from all sessions' })
     @ApiResponse({ status: 401, description: 'Invalid access token' })
+    @AuditLog('SESSION_REVOKE_ALL', (req) => 'Thu hồi toàn bộ các phiên hoạt động khác')
     async logoutAll(@Req() req: any) {
         const { user } = req;
         const result = await this.commandBus.execute(new LogoutAllCommand(user.id));
@@ -119,6 +121,7 @@ export class AuthController {
     @HttpCode(HttpStatus.OK)
     @ApiBearerAuth()
     @ApiOperation({ summary: 'Revoke an active session by JTI' })
+    @AuditLog('SESSION_REVOKE', (req) => `Thu hồi phiên đăng nhập: JTI ${req.params.jti}`)
     async revokeSession(@Param('jti') jti: string, @Req() req: any) {
         const userId = req.user.id;
         const result = await this.commandBus.execute(new RevokeSessionCommand(userId, jti));

@@ -42,6 +42,10 @@ const data = {
           title: "Phiên đăng nhập",
           url: "/sessions",
         },
+        {
+          title: "Nhật ký hoạt động",
+          url: "/audit-logs",
+        },
       ],
     },
     {

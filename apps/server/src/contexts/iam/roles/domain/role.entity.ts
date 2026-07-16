@@ -5,7 +5,7 @@ export interface RoleProps {
     name: string;
     description: string | null;
     isDeleted: boolean;
-    permissions: string[]; // List of permission names
+    permissions: string[];
     createdAt: Date;
     updatedAt: Date;
     createdBy?: string | null;

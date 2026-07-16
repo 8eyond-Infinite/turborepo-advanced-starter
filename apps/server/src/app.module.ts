@@ -8,6 +8,9 @@ import { QueueModule } from '@shared/infrastructure/queue/queue.module';
 import { EventDispatcherModule } from '@shared/infrastructure/event/event-dispatcher.module';
 import { IamModule } from './contexts/iam/iam.module';
 
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { AuditLogInterceptor } from '@shared/infrastructure/interceptors/audit-log.interceptor';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -21,6 +24,12 @@ import { IamModule } from './contexts/iam/iam.module';
     IamModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: AuditLogInterceptor,
+    },
+  ],
 })
 export class AppModule { }

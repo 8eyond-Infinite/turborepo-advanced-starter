@@ -6,6 +6,7 @@ import { UserTable } from '@/features/users/components/UserTable';
 import { DashboardOverview } from '@/features/dashboard/components/DashboardOverview';
 import { RolesManagement } from '@/features/roles/components/RolesManagement';
 import { SessionsManagement } from '@/features/sessions/components/SessionsManagement';
+import { AuditLogsManagement } from '@/features/audit/components/AuditLogsManagement';
 
 export const router = createBrowserRouter([
     {
@@ -33,6 +34,10 @@ export const router = createBrowserRouter([
                     {
                         path: '/sessions',
                         element: <SessionsManagement />,
+                    },
+                    {
+                        path: '/audit-logs',
+                        element: <AuditLogsManagement />,
                     },
                 ],
             },

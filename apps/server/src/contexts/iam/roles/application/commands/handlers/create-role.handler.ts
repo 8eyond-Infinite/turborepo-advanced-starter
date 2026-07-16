@@ -25,7 +25,7 @@ export class CreateRoleCommandHandler implements ICommandHandler<CreateRoleComma
             id: this.roleRepository.nextIdentity(),
             name,
             description,
-            permissions: ['user:read'], // Give default read permissions to new roles
+            permissions: ['user:read'],
             createdBy,
         });
 
