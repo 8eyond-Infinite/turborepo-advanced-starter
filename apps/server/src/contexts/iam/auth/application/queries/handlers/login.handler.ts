@@ -52,8 +52,14 @@ export class LoginQueryHandler implements IQueryHandler<LoginQuery, Result<{ acc
             expiresIn: '7d',
         });
 
-        // Store refresh token whitelist in Redis with a 7-day TTL
-        await this.redisService.set(`refresh_token:${user.id}:${jti}`, '1', 604800);
+        // Store refresh token whitelist in Redis with a 7-day TTL and session metadata
+        const sessionData = {
+            jti,
+            ip: query.ip || 'Unknown',
+            userAgent: query.userAgent || 'Unknown',
+            createdAt: new Date().toISOString(),
+        };
+        await this.redisService.set(`refresh_token:${user.id}:${jti}`, JSON.stringify(sessionData), 604800);
 
         return Result.ok({ accessToken, refreshToken });
     }

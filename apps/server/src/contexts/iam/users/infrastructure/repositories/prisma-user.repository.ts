@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@shared/infrastructure/prisma/prisma.service';
-import { UserRepository } from '../../domain/ports/user.repository';
+import { UserRepository, FindAllOptions } from '../../domain/ports/user.repository';
 import { UserEntity } from '../../domain/user.entity';
 import { PrismaUserMapper } from '../mappers/prisma-user.mapper';
 import * as crypto from 'crypto';
@@ -122,18 +122,44 @@ export class PrismaUserRepository implements UserRepository {
         return Array.from(permissions);
     }
 
-    async findAll(): Promise<UserEntity[]> {
-        const raws = await this.prisma.user.findMany({
-            where: { isDeleted: false },
-            include: {
-                userRoles: {
-                    include: {
-                        role: true,
+    async findAll(options?: FindAllOptions): Promise<{ users: UserEntity[]; total: number }> {
+        const where: any = { isDeleted: false };
+        
+        if (options?.search) {
+            where.email = {
+                contains: options.search,
+                mode: 'insensitive',
+            };
+        }
+
+        const orderBy: any = {};
+        if (options?.sortBy) {
+            orderBy[options.sortBy] = options.sortOrder || 'desc';
+        } else {
+            orderBy.createdAt = 'desc';
+        }
+
+        const [raws, total] = await Promise.all([
+            this.prisma.user.findMany({
+                where,
+                include: {
+                    userRoles: {
+                        include: {
+                            role: true,
+                        },
                     },
                 },
-            },
-        });
-        return raws.map((raw) => PrismaUserMapper.toDomain(raw));
+                skip: options?.skip,
+                take: options?.take,
+                orderBy,
+            }),
+            this.prisma.user.count({ where }),
+        ]);
+
+        return {
+            users: raws.map((raw) => PrismaUserMapper.toDomain(raw)),
+            total,
+        };
     }
 
     nextIdentity(): string {

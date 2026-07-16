@@ -5,8 +5,10 @@ import { PassportModule } from '@nestjs/passport';
 import { RegisterHandler } from './application/commands/handlers/register.handler';
 import { LogoutCommandHandler } from './application/commands/handlers/logout.handler';
 import { LogoutAllCommandHandler } from './application/commands/handlers/logout-all.handler';
+import { RevokeSessionCommandHandler } from './application/commands/handlers/revoke-session.handler';
 import { LoginQueryHandler } from './application/queries/handlers/login.handler';
 import { RefreshQueryHandler } from './application/queries/handlers/refresh.handler';
+import { GetActiveSessionsQueryHandler } from './application/queries/handlers/get-active-sessions.handler';
 import { UsersModule } from '../users/users.module';
 import { AuthController } from './presentation/controllers/auth.controller';
 import { JwtStrategy } from './application/strategies/jwt.strategy';
@@ -24,8 +26,10 @@ import { JwtRefreshStrategy } from './application/strategies/jwt-refresh.strateg
         RegisterHandler,
         LogoutCommandHandler,
         LogoutAllCommandHandler,
+        RevokeSessionCommandHandler,
         LoginQueryHandler,
         RefreshQueryHandler,
+        GetActiveSessionsQueryHandler,
         JwtStrategy,
         JwtRefreshStrategy,
     ],

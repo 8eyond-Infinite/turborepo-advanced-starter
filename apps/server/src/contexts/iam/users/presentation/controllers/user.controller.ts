@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Patch, Delete, Body, Param, HttpStatus, HttpCode, UseGuards, UseInterceptors, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Put, Patch, Delete, Body, Query, Param, HttpStatus, HttpCode, UseGuards, UseInterceptors, BadRequestException } from '@nestjs/common';
 import { QueryBus, CommandBus } from '@nestjs/cqrs';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../auth/application/guards/jwt-auth.guard';
@@ -14,6 +14,8 @@ import { UpdateUserCommand } from '../../application/commands/update-user.comman
 import { UserPresenter } from '../presenters/user.presenter';
 import { CacheInterceptor, CacheKey, CacheTTL } from '@shared/infrastructure/cache/cache.interceptor';
 import { CacheInvalidationInterceptor, InvalidateCache } from '@shared/infrastructure/cache/cache-invalidation.interceptor';
+import { PaginationQueryDto } from '@shared/infrastructure/dto/pagination-query.dto';
+import { PaginatedResponsePresenter } from '@shared/infrastructure/presenters/pagination.presenter';
 
 @ApiTags('Users')
 @ApiBearerAuth()
@@ -41,17 +43,22 @@ export class UserController {
     @Get()
     @UseGuards(PermissionsGuard)
     @RequirePermissions('user:read')
-    @UseInterceptors(CacheInterceptor)
-    @CacheKey('users:all')
-    @CacheTTL(120)
-    @ApiOperation({ summary: 'Get all users list' })
-    @ApiResponse({ status: 200, description: 'Return array of all active users' })
+    @ApiOperation({ summary: 'Get all users list with pagination' })
+    @ApiResponse({ status: 200, description: 'Return paginated users list' })
     @ApiResponse({ status: 401, description: 'Unauthorized' })
     @ApiResponse({ status: 403, description: 'Forbidden - requires user:read permission' })
-    async getUsers() {
-        const result = await this.queryBus.execute(new GetUsersQuery());
-        const users = result.unwrap();
-        return users.map((user: any) => UserPresenter.toResponse(user));
+    async getUsers(@Query() query: PaginationQueryDto) {
+        const result = await this.queryBus.execute(
+            new GetUsersQuery(query.page, query.limit, query.search, query.sortBy, query.sortOrder)
+        );
+        const { users, total } = result.unwrap();
+        const responseData = users.map((user: any) => UserPresenter.toResponse(user));
+        return PaginatedResponsePresenter.toResponse(
+            responseData,
+            total,
+            query.page || 1,
+            query.limit || 10
+        );
     }
 
     @Post()

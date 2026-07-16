@@ -33,8 +33,29 @@ export class RefreshQueryHandler implements IQueryHandler<RefreshQuery, Result<{
             expiresIn: '7d',
         });
 
-        // Store new refresh token in Redis
-        await this.redisService.set(`refresh_token:${userId}:${newJti}`, '1', 604800);
+        // Get old session metadata if available to preserve it
+        let sessionData = {
+            jti: newJti,
+            ip: 'Unknown',
+            userAgent: 'Unknown',
+            createdAt: new Date().toISOString(),
+        };
+
+        const oldDataStr = await this.redisService.get<string>(`refresh_token:${userId}:${oldJti}`);
+        if (oldDataStr && oldDataStr !== '1') {
+            try {
+                const oldData = JSON.parse(oldDataStr);
+                sessionData = {
+                    ...oldData,
+                    jti: newJti, // Update JTI
+                };
+            } catch (e) {
+                // Ignore parse errors
+            }
+        }
+
+        // Store new refresh token in Redis with metadata
+        await this.redisService.set(`refresh_token:${userId}:${newJti}`, JSON.stringify(sessionData), 604800);
 
         // Delete old refresh token (rotation)
         await this.redisService.del(`refresh_token:${userId}:${oldJti}`);

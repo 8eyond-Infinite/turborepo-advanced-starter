@@ -11,17 +11,40 @@ export interface User {
     createdAt: string;
 }
 
-export const useUsers = () => {
+export interface PaginatedResult<T> {
+    data: T[];
+    meta: {
+        totalItems: number;
+        itemCount: number;
+        itemsPerPage: number;
+        totalPages: number;
+        currentPage: number;
+    };
+}
+
+export const useUsers = (options?: { page?: number; limit?: number; search?: string }) => {
     const queryClient = useQueryClient();
+    const page = options?.page || 1;
+    const limit = options?.limit || 10;
+    const search = options?.search || '';
 
     // 1. Fetch Users List
-    const { data: users = [], isLoading: isLoadingUsers } = useQuery<User[]>({
-        queryKey: ['users'],
+    const { data, isLoading: isLoadingUsers } = useQuery<PaginatedResult<User>>({
+        queryKey: ['users', page, limit, search],
         queryFn: async () => {
-            return await ApiClient.get<User[]>('/users');
+            const queryParams = new URLSearchParams();
+            queryParams.append('page', page.toString());
+            queryParams.append('limit', limit.toString());
+            if (search) {
+                queryParams.append('search', search);
+            }
+            return await ApiClient.get<PaginatedResult<User>>(`/users?${queryParams.toString()}`);
         },
-        staleTime: 60000,
+        staleTime: 30000,
     });
+
+    const users = data?.data || [];
+    const meta = data?.meta || { totalItems: 0, itemCount: 0, itemsPerPage: limit, totalPages: 1, currentPage: page };
 
     // 2. Fetch Roles List (for role assignment dropdown)
     const { data: roles = [] } = useQuery<any[]>({
@@ -90,6 +113,7 @@ export const useUsers = () => {
 
     return {
         users,
+        meta,
         roles,
         createUser: createUserMutation.mutateAsync,
         updateUser: updateUserMutation.mutateAsync,

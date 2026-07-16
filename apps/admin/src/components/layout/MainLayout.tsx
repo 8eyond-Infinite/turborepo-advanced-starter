@@ -23,6 +23,7 @@ export const MainLayout = () => {
     { path: '/', label: 'Tổng quan' },
     { path: '/users', label: 'Quản lý Users' },
     { path: '/roles', label: 'Phân quyền Roles' },
+    { path: '/sessions', label: 'Phiên đăng nhập' },
   ]
 
   const currentLabel = navItems.find((item) => item.path === location.pathname)?.label || 'Dashboard'

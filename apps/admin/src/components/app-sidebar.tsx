@@ -38,6 +38,10 @@ const data = {
           title: "Phân quyền Roles",
           url: "/roles",
         },
+        {
+          title: "Phiên đăng nhập",
+          url: "/sessions",
+        },
       ],
     },
     {

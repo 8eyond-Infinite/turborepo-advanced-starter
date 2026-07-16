@@ -15,8 +15,9 @@ export const DashboardOverview = () => {
         staleTime: 60000,
     });
 
-    const totalUsers = users.length;
-    const activeUsers = users.filter((u) => u.isActive).length;
+    const userList = Array.isArray(users) ? users : ((users as any).data || []);
+    const totalUsers = Array.isArray(users) ? users.length : ((users as any).meta?.totalItems || 0);
+    const activeUsers = userList.filter((u: any) => u.isActive).length;
     const inactiveUsers = totalUsers - activeUsers;
 
     const stats = [

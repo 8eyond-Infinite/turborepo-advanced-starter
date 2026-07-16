@@ -7,14 +7,22 @@ import type { UserRepository } from '@iam/users/domain/ports/user.repository';
 import { UserEntity } from '@iam/users/domain/user.entity';
 
 @QueryHandler(GetUsersQuery)
-export class GetUsersQueryHandler implements IQueryHandler<GetUsersQuery, Result<UserEntity[], DomainException>> {
+export class GetUsersQueryHandler implements IQueryHandler<GetUsersQuery, Result<{ users: UserEntity[]; total: number }, DomainException>> {
     constructor(
         @Inject('UserRepository')
         private readonly userRepository: UserRepository,
     ) { }
 
-    async execute(query: GetUsersQuery): Promise<Result<UserEntity[], DomainException>> {
-        const users = await this.userRepository.findAll();
-        return Result.ok(users);
+    async execute(query: GetUsersQuery): Promise<Result<{ users: UserEntity[]; total: number }, DomainException>> {
+        const { page, limit, search, sortBy, sortOrder } = query;
+        const skip = (page - 1) * limit;
+        const result = await this.userRepository.findAll({
+            skip,
+            take: limit,
+            search,
+            sortBy,
+            sortOrder,
+        });
+        return Result.ok(result);
     }
 }

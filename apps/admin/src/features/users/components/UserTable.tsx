@@ -1,17 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
-import { ConfirmDialog, SingleSelect, PageHeader, SearchInput, EmptyState, PageCard } from '@/components';
+import { ConfirmDialog, SingleSelect, PageHeader, SearchInput, EmptyState, PageCard, TablePagination } from '@/components';
 import { UserCheck, UserX, UserPlus, Trash2, Shield, Loader2, Pencil } from 'lucide-react';
 import { useUsers } from '../hooks/useUsers';
 
 export const UserTable = () => {
+    const [searchQuery, setSearchQuery] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(searchQuery);
+            setCurrentPage(1);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
+
     const {
         users,
+        meta,
         roles,
         createUser,
         updateUser,
@@ -20,9 +33,8 @@ export const UserTable = () => {
         isLoading,
         isCreating,
         isUpdating,
-    } = useUsers();
+    } = useUsers({ page: currentPage, limit: 10, search: debouncedSearch });
 
-    const [searchQuery, setSearchQuery] = useState('');
     const [isAdding, setIsAdding] = useState(false);
     const [newEmail, setNewEmail] = useState('');
     const [newPassword, setNewPassword] = useState('');
@@ -74,9 +86,8 @@ export const UserTable = () => {
         }
     };
 
-    const filteredUsers = users.filter((user) =>
-        user.email.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const totalPages = meta.totalPages;
+    const safeCurrentPage = meta.currentPage;
 
     if (isLoading) {
         return (
@@ -204,7 +215,7 @@ export const UserTable = () => {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {filteredUsers.length === 0 ? (
+                        {users.length === 0 ? (
                             <TableRow>
                                 <TableCell colSpan={6} className="p-0">
                                     <EmptyState
@@ -230,7 +241,7 @@ export const UserTable = () => {
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            filteredUsers.map((user) => (
+                             users.map((user) => (
                                 <TableRow key={user.id} className="hover:bg-muted/5 transition-colors">
                                     <TableCell className="font-semibold text-foreground pl-6 py-4">
                                         <div className="flex flex-col gap-0.5">
@@ -335,6 +346,11 @@ export const UserTable = () => {
                         )}
                     </TableBody>
                 </Table>
+                <TablePagination
+                    currentPage={safeCurrentPage}
+                    totalPages={totalPages}
+                    onPageChange={setCurrentPage}
+                />
             </PageCard>
 
             {/* Controlled Status Toggle Dialog */}

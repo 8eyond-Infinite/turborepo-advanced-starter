@@ -5,6 +5,7 @@ import { LoginForm } from '@/features/auth/components/LoginForm';
 import { UserTable } from '@/features/users/components/UserTable';
 import { DashboardOverview } from '@/features/dashboard/components/DashboardOverview';
 import { RolesManagement } from '@/features/roles/components/RolesManagement';
+import { SessionsManagement } from '@/features/sessions/components/SessionsManagement';
 
 export const router = createBrowserRouter([
     {
@@ -28,6 +29,10 @@ export const router = createBrowserRouter([
                     {
                         path: '/roles',
                         element: <RolesManagement />,
+                    },
+                    {
+                        path: '/sessions',
+                        element: <SessionsManagement />,
                     },
                 ],
             },

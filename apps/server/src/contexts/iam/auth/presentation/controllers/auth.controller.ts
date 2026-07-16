@@ -1,7 +1,11 @@
 import { 
     Controller, 
     Post, 
+    Get,
+    Delete,
     Body, 
+    Param,
+    Query,
     HttpCode, 
     HttpStatus, 
     UseGuards, 
@@ -13,11 +17,16 @@ import { RegisterDto, LoginDto } from '../dtos';
 import { RegisterCommand } from '../../application/commands/register.command';
 import { LogoutCommand } from '../../application/commands/logout.command';
 import { LogoutAllCommand } from '../../application/commands/logout-all.command';
+import { RevokeSessionCommand } from '../../application/commands/revoke-session.command';
 import { LoginQuery } from '../../application/queries/login.query';
 import { RefreshQuery } from '../../application/queries/refresh.query';
+import { GetActiveSessionsQuery } from '../../application/queries/get-active-sessions.query';
 import { JwtAuthGuard } from '../../application/guards/jwt-auth.guard';
 import { JwtRefreshAuthGuard } from '../../application/guards/jwt-refresh-auth.guard';
 import { UserPresenter } from '@iam/users/presentation/presenters/user.presenter';
+import { PaginationQueryDto } from '@shared/infrastructure/dto/pagination-query.dto';
+import { PaginatedResponsePresenter } from '@shared/infrastructure/presenters/pagination.presenter';
+import type { Request } from 'express';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -43,8 +52,10 @@ export class AuthController {
     @ApiOperation({ summary: 'Log in with credentials' })
     @ApiResponse({ status: 200, description: 'Return Access Token and Refresh Token' })
     @ApiResponse({ status: 401, description: 'Invalid credentials' })
-    async login(@Body() dto: LoginDto) {
-        const result = await this.queryBus.execute(new LoginQuery(dto.email, dto.password));
+    async login(@Body() dto: LoginDto, @Req() req: Request) {
+        const ip = req.ip || req.headers['x-forwarded-for']?.toString() || req.socket.remoteAddress || 'Unknown';
+        const userAgent = req.headers['user-agent'] || 'Unknown';
+        const result = await this.queryBus.execute(new LoginQuery(dto.email, dto.password, ip, userAgent));
         return result.unwrap();
     }
 
@@ -85,6 +96,32 @@ export class AuthController {
     async logoutAll(@Req() req: any) {
         const { user } = req;
         const result = await this.commandBus.execute(new LogoutAllCommand(user.id));
+        result.unwrap();
+        return { success: true };
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Get('sessions')
+    @HttpCode(HttpStatus.OK)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Get active sessions for current user with pagination' })
+    async getSessions(@Req() req: any, @Query() query: PaginationQueryDto) {
+        const userId = req.user.id;
+        const page = query.page || 1;
+        const limit = query.limit || 10;
+        const result = await this.queryBus.execute(new GetActiveSessionsQuery(userId, page, limit));
+        const { sessions, total } = result.unwrap();
+        return PaginatedResponsePresenter.toResponse(sessions, total, page, limit);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Delete('sessions/:jti')
+    @HttpCode(HttpStatus.OK)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Revoke an active session by JTI' })
+    async revokeSession(@Param('jti') jti: string, @Req() req: any) {
+        const userId = req.user.id;
+        const result = await this.commandBus.execute(new RevokeSessionCommand(userId, jti));
         result.unwrap();
         return { success: true };
     }
