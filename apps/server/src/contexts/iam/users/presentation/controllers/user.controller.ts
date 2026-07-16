@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, HttpStatus, HttpCode, UseGuards, UseInterceptors, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Put, Patch, Delete, Body, Param, HttpStatus, HttpCode, UseGuards, UseInterceptors, BadRequestException } from '@nestjs/common';
 import { QueryBus, CommandBus } from '@nestjs/cqrs';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../auth/application/guards/jwt-auth.guard';
@@ -10,6 +10,7 @@ import { DeactivateUserCommand } from '../../application/commands/deactivate-use
 import { CreateUserCommand } from '../../application/commands/create-user.command';
 import { DeleteUserCommand } from '../../application/commands/delete-user.command';
 import { ToggleUserStatusCommand } from '../../application/commands/toggle-user-status.command';
+import { UpdateUserCommand } from '../../application/commands/update-user.command';
 import { UserPresenter } from '../presenters/user.presenter';
 import { CacheInterceptor, CacheKey, CacheTTL } from '@shared/infrastructure/cache/cache.interceptor';
 import { CacheInvalidationInterceptor, InvalidateCache } from '@shared/infrastructure/cache/cache-invalidation.interceptor';
@@ -96,6 +97,28 @@ export class UserController {
     @ApiOperation({ summary: 'Deactivate a user account' })
     async deactivateUser(@Param('id') id: string, @GetUser('id') adminId: string) {
         const result = await this.commandBus.execute(new DeactivateUserCommand(id, adminId));
+        result.unwrap();
+        return { success: true };
+    }
+
+    @Put(':id')
+    @UseGuards(PermissionsGuard)
+    @RequirePermissions('user:update')
+    @UseInterceptors(CacheInvalidationInterceptor)
+    @InvalidateCache('users:all', 'users:me:{id}')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({ summary: 'Update user email and roles' })
+    async updateUser(
+        @Param('id') id: string,
+        @Body() body: { email: string; roles: string[] },
+        @GetUser('id') adminId: string,
+    ) {
+        if (!body.email) {
+            throw new BadRequestException('Email is required');
+        }
+        const result = await this.commandBus.execute(
+            new UpdateUserCommand(id, body.email, body.roles, adminId)
+        );
         result.unwrap();
         return { success: true };
     }

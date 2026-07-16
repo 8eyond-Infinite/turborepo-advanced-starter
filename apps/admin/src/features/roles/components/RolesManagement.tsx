@@ -4,8 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ConfirmDialog } from '@/components/confirm-dialog';
-import { Shield, Key, Plus, Trash2, Loader2 } from 'lucide-react';
+import { ConfirmDialog, PageHeader } from '@/components';
+import { Key, Plus, Trash2, Loader2 } from 'lucide-react';
 import { useRoles } from '../hooks/useRoles';
 
 const groupPermissions = (perms: any[]) => {
@@ -63,32 +63,25 @@ export const RolesManagement = () => {
     return (
         <div className="space-y-6 bg-background text-foreground">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                    <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
-                        <Shield className="h-5 w-5 text-primary" /> Ma trận Vai trò & Quyền hạn
-                    </h2>
-                    <p className="text-sm text-muted-foreground mt-0.5">
-                        Quản lý quyền truy cập của từng nhóm vai trò trên hệ thống dưới dạng bảng ma trận.
-                    </p>
-                </div>
-                <div className="flex items-center gap-3">
-                    {isSaving && (
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground animate-pulse">
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                            <span>Đang đồng bộ...</span>
-                        </div>
-                    )}
-                    <Button
-                        onClick={() => setIsAdding(!isAdding)}
-                        variant="outline"
-                        size="sm"
-                        className="cursor-pointer"
-                    >
-                        <Plus className="h-3.5 w-3.5 mr-1" /> Thêm vai trò mới
-                    </Button>
-                </div>
-            </div>
+            <PageHeader
+                title="Ma trận Vai trò & Quyền hạn"
+                description="Quản lý quyền truy cập của từng nhóm vai trò trên hệ thống dưới dạng bảng ma trận."
+            >
+                {isSaving && (
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground animate-pulse">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        <span>Đang đồng bộ...</span>
+                    </div>
+                )}
+                <Button
+                    onClick={() => setIsAdding(!isAdding)}
+                    variant="outline"
+                    size="sm"
+                    className="cursor-pointer"
+                >
+                    <Plus className="h-3.5 w-3.5 mr-1" /> Thêm vai trò mới
+                </Button>
+            </PageHeader>
 
             {/* Create Role Form */}
             {isAdding && (

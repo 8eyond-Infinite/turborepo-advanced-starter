@@ -74,14 +74,30 @@ export const useUsers = () => {
         }
     });
 
+    // 6. Update User Mutation
+    const updateUserMutation = useMutation({
+        mutationFn: async ({ id, ...data }: { id: string; email: string; roles: string[] }) => {
+            return await ApiClient.put(`/users/${id}`, data);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['users'] });
+            toast.success("Cập nhật thông tin tài khoản thành công!");
+        },
+        onError: (err: any) => {
+            toast.error("Không thể cập nhật tài khoản: " + err.message);
+        }
+    });
+
     return {
         users,
         roles,
         createUser: createUserMutation.mutateAsync,
+        updateUser: updateUserMutation.mutateAsync,
         toggleStatus: toggleStatusMutation.mutate,
         deleteUser: deleteUserMutation.mutate,
         isLoading: isLoadingUsers,
         isCreating: createUserMutation.isPending,
+        isUpdating: updateUserMutation.isPending,
         isToggling: toggleStatusMutation.isPending,
         isDeleting: deleteUserMutation.isPending,
     };

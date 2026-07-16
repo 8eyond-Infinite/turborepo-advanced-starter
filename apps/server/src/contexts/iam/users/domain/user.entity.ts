@@ -62,6 +62,11 @@ export class UserEntity extends AggregateRoot {
         this.trackUpdate(updatedBy);
     }
 
+    public updateInfo(email: string, updatedBy?: string): void {
+        this.props.email = new Email(email);
+        this.trackUpdate(updatedBy);
+    }
+
     public deactivate(updatedBy?: string): void {
         this.props.isActive = false;
         this.trackUpdate(updatedBy);
