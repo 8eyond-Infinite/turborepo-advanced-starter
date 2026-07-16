@@ -23,7 +23,8 @@
     "react-router-dom": "^7.18.1",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.6.0",
-    "zustand": "^5.0.14"
+    "zustand": "^5.0.14",
+    "@repo/types": "workspace:*"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

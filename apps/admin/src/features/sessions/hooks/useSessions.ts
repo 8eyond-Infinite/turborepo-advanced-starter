@@ -2,23 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ApiClient } from '@/lib/api-client';
 import { toast } from 'sonner';
 
-export interface ActiveSession {
-    jti: string;
-    ip: string;
-    userAgent: string;
-    createdAt: string;
-}
-
-export interface PaginatedResult<T> {
-    data: T[];
-    meta: {
-        totalItems: number;
-        itemCount: number;
-        itemsPerPage: number;
-        totalPages: number;
-        currentPage: number;
-    };
-}
+import type { ActiveSession, PaginatedResult } from '@repo/types';
 
 export const useSessions = (options?: { page?: number; limit?: number }) => {
     const queryClient = useQueryClient();

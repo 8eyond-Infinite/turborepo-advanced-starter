@@ -3,19 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ApiClient } from '@/lib/api-client';
 import { toast } from 'sonner';
 
-export interface Role {
-    id: string;
-    name: string;
-    description: string | null;
-    permissions: string[];
-    createdAt?: string;
-}
-
-export interface Permission {
-    id: string;
-    name: string;
-    description: string | null;
-}
+import type { Role, Permission } from '@repo/types';
 
 export const useRoles = () => {
     const queryClient = useQueryClient();

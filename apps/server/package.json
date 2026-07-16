@@ -31,6 +31,7 @@
     "@nestjs/swagger": "^11.4.5",
     "@prisma/adapter-pg": "^7.8.0",
     "@repo/database": "workspace:*",
+    "@repo/types": "workspace:*",
     "bcrypt": "^6.0.0",
     "bullmq": "^5.80.2",
     "class-transformer": "^0.5.1",

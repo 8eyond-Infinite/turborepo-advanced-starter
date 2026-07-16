@@ -3,7 +3,7 @@ import { PageHeader, PageCard, EmptyState, ConfirmDialog, TablePagination } from
 import { Button } from '@/components/ui/button';
 import { Laptop, Smartphone, LogOut, Clock, ShieldAlert, Loader2 } from 'lucide-react';
 import { useSessions } from '../hooks/useSessions';
-import type { ActiveSession } from '../hooks/useSessions';
+import type { ActiveSession } from '@repo/types';
 
 const parseUserAgent = (uaString?: string) => {
     const ua = (uaString || '').toLowerCase();
