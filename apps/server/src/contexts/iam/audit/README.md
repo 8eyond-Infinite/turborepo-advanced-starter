@@ -17,7 +17,14 @@ Module này quản lý và lưu trữ toàn bộ các lịch sử thao tác, tha
 
 ---
 
-## 2. Đặc tả API Endpoints
+## 2. Danh sách Use Cases (CQRS)
+
+### Nhánh Đọc - Truy vấn (Queries)
+1. **`GetAuditLogsQuery`**: Truy vấn danh sách nhật ký hoạt động hỗ trợ phân trang Server-side, lọc bản ghi, và tìm kiếm mờ (Search Query).
+
+---
+
+## 3. Đặc tả API Endpoints
 
 | Giao thức | Route | Bảo vệ bằng | DTO đầu vào | Trả về |
 | :--- | :--- | :--- | :--- | :--- |
@@ -25,20 +32,26 @@ Module này quản lý và lưu trữ toàn bộ các lịch sử thao tác, tha
 
 ---
 
-## 3. Chi tiết cấu trúc thư mục và Vai trò từng File
+## 4. Chi tiết cấu trúc thư mục và Vai trò từng File
 
 ```
 audit/
+├── application/                                 # LỚP ỨNG DỤNG/ĐIỀU HƯỚNG (APPLICATION LAYER)
+│   └── queries/                                 # Các hành động lấy dữ liệu (Đọc)
+│       ├── get-audit-logs.query.ts              # Data object chứa bộ lọc phân trang và tìm kiếm log
+│       └── handlers/
+│           └── get-audit-logs.handler.ts        # Thực hiện truy vấn DB thông qua PrismaService
+│
 ├── presentation/                                # LỚP GIAO TIẾP (PRESENTATION LAYER)
 │   └── controllers/
-│       └── audit-log.controller.ts              # REST Controller tiếp nhận các yêu cầu truy vấn log
+│       └── audit-log.controller.ts              # REST Controller tiếp nhận yêu cầu và dispatch Query
 │
-└── audit-log.module.ts                          # Khai báo NestJS Module đăng ký Controller và Prisma
+└── audit-log.module.ts                          # Đăng ký CqrsModule, Controller và Query Handler
 ```
 
 ---
 
-## 4. Sơ đồ tuần tự Ghi log tự động qua Interceptor (Mermaid)
+## 5. Sơ đồ tuần tự Ghi log tự động qua Interceptor (Mermaid)
 
 ```mermaid
 sequenceDiagram
@@ -78,7 +91,39 @@ sequenceDiagram
 
 ---
 
-## 5. Chi tiết hoạt động đi qua các Tầng (Layer Transition)
+## 6. Sơ đồ tuần tự Truy vấn đọc Nhật ký qua CQRS (Mermaid)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Admin
+    participant AuditLogController
+    participant QueryBus
+    participant GetAuditLogsQueryHandler
+    participant Database
+
+    Admin->>AuditLogController: GET /audit-logs?page=1&limit=10
+    activate AuditLogController
+    AuditLogController->>QueryBus: execute(new GetAuditLogsQuery(query))
+    activate QueryBus
+    QueryBus->>GetAuditLogsQueryHandler: execute(query)
+    activate GetAuditLogsQueryHandler
+    GetAuditLogsQueryHandler->>Database: Query audit_logs (findMany & count)
+    activate Database
+    Database-->>GetAuditLogsQueryHandler: Raw logs & total
+    deactivate Database
+    GetAuditLogsQueryHandler-->>QueryBus: Result.ok({ logs, total })
+    deactivate GetAuditLogsQueryHandler
+    QueryBus-->>AuditLogController: Result.ok
+    deactivate QueryBus
+    AuditLogController->>AuditLogController: PaginatedResponsePresenter.toResponse
+    AuditLogController-->>Admin: HTTP 200 OK (JSON Paginated List)
+    deactivate AuditLogController
+```
+
+---
+
+## 7. Chi tiết hoạt động đi qua các Tầng (Layer Transition)
 
 Dưới đây là hành trình xử lý ghi nhận và đọc dữ liệu Nhật ký:
 
@@ -103,6 +148,11 @@ Dưới đây là hành trình xử lý ghi nhận và đọc dữ liệu Nhật
 
 #### 3. Đầu vào Controller (`presentation/controllers/audit-log.controller.ts`)
 * Cung cấp endpoint `GET /audit-logs`.
-* Chỉ cho phép tài khoản có quyền `user:read` được phép xem danh sách log.
-* Tiếp nhận các tham số phân trang (`page`, `limit`, `search`).
-* Truy vấn trực tiếp Prisma DB để lấy danh sách log sắp xếp giảm dần theo thời gian (`createdAt: 'desc'`) để hiển thị các hoạt động mới nhất lên đầu danh sách.
+* Được bảo vệ bởi `PermissionsGuard` và yêu cầu quyền `user:read`.
+* Nhận request và đóng gói thành `GetAuditLogsQuery` rồi chuyển tiếp qua `QueryBus`.
+
+#### 4. Xử lý Query Handler (`application/queries/handlers/get-audit-logs.handler.ts`)
+* Được gắn decorator `@QueryHandler(GetAuditLogsQuery)`.
+* Trực tiếp thực thi logic phân trang (`skip`, `take`), tìm kiếm mờ (`where.OR` trên các trường `action`, `details`, `userEmail`) thông qua `PrismaService`.
+* Trả về kết quả bọc trong `Result.ok({ logs, total })`.
+* Định dạng JSON output thông qua `PaginatedResponsePresenter` trước khi phản hồi về cho client.
