@@ -23,6 +23,6 @@
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
     "tsup": "^8",
-    "typescript": "^5.0.0"
+    "typescript": "^5.9.2"
   }
 }

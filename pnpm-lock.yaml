@@ -385,7 +385,7 @@ importers:
         specifier: ^8
         version: 8.5.1(jiti@2.7.0)(postcss@8.5.16)(typescript@5.9.2)
       typescript:
-        specifier: ^5.0.0
+        specifier: ^5.9.2
         version: 5.9.2
 
   packages/typescript-config: {}
