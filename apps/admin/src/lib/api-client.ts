@@ -141,7 +141,7 @@ export class ApiClient {
         return this.request<T>(path, {
             ...options,
             method: 'POST',
-            body: body ? JSON.stringify(body) : undefined,
+            body: body instanceof FormData ? body : (body ? JSON.stringify(body) : undefined),
         });
     }
 
@@ -149,7 +149,7 @@ export class ApiClient {
         return this.request<T>(path, {
             ...options,
             method: 'PUT',
-            body: body ? JSON.stringify(body) : undefined,
+            body: body instanceof FormData ? body : (body ? JSON.stringify(body) : undefined),
         });
     }
 
@@ -157,7 +157,7 @@ export class ApiClient {
         return this.request<T>(path, {
             ...options,
             method: 'PATCH',
-            body: body ? JSON.stringify(body) : undefined,
+            body: body instanceof FormData ? body : (body ? JSON.stringify(body) : undefined),
         });
     }
 

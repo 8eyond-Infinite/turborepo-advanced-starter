@@ -15,6 +15,7 @@ export interface User {
     id: string;
     email: string;
     username: string;
+    avatar?: string | null;
     isActive: boolean;
     isDeleted: boolean;
     roles: string[];

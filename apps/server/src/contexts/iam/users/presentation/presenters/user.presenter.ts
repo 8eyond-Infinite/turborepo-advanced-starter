@@ -7,6 +7,7 @@ export class UserPresenter {
             id: data.id,
             email: data.email,
             username: data.username,
+            avatar: data.avatar,
             isActive: data.isActive,
             isDeleted: data.isDeleted,
             roles: data.roles || [],

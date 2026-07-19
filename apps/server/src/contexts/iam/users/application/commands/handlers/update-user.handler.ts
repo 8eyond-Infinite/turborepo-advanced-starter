@@ -13,7 +13,7 @@ export class UpdateUserCommandHandler implements ICommandHandler<UpdateUserComma
     ) { }
 
     async execute(command: UpdateUserCommand): Promise<Result<void, DomainException>> {
-        const { id, email, username, roles, updatedBy } = command;
+        const { id, email, username, roles, avatar, updatedBy } = command;
 
         const user = await this.userRepository.findById(id);
         if (!user) {
@@ -38,7 +38,7 @@ export class UpdateUserCommandHandler implements ICommandHandler<UpdateUserComma
         // UserEntity has `props` as private. So we MUST add a domain method `updateInfo(email: string, updatedBy?: string)` inside UserEntity!
         // That is the correct DDD way!
 
-        user.updateInfo(email, username, updatedBy);
+        user.updateInfo(email, username, avatar, updatedBy);
         user.updateRoles(roles, updatedBy);
 
         await this.userRepository.save(user);

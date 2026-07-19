@@ -11,6 +11,7 @@ model User {
   email     String   @unique
   username  String   
   password  String
+  avatar    String?
   isActive Boolean @default(true)
   isDeleted Boolean @default(false)
 

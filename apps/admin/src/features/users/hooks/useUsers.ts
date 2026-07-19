@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ApiClient } from '@/lib/api-client';
 import { toast } from 'sonner';
 
-import type { User, PaginatedResult } from '@repo/types';
+import type { User, PaginatedResult, Role } from '@repo/types';
 
 export const useUsers = (options?: { page?: number; limit?: number; search?: string }) => {
     const queryClient = useQueryClient();
@@ -29,17 +29,17 @@ export const useUsers = (options?: { page?: number; limit?: number; search?: str
     const meta = data?.meta || { totalItems: 0, itemCount: 0, itemsPerPage: limit, totalPages: 1, currentPage: page };
 
     // 2. Fetch Roles List (for role assignment dropdown)
-    const { data: roles = [] } = useQuery<any[]>({
+    const { data: roles = [] } = useQuery<Role[]>({
         queryKey: ['roles'],
         queryFn: async () => {
-            return await ApiClient.get<any[]>('/roles');
+            return await ApiClient.get<Role[]>('/roles');
         },
         staleTime: 60000,
     });
 
     // 3. Create User Mutation
     const createUserMutation = useMutation({
-        mutationFn: async (data: { email: string; username: string; password?: string; roles: string[] }) => {
+        mutationFn: async (data: { email: string; username: string; password?: string; avatar?: string | null; roles: string[] }) => {
             return await ApiClient.post<User>('/users', data);
         },
         onSuccess: (newUser) => {
@@ -81,7 +81,7 @@ export const useUsers = (options?: { page?: number; limit?: number; search?: str
 
     // 6. Update User Mutation
     const updateUserMutation = useMutation({
-        mutationFn: async ({ id, ...data }: { id: string; email: string; username: string; roles: string[] }) => {
+        mutationFn: async ({ id, ...data }: { id: string; email: string; username: string; avatar?: string | null; roles: string[] }) => {
             return await ApiClient.put(`/users/${id}`, data);
         },
         onSuccess: () => {

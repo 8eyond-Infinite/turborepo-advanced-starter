@@ -7,6 +7,7 @@ import { RedisModule } from '@shared/infrastructure/cache/redis.module';
 import { QueueModule } from '@shared/infrastructure/queue/queue.module';
 import { EventDispatcherModule } from '@shared/infrastructure/event/event-dispatcher.module';
 import { IamModule } from './contexts/iam/iam.module';
+import { StorageModule } from './contexts/storage/storage.module';
 
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { AuditLogInterceptor } from '@shared/infrastructure/interceptors/audit-log.interceptor';
@@ -22,6 +23,7 @@ import { AuditLogInterceptor } from '@shared/infrastructure/interceptors/audit-l
     QueueModule,
     EventDispatcherModule,
     IamModule,
+    StorageModule,
   ],
   controllers: [AppController],
   providers: [

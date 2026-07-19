@@ -9,6 +9,7 @@ export class PrismaUserMapper {
             email: new Email(raw.email),
             username: new Username(raw.username),
             password: new Password(raw.password),
+            avatar: raw.avatar,
             isActive: raw.isActive,
             isDeleted: raw.isDeleted,
             roles: raw.userRoles ? raw.userRoles.map((ur) => ur.role.name) : [],

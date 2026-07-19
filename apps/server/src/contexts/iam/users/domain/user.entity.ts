@@ -11,6 +11,7 @@ export interface UserProps {
     password: Password;
     isActive: boolean;
     isDeleted: boolean;
+    avatar?: string | null;
     roles: string[];
     createdAt: Date;
     updatedAt: Date;
@@ -27,12 +28,13 @@ export class UserEntity extends AggregateRoot {
         return new UserEntity(props);
     }
 
-    public static register(props: { id: string; email: string; username: string; passwordHash: string; roles?: string[]; createdBy?: string }): UserEntity {
+    public static register(props: { id: string; email: string; username: string; passwordHash: string; avatar?: string | null; roles?: string[]; createdBy?: string }): UserEntity {
         const user = UserEntity.create({
             id: new UserId(props.id),
             email: new Email(props.email),
             username: new Username(props.username),
             password: new Password(props.passwordHash),
+            avatar: props.avatar || null,
             isActive: true,
             isDeleted: false,
             roles: props.roles || ['USER'],
@@ -50,6 +52,7 @@ export class UserEntity extends AggregateRoot {
     public get email(): string { return this.props.email.value; }
     public get username(): string { return this.props.username.value; }
     public get password(): string { return this.props.password.value; }
+    public get avatar(): string | null | undefined { return this.props.avatar; }
     public get isActive(): boolean { return this.props.isActive; }
     public get isDeleted(): boolean { return this.props.isDeleted; }
     public get roles(): string[] { return this.props.roles; }
@@ -63,9 +66,10 @@ export class UserEntity extends AggregateRoot {
         this.trackUpdate(updatedBy);
     }
 
-    public updateInfo(email: string, username: string, updatedBy?: string): void {
+    public updateInfo(email: string, username: string, avatar?: string | null, updatedBy?: string): void {
         this.props.email = new Email(email);
         this.props.username = new Username(username);
+        this.props.avatar = avatar ?? null;
         this.trackUpdate(updatedBy);
     }
 
@@ -101,6 +105,7 @@ export class UserEntity extends AggregateRoot {
             email: this.props.email.value,
             username: this.props.username.value,
             password: this.props.password.value,
+            avatar: this.props.avatar,
             isActive: this.props.isActive,
             isDeleted: this.props.isDeleted,
             roles: this.props.roles,

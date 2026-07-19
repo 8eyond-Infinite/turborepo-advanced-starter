@@ -16,3 +16,4 @@ export * from './switch';
 export * from './sheet';
 export * from './separator';
 export * from './tooltip';
+export * from './dialog';
