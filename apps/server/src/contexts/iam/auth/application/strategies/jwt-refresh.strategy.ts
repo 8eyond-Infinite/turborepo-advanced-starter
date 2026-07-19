@@ -2,6 +2,7 @@ import { Injectable, Inject, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { Request } from 'express';
+import { ConfigService } from '@nestjs/config';
 import { RedisService } from '@shared/infrastructure/cache/redis.service';
 import type { UserRepository } from '@iam/users/domain/ports/user.repository';
 
@@ -11,11 +12,12 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
         @Inject('UserRepository')
         private readonly userRepository: UserRepository,
         private readonly redisService: RedisService,
+        private readonly configService: ConfigService,
     ) {
         super({
             jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
             ignoreExpiration: false,
-            secretOrKey: process.env.JWT_REFRESH_SECRET || 'secret-refresh',
+            secretOrKey: configService.get<string>('JWT_REFRESH_SECRET') || 'secret-refresh',
             passReqToCallback: true,
         });
     }
@@ -31,7 +33,7 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
         if (!isValid) {
             throw new UnauthorizedException('Refresh token has been revoked or expired');
         }
-        
+
         const authHeader = req.get('Authorization');
         const refreshToken = authHeader ? authHeader.replace('Bearer', '').trim() : '';
 

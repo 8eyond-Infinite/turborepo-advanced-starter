@@ -21,7 +21,7 @@ export class RegisterHandler implements ICommandHandler<RegisterCommand, Result<
     ) { }
 
     async execute(command: RegisterCommand): Promise<Result<UserEntity, DomainException>> {
-        const { email, passwordRaw } = command;
+        const { email, username, passwordRaw } = command;
 
         const existingUser = await this.userRepository.findByEmail(email);
         if (existingUser) {
@@ -33,6 +33,7 @@ export class RegisterHandler implements ICommandHandler<RegisterCommand, Result<
         const user = UserEntity.register({
             id: this.userRepository.nextIdentity(),
             email,
+            username,
             passwordHash,
         });
 

@@ -25,7 +25,6 @@ import {
 
 import { useNavigate } from "react-router-dom"
 import { useAuthStore } from "@/features/auth/store/auth.store"
-import { ApiClient } from "@/lib/api-client"
 
 export function NavUser({
   user,
@@ -37,29 +36,17 @@ export function NavUser({
   }
 }) {
   const { isMobile } = useSidebar()
-  const { clearAuth } = useAuthStore()
+  const { logout, logoutGlobal } = useAuthStore()
   const navigate = useNavigate()
 
   const handleLogout = async () => {
-    try {
-      await ApiClient.post('/auth/logout')
-    } catch (error) {
-      console.error('Logout error:', error)
-    } finally {
-      clearAuth()
-      navigate('/login')
-    }
+    await logout()
+    navigate('/login')
   }
 
   const handleGlobalLogout = async () => {
-    try {
-      await ApiClient.post('/auth/logout/global')
-    } catch (error) {
-      console.error('Global logout error:', error)
-    } finally {
-      clearAuth()
-      navigate('/login')
-    }
+    await logoutGlobal()
+    navigate('/login')
   }
 
   return (

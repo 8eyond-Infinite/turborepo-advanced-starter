@@ -116,10 +116,12 @@ async function main() {
   const adminUser = await prisma.user.upsert({
     where: { email: 'admin@example.com' },
     update: {
+      username: 'admin',
       password: '$2b$10$Rs1AH6fuW9tkRFJDDPPsGenvCZow3771N7x4/x34O.yNxUfhilmcG',
     },
     create: {
       email: 'admin@example.com',
+      username: 'admin',
       password: '$2b$10$Rs1AH6fuW9tkRFJDDPPsGenvCZow3771N7x4/x34O.yNxUfhilmcG', // adminpassword
       isActive: true,
       isDeleted: false,

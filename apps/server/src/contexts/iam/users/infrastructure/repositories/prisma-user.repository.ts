@@ -19,6 +19,7 @@ export class PrismaUserRepository implements UserRepository {
                 where: { id: data.id },
                 update: {
                     email: data.email,
+                    username: data.username,
                     password: data.password,
                     isActive: data.isActive,
                     isDeleted: data.isDeleted,
@@ -27,6 +28,7 @@ export class PrismaUserRepository implements UserRepository {
                 create: {
                     id: data.id,
                     email: data.email,
+                    username: data.username,
                     password: data.password,
                     isActive: data.isActive,
                     isDeleted: data.isDeleted,
@@ -124,7 +126,7 @@ export class PrismaUserRepository implements UserRepository {
 
     async findAll(options?: FindAllOptions): Promise<{ users: UserEntity[]; total: number }> {
         const where: any = { isDeleted: false };
-        
+
         if (options?.search) {
             where.email = {
                 contains: options.search,

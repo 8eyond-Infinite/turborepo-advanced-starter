@@ -37,25 +37,29 @@ export const UserTable = () => {
 
     const [isAdding, setIsAdding] = useState(false);
     const [newEmail, setNewEmail] = useState('');
+    const [newUsername, setNewUsername] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [selectedRoleName, setSelectedRoleName] = useState<string>('USER');
 
     const [editingUser, setEditingUser] = useState<any | null>(null);
     const [editEmail, setEditEmail] = useState('');
+    const [editUsername, setEditUsername] = useState('');
     const [editRoleName, setEditRoleName] = useState('USER');
     const [togglingUser, setTogglingUser] = useState<any | null>(null);
 
     const handleCreateUser = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newEmail.trim() || !newPassword.trim()) return;
+        if (!newEmail.trim() || !newUsername.trim() || !newPassword.trim()) return;
 
         try {
             await createUser({
                 email: newEmail.trim(),
+                username: newUsername.trim(),
                 password: newPassword.trim(),
                 roles: [selectedRoleName],
             });
             setNewEmail('');
+            setNewUsername('');
             setNewPassword('');
             setSelectedRoleName('USER');
             setIsAdding(false);
@@ -67,17 +71,19 @@ export const UserTable = () => {
     const handleOpenEdit = (user: any) => {
         setEditingUser(user);
         setEditEmail(user.email);
+        setEditUsername(user.username || '');
         setEditRoleName(user.roles[0] || 'USER');
     };
 
     const handleUpdateUser = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!editingUser || !editEmail.trim()) return;
+        if (!editingUser || !editEmail.trim() || !editUsername.trim()) return;
 
         try {
             await updateUser({
                 id: editingUser.id,
                 email: editEmail.trim(),
+                username: editUsername.trim(),
                 roles: [editRoleName],
             });
             setEditingUser(null);
@@ -126,6 +132,17 @@ export const UserTable = () => {
                     </CardHeader>
                     <form onSubmit={handleCreateUser} className="space-y-4">
                         <div className="grid gap-4 sm:grid-cols-2">
+                            <div>
+                                <label className="text-xs font-semibold text-muted-foreground">Tên người dùng (Username)</label>
+                                <Input
+                                    type="text"
+                                    value={newUsername}
+                                    onChange={(e) => setNewUsername(e.target.value)}
+                                    placeholder="john_doe"
+                                    className="mt-1 bg-transparent border-input"
+                                    required
+                                />
+                            </div>
                             <div>
                                 <label className="text-xs font-semibold text-muted-foreground">Địa chỉ Email</label>
                                 <Input
@@ -206,7 +223,7 @@ export const UserTable = () => {
                 <Table>
                     <TableHeader className="bg-muted/30">
                         <TableRow>
-                            <TableHead className="text-xs font-semibold uppercase pl-6 w-[200px]">Email</TableHead>
+                            <TableHead className="text-xs font-semibold uppercase pl-6 w-[200px]">Tên & Email</TableHead>
                             <TableHead className="text-xs font-semibold uppercase min-w-[150px]">Vai trò</TableHead>
                             <TableHead className="text-xs font-semibold uppercase w-[150px]">Trạng thái</TableHead>
                             <TableHead className="text-xs font-semibold uppercase w-[150px]">Ngày Tạo</TableHead>
@@ -245,7 +262,8 @@ export const UserTable = () => {
                                 <TableRow key={user.id} className="hover:bg-muted/5 transition-colors">
                                     <TableCell className="font-semibold text-foreground pl-6 py-4">
                                         <div className="flex flex-col gap-0.5">
-                                            <span>{user.email}</span>
+                                            <span className="text-sm font-medium">{user.username || '—'}</span>
+                                            <span className="text-xs text-muted-foreground font-normal">{user.email}</span>
                                             <span className="font-mono text-[9px] text-muted-foreground tracking-tight select-none">
                                                 {user.id}
                                             </span>
@@ -385,6 +403,16 @@ export const UserTable = () => {
                             </CardDescription>
                         </CardHeader>
                         <form onSubmit={handleUpdateUser} className="space-y-4">
+                            <div>
+                                <label className="text-xs font-semibold text-muted-foreground">Tên người dùng (Username)</label>
+                                <Input
+                                    type="text"
+                                    value={editUsername}
+                                    onChange={(e) => setEditUsername(e.target.value)}
+                                    className="mt-1 bg-transparent border-input"
+                                    required
+                                />
+                            </div>
                             <div>
                                 <label className="text-xs font-semibold text-muted-foreground">Địa chỉ Email</label>
                                 <Input

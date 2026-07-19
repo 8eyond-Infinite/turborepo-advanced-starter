@@ -1,14 +1,13 @@
 import { User as PrismaUser, UserRole, Role } from '@repo/database';
 import { UserEntity } from '../../domain/user.entity';
-import { UserId } from '../../domain/value-objects/user-id.value-object';
-import { Email } from '../../domain/value-objects/email.value-object';
-import { Password } from '../../domain/value-objects/password.value-object';
+import { UserId, Email, Password, Username } from '../../domain/value-objects/';
 
 export class PrismaUserMapper {
     public static toDomain(raw: PrismaUser & { userRoles?: (UserRole & { role: Role })[] }): UserEntity {
         return UserEntity.create({
             id: new UserId(raw.id),
             email: new Email(raw.email),
+            username: new Username(raw.username),
             password: new Password(raw.password),
             isActive: raw.isActive,
             isDeleted: raw.isDeleted,

@@ -9,6 +9,7 @@ generator client {
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
+  username  String   
   password  String
   isActive Boolean @default(true)
   isDeleted Boolean @default(false)

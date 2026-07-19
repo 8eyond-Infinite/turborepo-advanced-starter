@@ -71,14 +71,14 @@ export class UserController {
     @ApiOperation({ summary: 'Create a new user directly by Admin' })
     @AuditLog('USER_CREATE', (req) => `Tạo tài khoản mới: ${req.body.email} với quyền: ${req.body.roles?.join(', ') || 'USER'}`)
     async createUser(
-        @Body() body: { email: string; password?: string; roles?: string[] },
+        @Body() body: { email: string; username: string; password?: string; roles?: string[] },
         @GetUser('id') adminId: string,
     ) {
         if (!body.email || !body.password) {
             throw new BadRequestException('Email and password are required');
         }
         const result = await this.commandBus.execute(
-            new CreateUserCommand(body.email, body.password, body.roles || ['USER'], adminId),
+            new CreateUserCommand(body.email, body.username, body.password, body.roles || ['USER'], adminId),
         );
         const user = result.unwrap();
         return UserPresenter.toResponse(user);
@@ -121,14 +121,14 @@ export class UserController {
     @AuditLog('USER_UPDATE', (req) => `Cập nhật tài khoản ID: ${req.params.id}. Email mới: ${req.body.email}, Vai trò mới: ${req.body.roles?.join(', ')}`)
     async updateUser(
         @Param('id') id: string,
-        @Body() body: { email: string; roles: string[] },
+        @Body() body: { email: string; username: string, roles: string[] },
         @GetUser('id') adminId: string,
     ) {
         if (!body.email) {
             throw new BadRequestException('Email is required');
         }
         const result = await this.commandBus.execute(
-            new UpdateUserCommand(id, body.email, body.roles, adminId)
+            new UpdateUserCommand(id, body.email, body.username, body.roles, adminId)
         );
         result.unwrap();
         return { success: true };

@@ -59,6 +59,13 @@ services:
       redis:
         condition: service_healthy
 
+  maildev:
+    image: maildev/maildev:2.1.0
+    container_name: starter-maildev
+    ports:
+      - "1083:1080"
+      - "1025:1025"
+
 volumes:
   postgres_data:
   redis_data:

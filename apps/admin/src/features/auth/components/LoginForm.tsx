@@ -1,19 +1,20 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/auth.store';
-import { ApiClient } from '@/lib/api-client';
+import { getFriendlyErrorMessage } from '@/lib/error-handler';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Shield, Loader2, AlertCircle } from 'lucide-react';
+import { Shield, Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { toast } from "sonner";
 
 export const LoginForm = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
-    const { setAuth } = useAuthStore();
+    const { login } = useAuthStore();
     const navigate = useNavigate();
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -22,20 +23,11 @@ export const LoginForm = () => {
         setLoading(true);
 
         try {
-            const tokens = await ApiClient.post<{ accessToken: string; refreshToken: string }>(
-                '/auth/login',
-                { email, password },
-                { skipAuth: true }
-            );
-
-            ApiClient.setToken(tokens.accessToken);
-            const user = await ApiClient.get<any>('/users/me');
-
-            setAuth(user, tokens.accessToken, tokens.refreshToken);
+            await login({ email, password });
             toast.success("Đăng nhập thành công! Chào mừng quay trở lại.");
             navigate('/', { replace: true });
-        } catch (err: any) {
-            const errMsg = err.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.';
+        } catch (err: unknown) {
+            const errMsg = getFriendlyErrorMessage(err);
             setError(errMsg);
             toast.error(errMsg);
         } finally {
@@ -84,14 +76,27 @@ export const LoginForm = () => {
                             <label className="text-xs font-medium text-foreground tracking-wider uppercase">
                                 Mật khẩu
                             </label>
-                            <Input
-                                type="password"
-                                required
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                placeholder="••••••••"
-                                className="bg-transparent border-input"
-                            />
+                            <div className="relative">
+                                <Input
+                                    type={showPassword ? "text" : "password"}
+                                    required
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    placeholder="••••••••"
+                                    className="bg-transparent border-input pr-10"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus:outline-none"
+                                >
+                                    {showPassword ? (
+                                        <EyeOff className="h-4 w-4" />
+                                    ) : (
+                                        <Eye className="h-4 w-4" />
+                                    )}
+                                </button>
+                            </div>
                         </div>
 
                         <Button

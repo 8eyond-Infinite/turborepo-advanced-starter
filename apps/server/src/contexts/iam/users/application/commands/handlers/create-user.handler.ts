@@ -17,7 +17,7 @@ export class CreateUserCommandHandler implements ICommandHandler<CreateUserComma
     ) { }
 
     async execute(command: CreateUserCommand): Promise<Result<UserEntity, DomainException>> {
-        const { email, passwordHash, roles, createdBy } = command;
+        const { email, username, passwordHash, roles, createdBy } = command;
 
         const existing = await this.userRepository.findByEmail(email);
         if (existing) {
@@ -29,6 +29,7 @@ export class CreateUserCommandHandler implements ICommandHandler<CreateUserComma
         const user = UserEntity.register({
             id: this.userRepository.nextIdentity(),
             email,
+            username,
             passwordHash: hashedPassword,
             roles,
             createdBy,

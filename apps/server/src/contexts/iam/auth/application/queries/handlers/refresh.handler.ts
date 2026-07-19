@@ -55,9 +55,11 @@ export class RefreshQueryHandler implements IQueryHandler<RefreshQuery, Result<{
         }
 
         // Store new refresh token in Redis with metadata
+        console.log('[RefreshQueryHandler] Storing new Redis Key:', `refresh_token:${userId}:${newJti}`);
         await this.redisService.set(`refresh_token:${userId}:${newJti}`, JSON.stringify(sessionData), 604800);
 
         // Delete old refresh token (rotation)
+        console.log('[RefreshQueryHandler] Deleting old Redis Key:', `refresh_token:${userId}:${oldJti}`);
         await this.redisService.del(`refresh_token:${userId}:${oldJti}`);
 
         return Result.ok({ accessToken, refreshToken });

@@ -1,3 +1,17 @@
+export class ApiError extends Error {
+    public readonly status: number;
+    public readonly code?: string;
+    public readonly details?: any;
+
+    constructor(message: string, status: number, code?: string, details?: any) {
+        super(message);
+        this.status = status;
+        this.code = code;
+        this.details = details;
+        this.name = 'ApiError';
+    }
+}
+
 // Simple type-safe fetch wrapper with auto refresh token logic
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
@@ -50,7 +64,12 @@ export class ApiClient {
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+                throw new ApiError(
+                    errorData.message || `HTTP error! status: ${response.status}`,
+                    response.status,
+                    errorData.error || undefined,
+                    errorData.details || undefined
+                );
             }
 
             if (response.status === 204) {

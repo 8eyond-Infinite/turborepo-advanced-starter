@@ -1,14 +1,14 @@
-import { 
-    Controller, 
-    Post, 
+import {
+    Controller,
+    Post,
     Get,
     Delete,
-    Body, 
+    Body,
     Param,
     Query,
-    HttpCode, 
-    HttpStatus, 
-    UseGuards, 
+    HttpCode,
+    HttpStatus,
+    UseGuards,
     Req
 } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
@@ -43,7 +43,7 @@ export class AuthController {
     @ApiResponse({ status: 201, description: 'User registered successfully' })
     @ApiResponse({ status: 400, description: 'User already exists or validation error' })
     async register(@Body() dto: RegisterDto) {
-        const result = await this.commandBus.execute(new RegisterCommand(dto.email, dto.password));
+        const result = await this.commandBus.execute(new RegisterCommand(dto.email, dto.username, dto.password));
         const user = result.unwrap();
         return UserPresenter.toResponse(user);
     }

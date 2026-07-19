@@ -39,7 +39,7 @@ export const useUsers = (options?: { page?: number; limit?: number; search?: str
 
     // 3. Create User Mutation
     const createUserMutation = useMutation({
-        mutationFn: async (data: { email: string; password?: string; roles: string[] }) => {
+        mutationFn: async (data: { email: string; username: string; password?: string; roles: string[] }) => {
             return await ApiClient.post<User>('/users', data);
         },
         onSuccess: (newUser) => {
@@ -81,7 +81,7 @@ export const useUsers = (options?: { page?: number; limit?: number; search?: str
 
     // 6. Update User Mutation
     const updateUserMutation = useMutation({
-        mutationFn: async ({ id, ...data }: { id: string; email: string; roles: string[] }) => {
+        mutationFn: async ({ id, ...data }: { id: string; email: string; username: string; roles: string[] }) => {
             return await ApiClient.put(`/users/${id}`, data);
         },
         onSuccess: () => {
