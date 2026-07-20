@@ -163,11 +163,10 @@ async register(@Body() dto: RegisterDto) {
     *   Gọi `UserEntity.register()` để tạo thực thể `UserEntity`:
         *   Tự động khởi tạo các Value Objects: `UserId`, `Email`, `Password`.
         *   Tự động đăng ký sự kiện `UserRegisteredEvent` bên trong thực thể.
-    *   Lưu tài khoản vào cơ sở dữ liệu: `userRepository.save(user)` (thông qua Prisma và tự động gán vai trò `USER` mặc định).
-    *   Phát sự kiện miền ra hệ thống: `domainEventDispatcher.dispatch(user)`.
+    *   Lưu tài khoản vào cơ sở dữ liệu: `userRepository.save(user)` (PrismaUserRepository thực thi lưu trữ và tự động gọi `domainEventDispatcher.dispatch(user)` để giải phóng sự kiện miền).
 5.  **EventBus** phát `UserRegisteredEvent` bất đồng bộ:
     *   **UserRegisteredEventHandler** bắt sự kiện.
-    *   Đẩy job `send-welcome-email` vào hàng đợi **BullMQ** (lưu trữ tạm thời trong Redis).
+    *   Sử dụng `IJobQueuePort` đẩy job `send-welcome-email` vào hàng đợi (được triển khai bởi BullmqQueueAdapter lưu trữ tạm thời trong Redis).
 6.  **RegisterHandler** trả về `Result.ok(user)`.
 7.  **AuthController** gọi `result.unwrap()`. Dữ liệu đi qua **`UserPresenter`** định dạng phản hồi sạch ➔ Trả về mã `201 Created` cùng dữ liệu User dạng JSON cho Client.
 8.  **BullMQ Worker** (`UserQueueProcessor`) chạy ngầm trong hệ thống tự động kéo job `send-welcome-email` từ Redis ra và thực thi gửi email chào mừng (chờ 1s giả lập gửi email thực tế).

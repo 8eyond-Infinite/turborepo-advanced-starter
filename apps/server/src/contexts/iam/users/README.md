@@ -205,6 +205,11 @@ sequenceDiagram
         Database-->>PrismaUserRepository: Commit transaction
         deactivate Database
 
+        PrismaUserRepository->>DomainEventDispatcher: dispatch(user)
+        activate DomainEventDispatcher
+        DomainEventDispatcher->>EventBus: publish(UserRegisteredEvent)
+        deactivate DomainEventDispatcher
+
         PrismaUserRepository-->>UserRepository: void
         deactivate PrismaUserRepository
         UserRepository-->>CreateUserCommandHandler: void
@@ -296,7 +301,8 @@ Dưới đây là hành trình của luồng dữ liệu đi qua từng tệp ti
   1. Triển khai (implement) interface `UserRepository` ở tầng Domain.
   2. Sử dụng `PrismaService` để viết các câu lệnh truy vấn xuống PostgreSQL.
   3. Chịu trách nhiệm thực hiện các transaction ở DB (như lưu đồng thời User và ánh xạ bảng Role liên kết).
-  4. Gọi Mapper để chuyển đổi dữ liệu thô từ DB thành `UserEntity` nghiệp vụ rồi mới trả lại cho Handler.
+  4. Tự động giải phóng các sự kiện miền (Domain Events) bằng cách gọi `DomainEventDispatcher.dispatch(user)` ngay sau khi giao dịch thành công.
+  5. Gọi Mapper để chuyển đổi dữ liệu thô từ DB thành `UserEntity` nghiệp vụ rồi mới trả lại cho Handler.
 
 #### 8. `infrastructure/mappers/prisma-user.mapper.ts`
 * **Nhiệm vụ**: Cầu nối chuyển đổi mô hình dữ liệu.
