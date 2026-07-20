@@ -28,7 +28,6 @@ export const useUsers = (options?: { page?: number; limit?: number; search?: str
     const users = data?.data || [];
     const meta = data?.meta || { totalItems: 0, itemCount: 0, itemsPerPage: limit, totalPages: 1, currentPage: page };
 
-    // 2. Fetch Roles List (for role assignment dropdown)
     const { data: roles = [] } = useQuery<Role[]>({
         queryKey: ['roles'],
         queryFn: async () => {
@@ -37,7 +36,6 @@ export const useUsers = (options?: { page?: number; limit?: number; search?: str
         staleTime: 60000,
     });
 
-    // 3. Create User Mutation
     const createUserMutation = useMutation({
         mutationFn: async (data: { email: string; username: string; password?: string; avatar?: string | null; roles: string[] }) => {
             return await ApiClient.post<User>('/users', data);

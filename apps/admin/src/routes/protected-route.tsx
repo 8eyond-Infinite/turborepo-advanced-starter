@@ -1,8 +1,12 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/store/auth.store';
+import { useWebSocket } from '@/hooks/useWebSocket';
 
 export const ProtectedRoute = () => {
     const { isAuthenticated, isLoading } = useAuthStore();
+
+    // Establish WebSocket connection when authenticated
+    useWebSocket();
 
     if (isLoading) {
         return (

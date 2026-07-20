@@ -9,7 +9,6 @@ export const useSessions = (options?: { page?: number; limit?: number }) => {
     const page = options?.page || 1;
     const limit = options?.limit || 10;
 
-    // 1. Fetch active sessions query
     const { data, isLoading } = useQuery<PaginatedResult<ActiveSession>>({
         queryKey: ['active-sessions', page, limit],
         queryFn: async () => {
@@ -24,7 +23,6 @@ export const useSessions = (options?: { page?: number; limit?: number }) => {
     const sessions = data?.data || [];
     const meta = data?.meta || { totalItems: 0, itemCount: 0, itemsPerPage: limit, totalPages: 1, currentPage: page };
 
-    // 2. Revoke a session mutation
     const revokeSessionMutation = useMutation({
         mutationFn: async (jti: string) => {
             return await ApiClient.delete(`/auth/sessions/${jti}`);
@@ -38,7 +36,6 @@ export const useSessions = (options?: { page?: number; limit?: number }) => {
         }
     });
 
-    // 3. Global logout mutation (logout all other sessions)
     const revokeAllSessionsMutation = useMutation({
         mutationFn: async () => {
             return await ApiClient.post('/auth/logout/global');

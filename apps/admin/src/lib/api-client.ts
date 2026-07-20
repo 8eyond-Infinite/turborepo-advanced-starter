@@ -12,7 +12,6 @@ export class ApiError extends Error {
     }
 }
 
-// Simple type-safe fetch wrapper with auto refresh token logic
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 interface RequestOptions extends RequestInit {
@@ -26,6 +25,10 @@ export class ApiClient {
 
     public static setToken(token: string | null) {
         this.accessToken = token;
+    }
+
+    public static getToken(): string | null {
+        return this.accessToken;
     }
 
     private static onRefreshed(token: string) {
@@ -116,7 +119,6 @@ export class ApiClient {
                 this.isRefreshing = false;
                 this.accessToken = null;
                 localStorage.removeItem('refresh_token');
-                // Trigger global logout redirect if on client side
                 window.dispatchEvent(new Event('auth:logout'));
                 throw refreshError;
             }

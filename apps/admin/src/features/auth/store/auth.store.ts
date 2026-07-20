@@ -37,7 +37,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({ user: null, isAuthenticated: false, isLoading: false, isInitializing: false });
     },
     initialize: async () => {
-        // Prevent concurrent duplicate executions (React StrictMode)
         if (get().isInitializing) {
             return;
         }
@@ -50,7 +49,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
 
         try {
-            // Trigger a refresh to get access token
             const data = await ApiClient.post<any>('/auth/refresh', {}, {
                 skipAuth: true,
                 headers: { 'Authorization': `Bearer ${refreshToken}` }
@@ -59,7 +57,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             ApiClient.setToken(data.accessToken);
             localStorage.setItem('refresh_token', data.refreshToken);
 
-            // Fetch current user
             const user = await ApiClient.get<any>('/users/me');
             set({ user, isAuthenticated: true, isLoading: false, isInitializing: false });
         } catch (error) {

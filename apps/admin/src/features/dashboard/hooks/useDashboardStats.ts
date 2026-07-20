@@ -16,7 +16,7 @@ export const useDashboardStats = () => {
         queryFn: async () => {
             return await ApiClient.get<DashboardStats>('/dashboard/stats');
         },
-        staleTime: 30000, // Cache for 30s
+        staleTime: 30000,
     });
 
     return {
