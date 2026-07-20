@@ -4,6 +4,7 @@ import { CqrsModule } from '@nestjs/cqrs';
 import { RealtimeGateway } from './realtime.gateway';
 import { RealtimeService } from './realtime.service';
 import { UserDeactivatedRealtimeHandler } from './handlers/user-deactivated-realtime.handler';
+import { REALTIME_PORT } from '../../domain/ports/realtime.port';
 
 @Global()
 @Module({
@@ -15,9 +16,14 @@ import { UserDeactivatedRealtimeHandler } from './handlers/user-deactivated-real
         RealtimeGateway,
         RealtimeService,
         UserDeactivatedRealtimeHandler,
+        {
+            provide: REALTIME_PORT,
+            useClass: RealtimeService,
+        },
     ],
     exports: [
         RealtimeService,
+        REALTIME_PORT,
     ],
 })
 export class RealtimeModule {}

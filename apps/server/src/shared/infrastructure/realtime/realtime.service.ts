@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { RealtimeGateway } from './realtime.gateway';
+import { IRealtimePort } from '../../domain/ports/realtime.port';
 
 @Injectable()
-export class RealtimeService {
+export class RealtimeService implements IRealtimePort {
     constructor(private readonly gateway: RealtimeGateway) {}
 
     /**
