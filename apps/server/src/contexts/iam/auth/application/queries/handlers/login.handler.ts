@@ -61,7 +61,6 @@ export class LoginQueryHandler implements IQueryHandler<LoginQuery, Result<{ acc
             userAgent: query.userAgent || 'Unknown',
             createdAt: new Date().toISOString(),
         };
-        console.log('[LoginQueryHandler] Storing Redis Key:', `refresh_token:${user.id}:${jti}`);
         await this.cache.set(`refresh_token:${user.id}:${jti}`, sessionData, 604800);
 
         return Result.ok({ accessToken, refreshToken });

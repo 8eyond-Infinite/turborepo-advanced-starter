@@ -35,7 +35,6 @@ export class RefreshQueryHandler implements IQueryHandler<RefreshQuery, Result<{
             expiresIn: '7d',
         });
 
-        // Get old session metadata if available to preserve it
         let sessionData = {
             jti: newJti,
             ip: 'Unknown',
@@ -51,12 +50,8 @@ export class RefreshQueryHandler implements IQueryHandler<RefreshQuery, Result<{
             };
         }
 
-        // Store new refresh token in cache with metadata
-        console.log('[RefreshQueryHandler] Storing new Redis Key:', `refresh_token:${userId}:${newJti}`);
         await this.cache.set(`refresh_token:${userId}:${newJti}`, sessionData, 604800);
 
-        // Delete old refresh token (rotation)
-        console.log('[RefreshQueryHandler] Deleting old Redis Key:', `refresh_token:${userId}:${oldJti}`);
         await this.cache.del(`refresh_token:${userId}:${oldJti}`);
 
         return Result.ok({ accessToken, refreshToken });
