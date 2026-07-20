@@ -8,6 +8,7 @@ import { QueueModule } from '@shared/infrastructure/queue/queue.module';
 import { EventDispatcherModule } from '@shared/infrastructure/event/event-dispatcher.module';
 import { IamModule } from './contexts/iam/iam.module';
 import { StorageModule } from './contexts/storage/storage.module';
+import { MenuModule } from './contexts/menu/menu.module';
 
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { AuditLogInterceptor } from '@shared/infrastructure/interceptors/audit-log.interceptor';
@@ -24,6 +25,7 @@ import { AuditLogInterceptor } from '@shared/infrastructure/interceptors/audit-l
     EventDispatcherModule,
     IamModule,
     StorageModule,
+    MenuModule,
   ],
   controllers: [AppController],
   providers: [

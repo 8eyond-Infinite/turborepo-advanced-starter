@@ -9,3 +9,4 @@ export * from './search-input';
 export * from './timeline';
 export * from './page-card';
 export * from './table-pagination';
+export * from './dynamic-icon';

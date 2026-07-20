@@ -91,3 +91,20 @@ model AuditLog {
 
   @@map("audit_logs")
 }
+
+model Menu {
+  id          String   @id @default(uuid())
+  parentId    String?  @map("parent_id")
+  title       String
+  url         String
+  icon        String?
+  order       Int      @default(0)
+  permission  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  parent      Menu?    @relation("MenuToMenu", fields: [parentId], references: [id], onDelete: Cascade)
+  children    Menu[]   @relation("MenuToMenu")
+
+  @@map("menus")
+}

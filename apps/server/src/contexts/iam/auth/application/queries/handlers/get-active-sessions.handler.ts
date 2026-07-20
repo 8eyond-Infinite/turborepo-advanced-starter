@@ -42,8 +42,6 @@ export class GetActiveSessionsQueryHandler implements IQueryHandler<GetActiveSes
                 });
             }
         }
-
-        // Sort by creation date descending (newest first)
         allSessions.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
         const total = allSessions.length;

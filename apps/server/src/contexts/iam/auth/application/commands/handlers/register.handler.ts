@@ -39,7 +39,6 @@ export class RegisterHandler implements ICommandHandler<RegisterCommand, Result<
 
         await this.userRepository.save(user);
 
-        // Dispatch entity-level events using the central DomainEventDispatcher
         await this.domainEventDispatcher.dispatch(user);
 
         return Result.ok(user);

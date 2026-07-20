@@ -1,9 +1,7 @@
 import * as React from "react"
-import {
-  Settings2,
-  Shield,
-} from "lucide-react"
-
+import * as Icons from "lucide-react"
+import { useQuery } from "@tanstack/react-query"
+import { ApiClient } from "@/lib/api-client"
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
 import { useAuthStore } from "@/features/auth/store/auth.store"
@@ -18,60 +16,20 @@ import {
   SidebarMenuButton,
 } from "@/components/ui/sidebar"
 
-const data = {
-  navMain: [
-    {
-      title: "Quản trị hệ thống",
-      url: "#",
-      icon: Shield,
-      isActive: true,
-      items: [
-        {
-          title: "Tổng quan",
-          url: "/",
-        },
-        {
-          title: "Quản lý Users",
-          url: "/users",
-        },
-        {
-          title: "Phân quyền Roles",
-          url: "/roles",
-        },
-        {
-          title: "Phiên đăng nhập",
-          url: "/sessions",
-        },
-        {
-          title: "Nhật ký hoạt động",
-          url: "/audit-logs",
-        },
-      ],
-    },
-    {
-      title: "Cấu hình hạ tầng",
-      url: "#",
-      icon: Settings2,
-      items: [
-        {
-          title: "Redis Cache",
-          url: "#",
-        },
-        {
-          title: "Database PostgreSQL",
-          url: "#",
-        },
-        {
-          title: "System Logs",
-          url: "#",
-        },
-      ],
-    },
-  ],
-}
-
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user: authUser } = useAuthStore()
+
+  const { data: menuData } = useQuery({
+    queryKey: ["sidebar-menus"],
+    queryFn: async () => {
+      const response = await ApiClient.get<any[]>("/menus")
+      return response.map((group: any) => ({
+        ...group,
+        icon: (Icons as any)[group.icon] || Icons.Shield,
+        items: group.items,
+      }))
+    },
+  })
 
   const user = authUser
     ? {
@@ -103,7 +61,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
 
       <SidebarContent>
-        <NavMain items={data.navMain} />
+        <NavMain items={menuData || []} />
       </SidebarContent>
 
       <SidebarFooter className="p-2 border-t border-zinc-800">

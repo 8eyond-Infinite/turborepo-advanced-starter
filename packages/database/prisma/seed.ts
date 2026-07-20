@@ -143,6 +143,90 @@ async function main() {
     },
   });
 
+  // 5. Seed Dynamic Menus
+  console.log('Seeding menus...');
+  await prisma.menu.deleteMany();
+
+  const sysAdminMenu = await prisma.menu.create({
+    data: {
+      title: 'Quản trị hệ thống',
+      url: '#',
+      icon: 'Shield',
+      order: 0,
+    },
+  });
+
+  await prisma.menu.createMany({
+    data: [
+      {
+        parentId: sysAdminMenu.id,
+        title: 'Tổng quan',
+        url: '/',
+        order: 0,
+      },
+      {
+        parentId: sysAdminMenu.id,
+        title: 'Quản lý Users',
+        url: '/users',
+        order: 1,
+        permission: 'user:read',
+      },
+      {
+        parentId: sysAdminMenu.id,
+        title: 'Phân quyền Roles',
+        url: '/roles',
+        order: 2,
+        permission: 'user:update',
+      },
+      {
+        parentId: sysAdminMenu.id,
+        title: 'Phiên đăng nhập',
+        url: '/sessions',
+        order: 3,
+        permission: 'user:update',
+      },
+      {
+        parentId: sysAdminMenu.id,
+        title: 'Nhật ký hoạt động',
+        url: '/audit-logs',
+        order: 4,
+        permission: 'user:update',
+      },
+    ],
+  });
+
+  const infraMenu = await prisma.menu.create({
+    data: {
+      title: 'Cấu hình hạ tầng',
+      url: '#',
+      icon: 'Settings2',
+      order: 1,
+    },
+  });
+
+  await prisma.menu.createMany({
+    data: [
+      {
+        parentId: infraMenu.id,
+        title: 'Redis Cache',
+        url: '#',
+        order: 0,
+      },
+      {
+        parentId: infraMenu.id,
+        title: 'Database PostgreSQL',
+        url: '#',
+        order: 1,
+      },
+      {
+        parentId: infraMenu.id,
+        title: 'System Logs',
+        url: '#',
+        order: 2,
+      },
+    ],
+  });
+
   console.log('Seeding finished successfully!');
 }
 
