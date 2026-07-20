@@ -1,9 +1,10 @@
 import { Injectable, OnModuleDestroy, OnModuleInit, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
+import { ICachePort } from '../../domain/ports/cache.port';
 
 @Injectable()
-export class RedisService implements OnModuleInit, OnModuleDestroy {
+export class RedisService implements OnModuleInit, OnModuleDestroy, ICachePort {
     private readonly logger = new Logger(RedisService.name);
     private client: Redis;
 

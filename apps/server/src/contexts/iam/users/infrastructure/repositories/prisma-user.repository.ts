@@ -3,11 +3,15 @@ import { PrismaService } from '@shared/infrastructure/prisma/prisma.service';
 import { UserRepository, FindAllOptions } from '../../domain/ports/user.repository';
 import { UserEntity } from '../../domain/user.entity';
 import { PrismaUserMapper } from '../mappers/prisma-user.mapper';
+import { DomainEventDispatcher } from '@shared/application/events/domain-event-dispatcher';
 import * as crypto from 'crypto';
 
 @Injectable()
 export class PrismaUserRepository implements UserRepository {
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly domainEventDispatcher: DomainEventDispatcher,
+    ) { }
 
     async save(user: UserEntity): Promise<void> {
         const data = user.toPrimitives();
@@ -69,6 +73,9 @@ export class PrismaUserRepository implements UserRepository {
                 }
             }
         });
+
+        // Auto-dispatch domain events on save
+        await this.domainEventDispatcher.dispatch(user);
     }
 
     async findById(id: string): Promise<UserEntity | null> {

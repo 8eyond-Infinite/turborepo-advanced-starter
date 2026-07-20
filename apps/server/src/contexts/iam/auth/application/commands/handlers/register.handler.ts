@@ -5,7 +5,6 @@ import { UserEntity } from '@iam/users/domain/user.entity';
 import { UserAlreadyExistsException } from '@iam/users/domain/exceptions/user-already-exists.exception';
 import { Result } from '@shared/domain/result';
 import { DomainException } from '@shared/domain/exceptions/domain.exception';
-import { DomainEventDispatcher } from '@shared/application/events/domain-event-dispatcher';
 
 import type { UserRepository } from '@iam/users/domain/ports/user.repository';
 import type { PasswordHasher } from '@iam/users/domain/ports/password-hasher';
@@ -17,7 +16,6 @@ export class RegisterHandler implements ICommandHandler<RegisterCommand, Result<
         private readonly userRepository: UserRepository,
         @Inject('PasswordHasher')
         private readonly passwordHasher: PasswordHasher,
-        private readonly domainEventDispatcher: DomainEventDispatcher,
     ) { }
 
     async execute(command: RegisterCommand): Promise<Result<UserEntity, DomainException>> {
@@ -38,8 +36,6 @@ export class RegisterHandler implements ICommandHandler<RegisterCommand, Result<
         });
 
         await this.userRepository.save(user);
-
-        await this.domainEventDispatcher.dispatch(user);
 
         return Result.ok(user);
     }

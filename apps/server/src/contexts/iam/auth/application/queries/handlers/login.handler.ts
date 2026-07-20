@@ -6,7 +6,8 @@ import { InvalidCredentialsException } from '@iam/users/domain/exceptions/invali
 import { UserDeactivatedException } from '@iam/users/domain/exceptions/user-deactivated.exception';
 import { Result } from '@shared/domain/result';
 import { DomainException } from '@shared/domain/exceptions/domain.exception';
-import { RedisService } from '@shared/infrastructure/cache/redis.service';
+import { CACHE_PORT } from '@shared/domain/ports/cache.port';
+import type { ICachePort } from '@shared/domain/ports/cache.port';
 import type { UserRepository } from '@iam/users/domain/ports/user.repository';
 import type { PasswordHasher } from '@iam/users/domain/ports/password-hasher';
 
@@ -18,7 +19,8 @@ export class LoginQueryHandler implements IQueryHandler<LoginQuery, Result<{ acc
         @Inject('PasswordHasher')
         private readonly passwordHasher: PasswordHasher,
         private readonly jwtService: JwtService,
-        private readonly redisService: RedisService,
+        @Inject(CACHE_PORT)
+        private readonly cache: ICachePort,
     ) { }
 
     async execute(query: LoginQuery): Promise<Result<{ accessToken: string; refreshToken: string }, DomainException>> {
@@ -52,7 +54,7 @@ export class LoginQueryHandler implements IQueryHandler<LoginQuery, Result<{ acc
             expiresIn: '7d',
         });
 
-        // Store refresh token whitelist in Redis with a 7-day TTL and session metadata
+        // Store refresh token whitelist in cache with a 7-day TTL and session metadata
         const sessionData = {
             jti,
             ip: query.ip || 'Unknown',
@@ -60,7 +62,7 @@ export class LoginQueryHandler implements IQueryHandler<LoginQuery, Result<{ acc
             createdAt: new Date().toISOString(),
         };
         console.log('[LoginQueryHandler] Storing Redis Key:', `refresh_token:${user.id}:${jti}`);
-        await this.redisService.set(`refresh_token:${user.id}:${jti}`, JSON.stringify(sessionData), 604800);
+        await this.cache.set(`refresh_token:${user.id}:${jti}`, sessionData, 604800);
 
         return Result.ok({ accessToken, refreshToken });
     }

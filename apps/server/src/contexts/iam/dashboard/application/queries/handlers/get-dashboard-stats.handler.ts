@@ -1,9 +1,11 @@
 import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
+import { Inject } from '@nestjs/common';
 import { GetDashboardStatsQuery } from '../get-dashboard-stats.query';
 import { Result } from '@shared/domain/result';
 import { DomainException } from '@shared/domain/exceptions/domain.exception';
 import { PrismaService } from '@shared/infrastructure/prisma/prisma.service';
-import { RedisService } from '@shared/infrastructure/cache/redis.service';
+import { CACHE_PORT } from '@shared/domain/ports/cache.port';
+import type { ICachePort } from '@shared/domain/ports/cache.port';
 
 export class GetDashboardStatsException extends DomainException {
     constructor(message: string) {
@@ -15,7 +17,8 @@ export class GetDashboardStatsException extends DomainException {
 export class GetDashboardStatsQueryHandler implements IQueryHandler<GetDashboardStatsQuery, Result<any, DomainException>> {
     constructor(
         private readonly prisma: PrismaService,
-        private readonly redis: RedisService,
+        @Inject(CACHE_PORT)
+        private readonly cache: ICachePort,
     ) {}
 
     async execute(query: GetDashboardStatsQuery): Promise<Result<any, DomainException>> {
@@ -26,7 +29,7 @@ export class GetDashboardStatsQueryHandler implements IQueryHandler<GetDashboard
             const inactiveUsers = totalUsers - activeUsers;
 
             // 2. Fetch Active sessions from Redis
-            const sessionKeys = await this.redis.keys('refresh_token:*');
+            const sessionKeys = await this.cache.keys('refresh_token:*');
             const activeSessionsCount = sessionKeys.length;
 
             // 3. Fetch Role distribution

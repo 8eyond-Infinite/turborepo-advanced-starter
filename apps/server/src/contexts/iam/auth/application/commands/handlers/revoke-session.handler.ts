@@ -1,18 +1,21 @@
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
+import { Inject } from '@nestjs/common';
 import { RevokeSessionCommand } from '../revoke-session.command';
-import { RedisService } from '@shared/infrastructure/cache/redis.service';
+import { CACHE_PORT } from '@shared/domain/ports/cache.port';
+import type { ICachePort } from '@shared/domain/ports/cache.port';
 import { Result } from '@shared/domain/result';
 import { DomainException } from '@shared/domain/exceptions/domain.exception';
 
 @CommandHandler(RevokeSessionCommand)
 export class RevokeSessionCommandHandler implements ICommandHandler<RevokeSessionCommand, Result<void, DomainException>> {
     constructor(
-        private readonly redisService: RedisService,
+        @Inject(CACHE_PORT)
+        private readonly cache: ICachePort,
     ) { }
 
     async execute(command: RevokeSessionCommand): Promise<Result<void, DomainException>> {
         const { userId, jti } = command;
-        await this.redisService.del(`refresh_token:${userId}:${jti}`);
+        await this.cache.del(`refresh_token:${userId}:${jti}`);
         return Result.ok(undefined);
     }
 }

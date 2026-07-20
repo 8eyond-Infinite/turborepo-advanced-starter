@@ -1,6 +1,8 @@
 import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
+import { Inject } from '@nestjs/common';
 import { GetActiveSessionsQuery } from '../get-active-sessions.query';
-import { RedisService } from '@shared/infrastructure/cache/redis.service';
+import { CACHE_PORT } from '@shared/domain/ports/cache.port';
+import type { ICachePort } from '@shared/domain/ports/cache.port';
 import { Result } from '@shared/domain/result';
 import { DomainException } from '@shared/domain/exceptions/domain.exception';
 
@@ -14,16 +16,17 @@ export interface ActiveSessionResponse {
 @QueryHandler(GetActiveSessionsQuery)
 export class GetActiveSessionsQueryHandler implements IQueryHandler<GetActiveSessionsQuery, Result<{ sessions: ActiveSessionResponse[]; total: number }, DomainException>> {
     constructor(
-        private readonly redisService: RedisService,
+        @Inject(CACHE_PORT)
+        private readonly cache: ICachePort,
     ) { }
 
     async execute(query: GetActiveSessionsQuery): Promise<Result<{ sessions: ActiveSessionResponse[]; total: number }, DomainException>> {
         const { userId, page, limit } = query;
-        const keys = await this.redisService.keys(`refresh_token:${userId}:*`);
+        const keys = await this.cache.keys(`refresh_token:${userId}:*`);
         const allSessions: ActiveSessionResponse[] = [];
 
         for (const key of keys) {
-            const data = await this.redisService.get<any>(key);
+            const data = await this.cache.get<any>(key);
             if (data && typeof data === 'object') {
                 allSessions.push({
                     jti: data.jti || '',
