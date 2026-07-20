@@ -3,7 +3,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { CqrsModule } from '@nestjs/cqrs';
 import { RealtimeGateway } from './realtime.gateway';
 import { RealtimeService } from './realtime.service';
-import { UserDeactivatedRealtimeHandler } from './handlers/user-deactivated-realtime.handler';
+import { RealtimeEventBridge } from './realtime-event.bridge';
 import { REALTIME_PORT } from '../../domain/ports/realtime.port';
 
 @Global()
@@ -15,7 +15,7 @@ import { REALTIME_PORT } from '../../domain/ports/realtime.port';
     providers: [
         RealtimeGateway,
         RealtimeService,
-        UserDeactivatedRealtimeHandler,
+        RealtimeEventBridge,
         {
             provide: REALTIME_PORT,
             useClass: RealtimeService,
