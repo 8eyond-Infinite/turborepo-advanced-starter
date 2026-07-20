@@ -13,8 +13,6 @@ import { ToggleUserStatusCommandHandler } from './application/commands/handlers/
 import { UpdateUserCommandHandler } from './application/commands/handlers/update-user.handler';
 import { USER_QUEUE } from './application/queues/user-queue.constants';
 import { UserQueueProcessor } from './application/queues/user-queue.processor';
-import { UserRegisteredEventHandler } from './application/events/handlers/user-registered.event-handler';
-import { UserDeactivatedEventHandler } from './application/events/handlers/user-deactivated.event-handler';
 
 @Module({
     imports: [
@@ -39,8 +37,6 @@ import { UserDeactivatedEventHandler } from './application/events/handlers/user-
         ToggleUserStatusCommandHandler,
         UpdateUserCommandHandler,
         UserQueueProcessor,
-        UserRegisteredEventHandler,
-        UserDeactivatedEventHandler,
     ],
     exports: ['UserRepository', 'PasswordHasher', BullModule],
 })
