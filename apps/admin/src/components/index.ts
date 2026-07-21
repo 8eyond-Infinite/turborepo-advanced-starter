@@ -1,5 +1,6 @@
 export * from './app-sidebar';
 export * from './mode-toggle';
+export * from './language-toggle';
 export * from './theme-provider';
 export * from './confirm-dialog';
 export * from './single-select';

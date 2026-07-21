@@ -4,9 +4,11 @@ import { Result } from '@shared/domain/result';
 import { DomainException } from '@shared/domain/exceptions/domain.exception';
 import { PrismaService } from '@shared/infrastructure/prisma/prisma.service';
 
+import { Errors } from '@repo/contracts';
+
 export class GetAuditLogsException extends DomainException {
     constructor(message: string) {
-        super(message);
+        super(message, Errors.INTERNAL_SERVER_ERROR);
     }
 }
 

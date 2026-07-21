@@ -1,9 +1,10 @@
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
-import { Inject, ConflictException } from '@nestjs/common';
+import { Inject } from '@nestjs/common';
 import { CreateRoleCommand } from '../create-role.command';
 import { RoleEntity } from '@iam/roles/domain/role.entity';
 import { Result } from '@shared/domain/result';
 import { DomainException } from '@shared/domain/exceptions/domain.exception';
+import { RoleAlreadyExistsException } from '@iam/roles/domain/exceptions/role-already-exists.exception';
 import type { RoleRepository } from '@iam/roles/domain/ports/role.repository';
 
 @CommandHandler(CreateRoleCommand)
@@ -18,7 +19,7 @@ export class CreateRoleCommandHandler implements ICommandHandler<CreateRoleComma
 
         const existing = await this.roleRepository.findByName(name);
         if (existing) {
-            return Result.fail(new ConflictException(`Role with name ${name} already exists` as any));
+            return Result.fail(new RoleAlreadyExistsException(name));
         }
 
         const role = RoleEntity.register({

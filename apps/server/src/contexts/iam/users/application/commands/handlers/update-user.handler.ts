@@ -1,8 +1,10 @@
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
-import { Inject, NotFoundException, ConflictException } from '@nestjs/common';
+import { Inject } from '@nestjs/common';
 import { UpdateUserCommand } from '../update-user.command';
 import { Result } from '@shared/domain/result';
 import { DomainException } from '@shared/domain/exceptions/domain.exception';
+import { UserNotFoundException } from '@iam/users/domain/exceptions/user-not-found.exception';
+import { UserAlreadyExistsException } from '@iam/users/domain/exceptions/user-already-exists.exception';
 import type { UserRepository } from '@iam/users/domain/ports/user.repository';
 
 @CommandHandler(UpdateUserCommand)
@@ -17,12 +19,12 @@ export class UpdateUserCommandHandler implements ICommandHandler<UpdateUserComma
 
         const user = await this.userRepository.findById(id);
         if (!user) {
-            return Result.fail(new NotFoundException(`User with ID ${id} not found` as any));
+            return Result.fail(new UserNotFoundException(id));
         }
 
         const existing = await this.userRepository.findByEmail(email);
         if (existing && existing.id !== id) {
-            return Result.fail(new ConflictException(`Email ${email} is already taken by another account` as any));
+            return Result.fail(new UserAlreadyExistsException(email));
         }
 
         // Update fields

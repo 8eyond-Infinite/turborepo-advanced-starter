@@ -1,9 +1,10 @@
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
-import { Inject, ConflictException } from '@nestjs/common';
+import { Inject } from '@nestjs/common';
 import { CreateUserCommand } from '../create-user.command';
 import { UserEntity } from '@iam/users/domain/user.entity';
 import { Result } from '@shared/domain/result';
 import { DomainException } from '@shared/domain/exceptions/domain.exception';
+import { UserAlreadyExistsException } from '@iam/users/domain/exceptions/user-already-exists.exception';
 import type { UserRepository } from '@iam/users/domain/ports/user.repository';
 import type { PasswordHasher } from '@iam/users/domain/ports/password-hasher';
 
@@ -21,7 +22,7 @@ export class CreateUserCommandHandler implements ICommandHandler<CreateUserComma
 
         const existing = await this.userRepository.findByEmail(email);
         if (existing) {
-            return Result.fail(new ConflictException(`User with email ${email} already exists` as any));
+            return Result.fail(new UserAlreadyExistsException(email));
         }
 
         const hashedPassword = await this.passwordHasher.hash(passwordHash);

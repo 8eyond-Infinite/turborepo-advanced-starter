@@ -7,9 +7,11 @@ import { PrismaService } from '@shared/infrastructure/prisma/prisma.service';
 import { CACHE_PORT } from '@shared/domain/ports/cache.port';
 import type { ICachePort } from '@shared/domain/ports/cache.port';
 
+import { Errors } from '@repo/contracts';
+
 export class GetDashboardStatsException extends DomainException {
     constructor(message: string) {
-        super(message);
+        super(message, Errors.INTERNAL_SERVER_ERROR);
     }
 }
 

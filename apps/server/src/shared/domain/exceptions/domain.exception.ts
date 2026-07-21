@@ -1,10 +1,13 @@
-export abstract class DomainException extends Error {
-    public readonly args?: Record<string, any>;
+import { ErrorDefinition } from '@repo/contracts';
 
-    constructor(message: string, args?: Record<string, any>) {
+export abstract class DomainException extends Error {
+    constructor(
+        message: string,
+        public readonly error: ErrorDefinition,
+        public readonly args?: Record<string, any>,
+    ) {
         super(message);
-        this.name = this.constructor.name;
-        this.args = args;
-        Error.captureStackTrace(this, this.constructor);
+        this.name = new.target.name;
+        Error.captureStackTrace?.(this, new.target);
     }
 }
