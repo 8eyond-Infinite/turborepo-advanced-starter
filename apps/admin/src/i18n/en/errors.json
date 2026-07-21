@@ -1,0 +1,4 @@
+{
+  "network_failure": "Unable to connect to the server. Please check your network connection.",
+  "system_failure": "Internal server error. Please contact the administrator."
+}

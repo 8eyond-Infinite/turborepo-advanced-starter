@@ -1,4 +1,5 @@
 import { ApiError } from './api-client';
+import i18n from 'i18next';
 
 /**
  * Enterprise Centralized Error Handler
@@ -6,21 +7,21 @@ import { ApiError } from './api-client';
  */
 export function getFriendlyErrorMessage(err: unknown): string {
     if (err instanceof ApiError) {
-        // 1. Map by specific backend domain exception code (Preferred)
+        // 1. Map by translationKey returned from Backend (Preferred)
+        if (err.translationKey) {
+            return i18n.t(err.translationKey, { ...err.args, defaultValue: err.message });
+        }
+
+        // 2. Fallback: Map by legacy exception code if translationKey is missing
         if (err.code) {
-            switch (err.code) {
-                case 'InvalidCredentialsException':
-                    return 'Tài khoản hoặc mật khẩu không chính xác.';
-                case 'UserDeactivatedException':
-                    return 'Tài khoản của bạn đã bị khóa hoặc vô hiệu hóa.';
-                case 'ForbiddenException':
-                    return 'Bạn không có quyền thực hiện hành động này.';
-                default:
-                    return err.message;
+            // Converts USER_DEACTIVATED -> exceptions.user.deactivated
+            const legacyKey = `exceptions.${err.code.toLowerCase().replace(/_(\w)/g, (_, c) => '.' + c)}`;
+            if (i18n.exists(legacyKey)) {
+                return i18n.t(legacyKey, { ...err.args, defaultValue: err.message });
             }
         }
 
-        // 2. Fallback to generic HTTP status code mapping
+        // 3. Fallback to generic HTTP status code mapping
         switch (err.status) {
             case 401:
                 return 'Phiên đăng nhập hết hạn hoặc thông tin xác thực sai.';
@@ -38,7 +39,7 @@ export function getFriendlyErrorMessage(err: unknown): string {
     if (err instanceof Error) {
         // Generic browser/JavaScript errors (e.g. Network offline)
         if (err.message.includes('Failed to fetch')) {
-            return 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại mạng.';
+            return i18n.t('errors.network_failure', { defaultValue: 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại mạng.' });
         }
         return err.message;
     }

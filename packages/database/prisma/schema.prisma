@@ -16,6 +16,7 @@ model User {
   isDeleted Boolean @default(false)
 
   userRoles UserRole[]
+  notifications Notification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -107,4 +108,18 @@ model Menu {
   children    Menu[]   @relation("MenuToMenu")
 
   @@map("menus")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  title     String
+  content   String
+  type      String   
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
 }

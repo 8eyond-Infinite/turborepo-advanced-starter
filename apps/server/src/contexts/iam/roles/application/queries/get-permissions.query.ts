@@ -1,1 +1,3 @@
-export class GetPermissionsQuery {}
+import { IQuery } from '@nestjs/cqrs';
+
+export class GetPermissionsQuery implements IQuery {}

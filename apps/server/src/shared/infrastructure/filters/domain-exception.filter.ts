@@ -22,9 +22,15 @@ export class DomainExceptionFilter implements ExceptionFilter {
             status = HttpStatus.FORBIDDEN;
         }
 
+        const code = exception.name.replace(/Exception$/, '').replace(/([a-z0-9])([A-Z])/g, '$1_$2').toUpperCase();
+        const translationKey = `exceptions.${exception.name.replace(/Exception$/, '').replace(/([a-z0-9])([A-Z])/g, '$1.$2').toLowerCase()}`;
+
         response.status(status).json({
             statusCode: status,
+            code: code,
+            translationKey: translationKey,
             message: message,
+            args: exception.args || {},
             error: exception.name,
             timestamp: new Date().toISOString(),
         });

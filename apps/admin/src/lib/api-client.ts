@@ -2,12 +2,23 @@ export class ApiError extends Error {
     public readonly status: number;
     public readonly code?: string;
     public readonly details?: any;
+    public readonly translationKey?: string;
+    public readonly args?: Record<string, any>;
 
-    constructor(message: string, status: number, code?: string, details?: any) {
+    constructor(
+        message: string,
+        status: number,
+        code?: string,
+        details?: any,
+        translationKey?: string,
+        args?: Record<string, any>
+    ) {
         super(message);
         this.status = status;
         this.code = code;
         this.details = details;
+        this.translationKey = translationKey;
+        this.args = args;
         this.name = 'ApiError';
     }
 }
@@ -70,8 +81,10 @@ export class ApiClient {
                 throw new ApiError(
                     errorData.message || `HTTP error! status: ${response.status}`,
                     response.status,
-                    errorData.error || undefined,
-                    errorData.details || undefined
+                    errorData.code || errorData.error || undefined,
+                    errorData.details || undefined,
+                    errorData.translationKey || undefined,
+                    errorData.args || undefined
                 );
             }
 

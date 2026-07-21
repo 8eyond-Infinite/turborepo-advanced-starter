@@ -43,7 +43,11 @@ export class AuthController {
     @ApiResponse({ status: 201, description: 'User registered successfully' })
     @ApiResponse({ status: 400, description: 'User already exists or validation error' })
     async register(@Body() dto: RegisterDto) {
-        const result = await this.commandBus.execute(new RegisterCommand(dto.email, dto.username, dto.password));
+        const result = await this.commandBus.execute(new RegisterCommand({
+            email: dto.email,
+            username: dto.username,
+            passwordRaw: dto.password,
+        }));
         const user = result.unwrap();
         return UserPresenter.toResponse(user);
     }
@@ -82,7 +86,10 @@ export class AuthController {
     @ApiResponse({ status: 401, description: 'Invalid refresh token' })
     async logout(@Req() req: any) {
         const { user } = req;
-        const result = await this.commandBus.execute(new LogoutCommand(user.user.id, user.jti));
+        const result = await this.commandBus.execute(new LogoutCommand({
+            userId: user.user.id,
+            jti: user.jti,
+        }));
         result.unwrap();
         return { success: true };
     }
@@ -97,7 +104,9 @@ export class AuthController {
     @AuditLog('SESSION_REVOKE_ALL', (req) => 'Thu hồi toàn bộ các phiên hoạt động khác')
     async logoutAll(@Req() req: any) {
         const { user } = req;
-        const result = await this.commandBus.execute(new LogoutAllCommand(user.id));
+        const result = await this.commandBus.execute(new LogoutAllCommand({
+            userId: user.id,
+        }));
         result.unwrap();
         return { success: true };
     }
@@ -124,7 +133,10 @@ export class AuthController {
     @AuditLog('SESSION_REVOKE', (req) => `Thu hồi phiên đăng nhập: JTI ${req.params.jti}`)
     async revokeSession(@Param('jti') jti: string, @Req() req: any) {
         const userId = req.user.id;
-        const result = await this.commandBus.execute(new RevokeSessionCommand(userId, jti));
+        const result = await this.commandBus.execute(new RevokeSessionCommand({
+            userId,
+            jti,
+        }));
         result.unwrap();
         return { success: true };
     }

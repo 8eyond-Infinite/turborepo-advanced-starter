@@ -1,5 +1,6 @@
 import { Outlet, useLocation, Link } from 'react-router-dom'
 import { AppSidebar, ModeToggle } from "@/components"
+import { NotificationBell } from '@/components/NotificationBell'
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -56,6 +57,7 @@ export const MainLayout = () => {
               </Breadcrumb>
             </div>
             <div className="flex items-center gap-2">
+              <NotificationBell />
               <ModeToggle />
             </div>
           </header>

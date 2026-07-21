@@ -58,7 +58,11 @@ export class RolesController {
             throw new BadRequestException('Role name is required');
         }
         const result = await this.commandBus.execute(
-            new CreateRoleCommand(body.name, body.description, user?.id),
+            new CreateRoleCommand({
+                name: body.name,
+                description: body.description,
+                createdBy: user?.id,
+            }),
         );
         const role = result.unwrap();
         return {
@@ -82,7 +86,11 @@ export class RolesController {
             throw new BadRequestException('Permissions array is required');
         }
         const result = await this.commandBus.execute(
-            new UpdateRolePermissionsCommand(id, body.permissions, user?.id),
+            new UpdateRolePermissionsCommand({
+                id,
+                permissions: body.permissions,
+                updatedBy: user?.id,
+            }),
         );
         const role = result.unwrap();
         return {
@@ -99,7 +107,7 @@ export class RolesController {
     @ApiOperation({ summary: 'Delete a role' })
     @AuditLog('ROLE_DELETE', (req) => `Xóa vai trò ID: ${req.params.id}`)
     async deleteRole(@Param('id') id: string) {
-        const result = await this.commandBus.execute(new DeleteRoleCommand(id));
+        const result = await this.commandBus.execute(new DeleteRoleCommand({ id }));
         result.unwrap();
         return;
     }

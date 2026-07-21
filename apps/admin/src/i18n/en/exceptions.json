@@ -1,0 +1,12 @@
+{
+  "invalid": {
+    "credentials": "Invalid email or password."
+  },
+  "user": {
+    "deactivated": "User account \"{{email}}\" has been deactivated.",
+    "already": {
+      "exists": "This email address is already in use."
+    }
+  },
+  "forbidden": "You do not have permission to perform this action."
+}

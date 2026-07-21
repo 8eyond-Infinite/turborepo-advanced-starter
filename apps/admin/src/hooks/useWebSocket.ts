@@ -3,10 +3,12 @@ import { io, Socket } from 'socket.io-client';
 import { useAuthStore } from '@/features/auth/store/auth.store';
 import { ApiClient } from '@/lib/api-client';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 
 export const useWebSocket = () => {
     const socketRef = useRef<Socket | null>(null);
     const { isAuthenticated, logout } = useAuthStore();
+    const queryClient = useQueryClient();
 
     useEffect(() => {
         if (!isAuthenticated) {
@@ -52,6 +54,19 @@ export const useWebSocket = () => {
             logout();
         });
 
+        socket.on('notification_received', (data: { id: string; title: string; content: string; type?: string }) => {
+            const type = (data.type || 'info').toLowerCase();
+            const message = `${data.title}: ${data.content}`;
+
+            if (type === 'success') toast.success(message);
+            else if (type === 'error' || type === 'danger') toast.error(message);
+            else if (type === 'warning') toast.warning(message);
+            else toast.info(message);
+
+            // Invalidate notifications query to trigger refetch
+            queryClient.invalidateQueries({ queryKey: ['notifications'] });
+        });
+
         socket.on('notification', (data: { message: string; type?: 'info' | 'success' | 'warning' | 'error' }) => {
             const msgType = data.type || 'info';
             if (msgType === 'success') toast.success(data.message);
@@ -64,7 +79,7 @@ export const useWebSocket = () => {
             socket.disconnect();
             socketRef.current = null;
         };
-    }, [isAuthenticated, logout]);
+    }, [isAuthenticated, logout, queryClient]);
 
     return socketRef.current;
 };

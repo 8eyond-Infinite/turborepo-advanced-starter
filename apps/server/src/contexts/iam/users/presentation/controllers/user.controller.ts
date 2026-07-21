@@ -78,7 +78,14 @@ export class UserController {
             throw new BadRequestException('Email and password are required');
         }
         const result = await this.commandBus.execute(
-            new CreateUserCommand(body.email, body.username, body.password, body.roles || ['USER'], body.avatar, adminId),
+            new CreateUserCommand({
+                email: body.email,
+                username: body.username,
+                passwordHash: body.password,
+                roles: body.roles || ['USER'],
+                avatar: body.avatar,
+                createdBy: adminId,
+            }),
         );
         const user = result.unwrap();
         return UserPresenter.toResponse(user);
@@ -93,7 +100,10 @@ export class UserController {
     @ApiOperation({ summary: 'Toggle user active/inactive status' })
     @AuditLog('USER_TOGGLE_STATUS', (req) => `Thay đổi trạng thái kích hoạt của tài khoản ID: ${req.params.id}`)
     async toggleUserStatus(@Param('id') id: string, @GetUser('id') adminId: string) {
-        const result = await this.commandBus.execute(new ToggleUserStatusCommand(id, adminId));
+        const result = await this.commandBus.execute(new ToggleUserStatusCommand({
+            id,
+            adminId,
+        }));
         result.unwrap();
         return { success: true };
     }
@@ -106,7 +116,10 @@ export class UserController {
     @HttpCode(HttpStatus.OK)
     @ApiOperation({ summary: 'Deactivate a user account' })
     async deactivateUser(@Param('id') id: string, @GetUser('id') adminId: string) {
-        const result = await this.commandBus.execute(new DeactivateUserCommand(id, adminId));
+        const result = await this.commandBus.execute(new DeactivateUserCommand({
+            id,
+            adminId,
+        }));
         result.unwrap();
         return { success: true };
     }
@@ -128,7 +141,14 @@ export class UserController {
             throw new BadRequestException('Email is required');
         }
         const result = await this.commandBus.execute(
-            new UpdateUserCommand(id, body.email, body.username, body.roles, body.avatar, adminId)
+            new UpdateUserCommand({
+                id,
+                email: body.email,
+                username: body.username,
+                roles: body.roles,
+                avatar: body.avatar,
+                updatedBy: adminId,
+            })
         );
         result.unwrap();
         return { success: true };
@@ -143,7 +163,10 @@ export class UserController {
     @ApiOperation({ summary: 'Soft delete a user account' })
     @AuditLog('USER_DELETE', (req) => `Xóa tài khoản ID: ${req.params.id}`)
     async deleteUser(@Param('id') id: string, @GetUser('id') adminId: string) {
-        const result = await this.commandBus.execute(new DeleteUserCommand(id, adminId));
+        const result = await this.commandBus.execute(new DeleteUserCommand({
+            id,
+            adminId,
+        }));
         result.unwrap();
         return;
     }

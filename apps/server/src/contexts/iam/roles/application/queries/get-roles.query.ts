@@ -1,1 +1,3 @@
-export class GetRolesQuery {}
+import { IQuery } from '@nestjs/cqrs';
+
+export class GetRolesQuery implements IQuery {}

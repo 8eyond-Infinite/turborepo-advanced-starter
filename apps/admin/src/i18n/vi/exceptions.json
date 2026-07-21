@@ -1,0 +1,12 @@
+{
+  "invalid": {
+    "credentials": "Tài khoản hoặc mật khẩu không chính xác."
+  },
+  "user": {
+    "deactivated": "Tài khoản \"{{email}}\" đã bị khóa hoặc vô hiệu hóa.",
+    "already": {
+      "exists": "Tài khoản email này đã được sử dụng."
+    }
+  },
+  "forbidden": "Bạn không có quyền thực hiện hành động này."
+}

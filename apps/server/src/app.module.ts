@@ -10,6 +10,7 @@ import { IamModule } from './contexts/iam/iam.module';
 import { StorageModule } from './contexts/storage/storage.module';
 import { MenuModule } from './contexts/menu/menu.module';
 import { RealtimeModule } from '@shared/infrastructure/realtime/realtime.module';
+import { NotificationModule } from './contexts/notifications/notification.module';
 
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { AuditLogInterceptor } from '@shared/infrastructure/interceptors/audit-log.interceptor';
@@ -28,6 +29,7 @@ import { AuditLogInterceptor } from '@shared/infrastructure/interceptors/audit-l
     StorageModule,
     MenuModule,
     RealtimeModule,
+    NotificationModule,
   ],
   controllers: [AppController],
   providers: [

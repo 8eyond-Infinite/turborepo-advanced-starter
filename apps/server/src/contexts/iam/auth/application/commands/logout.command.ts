@@ -1,6 +1,14 @@
-export class LogoutCommand {
-    constructor(
-        public readonly userId: string,
-        public readonly jti: string,
-    ) { }
+import { ICommand } from '@nestjs/cqrs';
+
+export class LogoutCommand implements ICommand {
+    public readonly userId: string;
+    public readonly jti: string;
+
+    constructor(props: {
+        userId: string;
+        jti: string;
+    }) {
+        this.userId = props.userId;
+        this.jti = props.jti;
+    }
 }
