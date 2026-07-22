@@ -1,15 +1,13 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, HttpStatus, HttpCode, BadRequestException } from '@nestjs/common';
 import { QueryBus, CommandBus } from '@nestjs/cqrs';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { JwtAuthGuard, PermissionsGuard } from '@shared/infrastructure/guards';
-import { RequirePermissions, GetUser } from '@shared/infrastructure/decorators';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { PERMISSIONS } from '@repo/contracts';
-import { GetRolesQuery } from '../../application/queries/get-roles.query';
-import { GetPermissionsQuery } from '../../application/queries/get-permissions.query';
-import { CreateRoleCommand } from '../../application/commands/create-role.command';
-import { UpdateRolePermissionsCommand } from '../../application/commands/update-role-permissions.command';
-import { DeleteRoleCommand } from '../../application/commands/delete-role.command';
-import { AuditLog } from '@shared/infrastructure/decorators/audit-log.decorator';
+
+import { JwtAuthGuard, PermissionsGuard } from '@shared/infrastructure/guards';
+import { RequirePermissions, GetUser, AuditLog } from '@shared/infrastructure/decorators';
+
+import { GetRolesQuery, GetPermissionsQuery } from '../../application/queries';
+import { CreateRoleCommand, UpdateRolePermissionsCommand, DeleteRoleCommand } from '../../application/commands';
 
 @ApiTags('Roles')
 @ApiBearerAuth()

@@ -1,21 +1,23 @@
 import { Controller, Get, Post, Put, Patch, Delete, Body, Query, Param, HttpStatus, HttpCode, UseGuards, UseInterceptors, BadRequestException } from '@nestjs/common';
 import { QueryBus, CommandBus } from '@nestjs/cqrs';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { JwtAuthGuard, PermissionsGuard } from '@shared/infrastructure/guards';
-import { RequirePermissions, GetUser } from '@shared/infrastructure/decorators';
 import { PERMISSIONS } from '@repo/contracts';
-import { GetUsersQuery, GetUserByIdQuery } from '../../application/queries';
-import { DeactivateUserCommand } from '../../application/commands/deactivate-user.command';
-import { CreateUserCommand } from '../../application/commands/create-user.command';
-import { DeleteUserCommand } from '../../application/commands/delete-user.command';
-import { ToggleUserStatusCommand } from '../../application/commands/toggle-user-status.command';
-import { UpdateUserCommand } from '../../application/commands/update-user.command';
-import { UserPresenter } from '../presenters/user.presenter';
-import { CacheInterceptor, CacheKey, CacheTTL } from '@shared/infrastructure/cache/cache.interceptor';
-import { CacheInvalidationInterceptor, InvalidateCache } from '@shared/infrastructure/cache/cache-invalidation.interceptor';
+
+import { JwtAuthGuard, PermissionsGuard } from '@shared/infrastructure/guards';
+import { RequirePermissions, GetUser, AuditLog } from '@shared/infrastructure/decorators';
+import { CacheInterceptor, CacheKey, CacheTTL, CacheInvalidationInterceptor, InvalidateCache } from '@shared/infrastructure/cache';
 import { PaginationQueryDto } from '@shared/infrastructure/dto/pagination-query.dto';
 import { PaginatedResponsePresenter } from '@shared/infrastructure/presenters/pagination.presenter';
-import { AuditLog } from '@shared/infrastructure/decorators/audit-log.decorator';
+
+import { GetUsersQuery, GetUserByIdQuery } from '../../application/queries';
+import {
+    CreateUserCommand,
+    UpdateUserCommand,
+    DeleteUserCommand,
+    DeactivateUserCommand,
+    ToggleUserStatusCommand,
+} from '../../application/commands';
+import { UserPresenter } from '../presenters/user.presenter';
 
 @ApiTags('Users')
 @ApiBearerAuth()

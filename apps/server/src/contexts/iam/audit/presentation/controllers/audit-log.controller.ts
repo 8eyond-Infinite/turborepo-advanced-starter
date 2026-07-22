@@ -1,12 +1,14 @@
 import { Controller, Get, Query, UseGuards, HttpStatus, HttpCode } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { QueryBus } from '@nestjs/cqrs';
+import { PERMISSIONS } from '@repo/contracts';
+
 import { JwtAuthGuard, PermissionsGuard } from '@shared/infrastructure/guards';
 import { RequirePermissions } from '@shared/infrastructure/decorators';
-import { PERMISSIONS } from '@repo/contracts';
 import { PaginationQueryDto } from '@shared/infrastructure/dto/pagination-query.dto';
 import { PaginatedResponsePresenter } from '@shared/infrastructure/presenters/pagination.presenter';
-import { GetAuditLogsQuery } from '../../application/queries/get-audit-logs.query';
+
+import { GetAuditLogsQuery } from '../../application/queries';
 
 @ApiTags('Audit Logs')
 @ApiBearerAuth()

@@ -26,9 +26,9 @@ Module này quản lý và lưu trữ toàn bộ các lịch sử thao tác, tha
 
 ## 3. Đặc tả API Endpoints
 
-| Giao thức | Route | Bảo vệ bằng | DTO đầu vào | Trả về |
-| :--- | :--- | :--- | :--- | :--- |
-| **GET** | `/audit-logs` | `JwtAuthGuard` & `PermissionsGuard` | `PaginationQueryDto` (page, limit, search) | `PaginatedResult<AuditLog>` |
+| Giao thức | Route | Bảo vệ bằng | Quyền yêu cầu (Constant) | DTO đầu vào | Trả về |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **GET** | `/audit-logs` | `JwtAuthGuard` & `PermissionsGuard` | `PERMISSIONS.AUDIT.READ` (`audit:read`) | `PaginationQueryDto` (page, limit, search) | `PaginatedResult<AuditLog>` |
 
 ---
 
@@ -38,13 +38,14 @@ Module này quản lý và lưu trữ toàn bộ các lịch sử thao tác, tha
 audit/
 ├── application/                                 # LỚP ỨNG DỤNG/ĐIỀU HƯỚNG (APPLICATION LAYER)
 │   └── queries/                                 # Các hành động lấy dữ liệu (Đọc)
+│       ├── index.ts                             # Barrel export toàn bộ Queries
 │       ├── get-audit-logs.query.ts              # Data object chứa bộ lọc phân trang và tìm kiếm log
 │       └── handlers/
 │           └── get-audit-logs.handler.ts        # Thực hiện truy vấn DB thông qua PrismaService
 │
 ├── presentation/                                # LỚP GIAO TIẾP (PRESENTATION LAYER)
 │   └── controllers/
-│       └── audit-log.controller.ts              # REST Controller tiếp nhận yêu cầu và dispatch Query
+│       └── audit-log.controller.ts              # REST Controller tiếp nhận yêu cầu và dispatch Query với barrel imports
 │
 └── audit-log.module.ts                          # Đăng ký CqrsModule, Controller và Query Handler
 ```
@@ -113,7 +114,7 @@ sequenceDiagram
     Database-->>GetAuditLogsQueryHandler: Raw logs & total
     deactivate Database
     GetAuditLogsQueryHandler-->>QueryBus: Result.ok({ logs, total })
-    deactivate GetAuditLogsQueryHandler
+    deactivate QueryBus
     QueryBus-->>AuditLogController: Result.ok
     deactivate QueryBus
     AuditLogController->>AuditLogController: PaginatedResponsePresenter.toResponse
@@ -148,7 +149,7 @@ Dưới đây là hành trình xử lý ghi nhận và đọc dữ liệu Nhật
 
 #### 3. Đầu vào Controller (`presentation/controllers/audit-log.controller.ts`)
 * Cung cấp endpoint `GET /audit-logs`.
-* Được bảo vệ bởi `PermissionsGuard` và yêu cầu quyền `user:read`.
+* Được bảo vệ bởi `PermissionsGuard` Stateless và yêu cầu quyền `PERMISSIONS.AUDIT.READ`.
 * Nhận request và đóng gói thành `GetAuditLogsQuery` rồi chuyển tiếp qua `QueryBus`.
 
 #### 4. Xử lý Query Handler (`application/queries/handlers/get-audit-logs.handler.ts`)

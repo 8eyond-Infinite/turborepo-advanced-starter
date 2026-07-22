@@ -7,6 +7,7 @@ Module này chịu trách nhiệm quản lý toàn bộ các khía cạnh liên 
 ## 1. Nghiệp vụ & Quy tắc cốt lõi (Domain Rules)
 
 * **Mật khẩu bảo mật**: Mật khẩu được mã hóa một chiều sử dụng Bcrypt trước khi ghi xuống cơ sở dữ liệu.
+* **Tích hợp Stateless JWT Permissions**: Khi đăng nhập thành công (`LoginQueryHandler`) hoặc làm mới phiên (`RefreshQueryHandler`), danh sách mảng quyền hạn `permissions` được nhúng trực tiếp vào payload của JWT Access Token. Nhờ đó, `PermissionsGuard` xử lý phân quyền hoàn toàn Stateless (In-Memory) với hiệu năng cực cao.
 * **Kiểm soát Token bằng Redis (Token Whitelisting)**:
   * **Whitelist**: Khi đăng nhập, Refresh Token hợp lệ được lưu trong Redis dạng `refresh_token:${userId}:${jti}` với thời hạn 7 ngày.
   * **Token Rotation**: Mỗi lần gọi API refresh token, Refresh Token cũ sẽ bị hủy bỏ (thu hồi JTI cũ) và cấp mới hoàn toàn (sinh JTI mới). Điều này bảo vệ người dùng trước các cuộc tấn công phát lại mã (Replay Attacks).
@@ -24,8 +25,8 @@ Module này chịu trách nhiệm quản lý toàn bộ các khía cạnh liên 
 3. **`LogoutAllCommand`**: Quét và hủy toàn bộ phiên làm việc của người dùng hiện tại khỏi Redis.
 
 ### Nhánh Đọc - Truy vấn (Queries)
-1. **`LoginQuery`**: So khớp mật khẩu đã băm. Sinh cặp Access & Refresh Token kèm JWT ID (`jti`) và lưu thông tin vào Redis.
-2. **`RefreshQuery`**: Kiểm tra tính hợp lệ của JTI trên Redis, tiến hành thu hồi JTI cũ và sinh cặp token mới với JTI mới.
+1. **`LoginQuery`**: So khớp mật khẩu đã băm. Nhúng mảng `permissions` vào JWT payload, sinh cặp Access & Refresh Token kèm JWT ID (`jti`) và lưu thông tin vào Redis.
+2. **`RefreshQuery`**: Kiểm tra tính hợp lệ của JTI trên Redis, tiến hành thu hồi JTI cũ và sinh cặp token mới đính kèm `permissions` tươi mới.
 
 ---
 
@@ -54,21 +55,12 @@ auth/
 │   │       ├── register.handler.ts              # Xử lý đăng ký & lưu trữ User nghiệp vụ
 │   │       ├── logout.handler.ts                # Thực thi xóa khóa Redis của phiên đơn
 │   │       └── logout-all.handler.ts            # Quét và xóa toàn bộ khóa Redis của User
-│   ├── queries/                                 # Các hành động lấy dữ liệu (Đọc)
-│   │   ├── login.query.ts                       # Data object chứa email/mật khẩu
-│   │   ├── refresh.query.ts                     # Data object chứa token để quay vòng
-│   │   └── handlers/
-│   │       ├── login.handler.ts                 # Xác thực tài khoản, tạo JTI, lưu Redis và trả về token
-│   │       └── refresh.handler.ts               # Kiểm tra whitelist, thu hồi token cũ, cấp phát token mới
-│   ├── guards/
-│   │   ├── jwt-auth.guard.ts                    # Bảo vệ route yêu cầu Access Token hợp lệ
-│   │   ├── jwt-refresh-auth.guard.ts            # Bảo vệ route yêu cầu Refresh Token hợp lệ
-│   │   └── permissions.guard.ts                 # Bảo vệ route yêu cầu quyền hạn cụ thể (RBAC)
-│   ├── strategies/
-│   │   ├── jwt.strategy.ts                      # Cấu hình giải mã và xác minh Access Token
-│   │   └── jwt-refresh.strategy.ts              # Cấu hình giải mã và xác minh Refresh Token
-│   └── decorators/
-│       └── permissions.decorator.ts             # Metadata decorator khai báo quyền yêu cầu trên Controller
+│   └── queries/                                 # Các hành động lấy dữ liệu (Đọc)
+│       ├── login.query.ts                       # Data object chứa email/mật khẩu
+│       ├── refresh.query.ts                     # Data object chứa token để quay vòng
+│       └── handlers/
+│           ├── login.handler.ts                 # Xác thực tài khoản, nhúng permissions vào JWT, lưu Redis
+│           └── refresh.handler.ts               # Kiểm tra whitelist, thu hồi token cũ, cấp token mới đính kèm permissions
 │
 ├── presentation/                                # LỚP GIAO TIẾP (PRESENTATION LAYER)
 │   └── controllers/
@@ -98,10 +90,10 @@ sequenceDiagram
     activate QueryBus
     QueryBus->>LoginQueryHandler: execute(query)
     activate LoginQueryHandler
-    LoginQueryHandler->>Database: Query user by email
-    Database-->>LoginQueryHandler: User record (hashed password)
+    LoginQueryHandler->>Database: Query user & assigned permissions by email
+    Database-->>LoginQueryHandler: User record & permissions array
     LoginQueryHandler->>LoginQueryHandler: Compare password using bcrypt
-    LoginQueryHandler->>LoginQueryHandler: Generate jti & tokens
+    LoginQueryHandler->>LoginQueryHandler: Embed permissions & generate jti / tokens
     LoginQueryHandler->>RedisService: setex(refresh_token:userId:jti, 7 days)
     RedisService-->>LoginQueryHandler: OK
     LoginQueryHandler-->>QueryBus: Result.ok({ accessToken, refreshToken })
@@ -121,7 +113,9 @@ sequenceDiagram
     RefreshQueryHandler->>RedisService: exists(refresh_token:userId:oldJti)
     RedisService-->>RefreshQueryHandler: true (Token is valid)
     RefreshQueryHandler->>RedisService: del(refresh_token:userId:oldJti) (Revoke old token)
-    RefreshQueryHandler->>RefreshQueryHandler: Generate new jti & tokens
+    RefreshQueryHandler->>Database: Query fresh permissions array
+    Database-->>RefreshQueryHandler: fresh permissions
+    RefreshQueryHandler->>RefreshQueryHandler: Embed fresh permissions & generate new jti / tokens
     RefreshQueryHandler->>RedisService: setex(refresh_token:userId:newJti, 7 days)
     RefreshQueryHandler-->>QueryBus: Result.ok({ accessToken, refreshToken })
     deactivate RefreshQueryHandler
@@ -156,9 +150,10 @@ Dưới đây là mô tả chi tiết cách thức hoạt động của từng t
 * **Hoạt động**:
   1. Lấy thông tin user bằng email từ `UserRepository`.
   2. Khớp mật khẩu đã băm bằng `bcrypt.compare`.
-  3. Tạo JWT ID (`jti`) duy nhất bằng UUID để theo dõi phiên làm việc.
-  4. Ký phát hành Access Token và Refresh Token.
-  5. Đăng ký JTI này vào Redis cache (`refresh_token:${userId}:${jti}`) với thời gian sống (TTL) là 7 ngày nhằm đánh dấu whitelist.
+  3. Truy vấn danh sách quyền hạn của tài khoản và nhúng mảng `permissions` vào JWT payload.
+  4. Tạo JWT ID (`jti`) duy nhất bằng UUID để theo dõi phiên làm việc.
+  5. Ký phát hành Access Token và Refresh Token.
+  6. Đăng ký JTI này vào Redis cache (`refresh_token:${userId}:${jti}`) với thời gian sống (TTL) là 7 ngày nhằm đánh dấu whitelist.
 
 #### 3. `application/queries/handlers/refresh.handler.ts`
 * **Nhiệm vụ**: Triển khai cơ chế Refresh Token Rotation (Quay vòng Refresh Token).
@@ -167,7 +162,7 @@ Dưới đây là mô tả chi tiết cách thức hoạt động của từng t
   2. Kiểm tra xem JTI đó còn tồn tại trong Redis whitelist hay không.
   3. Nếu không tìm thấy, lập tức ném ra lỗi Unauthorized (401) vì token có thể đã bị đánh cắp hoặc thu hồi trước đó.
   4. Nếu tìm thấy, lập tức xóa khóa JTI cũ này khỏi Redis.
-  5. Sinh mới một JTI và bộ token mới, tiếp tục đưa JTI mới vào Redis whitelist và trả về cho người dùng.
+  5. Truy vấn danh sách quyền tươi mới, sinh mới một JTI và bộ token mới đính kèm `permissions`, tiếp tục đưa JTI mới vào Redis whitelist và trả về cho người dùng.
 
 #### 4. `application/commands/handlers/logout.handler.ts` và `logout-all.handler.ts`
 * **Nhiệm vụ**: Thu hồi quyền truy cập của người dùng.
@@ -183,8 +178,8 @@ Dưới đây là mô tả chi tiết cách thức hoạt động của từng t
 * **Nhiệm vụ**: Giải mã và xác thực chữ ký của Token (Passport).
 * **Hoạt động**:
   1. Nhận chuỗi token từ Authorization Header.
-  2. Sử dụng Secret Key của hệ thống để giải mã thông tin payload (chứa `userId`, `jti`, `email`).
-  3. Đính đối tượng user đã giải mã vào context request (`req.user`) để các bộ lọc tiếp theo có thể sử dụng.
+  2. Sử dụng Secret Key của hệ thống để giải mã thông tin payload (chứa `userId`, `jti`, `email`, và `permissions`).
+  3. Đính đối tượng user đã giải mã (bao gồm cả mảng `permissions`) vào context request (`req.user`) để `PermissionsGuard` kiểm tra hoàn toàn Stateless (In-Memory).
 
 #### 6. `application/guards/jwt-auth.guard.ts` và `jwt-refresh-auth.guard.ts`
 * **Nhiệm vụ**: Ngăn chặn request không có chữ ký hợp lệ.

@@ -1,10 +1,12 @@
 import { Controller, Get, UseGuards, HttpStatus, HttpCode } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { QueryBus } from '@nestjs/cqrs';
+import { PERMISSIONS } from '@repo/contracts';
+
 import { JwtAuthGuard, PermissionsGuard } from '@shared/infrastructure/guards';
 import { RequirePermissions } from '@shared/infrastructure/decorators';
-import { PERMISSIONS } from '@repo/contracts';
-import { GetDashboardStatsQuery } from '../../application/queries/get-dashboard-stats.query';
+
+import { GetDashboardStatsQuery } from '../../application/queries';
 
 @ApiTags('Dashboard')
 @ApiBearerAuth()

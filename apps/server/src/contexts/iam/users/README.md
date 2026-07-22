@@ -13,7 +13,7 @@ Module `Users` được thiết kế theo nguyên lý **Domain-Driven Design (DD
   * `Email`: Đảm bảo định dạng chuẩn email, không chứa khoảng trắng và không trống.
   * `Password`: Bảo vệ an toàn dữ liệu mật khẩu thô và mật khẩu đã băm (bcrypt).
 * **Trạng thái kích hoạt**: Tài khoản có thể chuyển đổi qua lại giữa hoạt động (`isActive: true`) và khóa/ngưng hoạt động (`isActive: false`).
-* **Phân quyền dựa trên vai trò (RBAC)**: Tích hợp bảo vệ các tài nguyên HTTP nhạy cảm dựa trên danh sách quyền hạn lấy từ database (`userPermissions`) thông qua `PermissionsGuard`.
+* **Phân quyền dựa trên vai trò Stateless (Stateless JWT RBAC)**: Tích hợp bảo vệ các tài nguyên HTTP nhạy cảm dựa trên mảng quyền hạn `permissions` đính kèm trực tiếp trong JWT Access Token qua `PermissionsGuard` (kiểm tra in-memory, 0 truy vấn Database).
 
 ---
 
@@ -37,14 +37,14 @@ Module `Users` được thiết kế theo nguyên lý **Domain-Driven Design (DD
 
 Toàn bộ API được bảo mật bằng cơ chế Token Bearer và kiểm soát phân quyền cụ thể:
 
-| Giao thức | Route | Bảo vệ bằng | Quyền yêu cầu | Trả về | Cache (Redis) |
+| Giao thức | Route | Bảo vệ bằng | Quyền yêu cầu (Constant) | Trả về | Cache (Redis) |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **GET** | `/users` | `JwtAuthGuard` & `PermissionsGuard` | `user:read` | `PaginatedResult<User>` | Có (120 giây) |
-| **GET** | `/users/:id` | `JwtAuthGuard` & `PermissionsGuard` | `user:read` | `User` | Có (60 giây) |
-| **POST** | `/users` | `JwtAuthGuard` & `PermissionsGuard` | `user:write` | `User` | Không |
-| **PUT** | `/users/:id` | `JwtAuthGuard` & `PermissionsGuard` | `user:write` | `User` | Không (Clear cache) |
-| **PATCH** | `/users/:id/toggle-status` | `JwtAuthGuard` & `PermissionsGuard` | `user:write` | `User` | Không (Clear cache) |
-| **DELETE** | `/users/:id` | `JwtAuthGuard` & `PermissionsGuard` | `user:write` | `{ success: true }` | Không (Clear cache) |
+| **GET** | `/users` | `JwtAuthGuard` & `PermissionsGuard` | `PERMISSIONS.USER.READ` (`user:read`) | `PaginatedResult<User>` | Có (120 giây) |
+| **GET** | `/users/:id` | `JwtAuthGuard` & `PermissionsGuard` | `PERMISSIONS.USER.READ` (`user:read`) | `User` | Có (60 giây) |
+| **POST** | `/users` | `JwtAuthGuard` & `PermissionsGuard` | `PERMISSIONS.USER.CREATE` (`user:create`) | `User` | Không (Clear cache) |
+| **PUT** | `/users/:id` | `JwtAuthGuard` & `PermissionsGuard` | `PERMISSIONS.USER.UPDATE` (`user:update`) | `User` | Không (Clear cache) |
+| **PATCH** | `/users/:id/toggle-status` | `JwtAuthGuard` & `PermissionsGuard` | `PERMISSIONS.USER.UPDATE` (`user:update`) | `User` | Không (Clear cache) |
+| **DELETE** | `/users/:id` | `JwtAuthGuard` & `PermissionsGuard` | `PERMISSIONS.USER.DELETE` (`user:delete`) | `{ success: true }` | Không (Clear cache) |
 
 ---
 
@@ -64,6 +64,7 @@ users/
 │
 ├── application/                                 # LỚP ỨNG DỤNG/ĐIỀU HƯỚNG (APPLICATION LAYER)
 │   ├── commands/                                # Các hành động thay đổi trạng thái (Ghi)
+│   │   ├── index.ts                             # Barrel export toàn bộ Commands
 │   │   ├── create-user.command.ts               # Data object chứa tham số tạo User
 │   │   ├── delete-user.command.ts               # Data object xóa User
 │   │   ├── toggle-user-status.command.ts        # Data object đổi trạng thái User
@@ -74,6 +75,7 @@ users/
 │   │       ├── toggle-user-status.handler.ts
 │   │       └── update-user.handler.ts
 │   └── queries/                                 # Các hành động lấy dữ liệu (Đọc)
+│       ├── index.ts                             # Barrel export toàn bộ Queries
 │       ├── get-users.query.ts                   # Data object chứa bộ lọc tìm kiếm/phân trang
 │       ├── get-user-by-id.query.ts              # Data object lấy chi tiết User
 │       └── handlers/                            # Các bộ xử lý Query tương ứng
@@ -88,7 +90,7 @@ users/
 │
 └── presentation/                                # LỚP GIAO TIẾP (PRESENTATION LAYER)
     ├── controllers/
-    │   └── user.controller.ts                   # Đón tiếp HTTP requests (REST API)
+    │   └── user.controller.ts                   # REST API Controller điều hướng với barrel imports gọn gàng
     └── presenters/
         └── user.presenter.ts                    # Định dạng JSON trả về cho Client (Evict mật khẩu)
 ```
@@ -243,7 +245,7 @@ Dưới đây là hành trình của luồng dữ liệu đi qua từng tệp ti
 * **Hoạt động**:
   1. Nhận các tham số hoặc body từ HTTP request.
   2. Sử dụng `ValidationPipe` (class-validator) để tự động check định dạng.
-  3. Đóng gói dữ liệu sạch vào đối tượng **Command** hoặc **Query** nghiệp vụ (ví dụ: `new CreateUserCommand(email, password, roles)`).
+  3. Đóng gói dữ liệu sạch vào đối tượng **Command** hoặc **Query** nghiệp vụ (ví dụ: `new CreateUserCommand(...)`).
   4. Dispatch qua `CommandBus` hoặc `QueryBus` của NestJS để chuyển giao việc xử lý cho tầng Application. Không tự xử lý DB tại đây.
 
 #### 2. `presentation/presenters/user.presenter.ts`
@@ -314,20 +316,20 @@ Dưới đây là hành trình của luồng dữ liệu đi qua từng tệp ti
 
 ## 7. Các cơ chế Bảo vệ chéo (Cross-cutting Concerns)
 
-### A. Phân quyền chặt chẽ (RBAC)
+### A. Phân quyền Stateless In-Memory (Stateless JWT RBAC)
 Tại tệp **[user.controller.ts](file:///d:/Workspaces/Repo/turborepo-advanced-starter/apps/server/src/contexts/iam/users/presentation/controllers/user.controller.ts)**:
 ```typescript
 @Get()
 @UseGuards(PermissionsGuard)
-@RequirePermissions('user:read')
+@RequirePermissions(PERMISSIONS.USER.READ)
 ```
-* **`PermissionsGuard`**: Lấy danh sách các quyền hạn của tài khoản đang đăng nhập trong cơ sở dữ liệu và đối sánh nghiêm ngặt. Nếu thiếu quyền `'user:read'`, request bị ngắt và trả về lỗi **HTTP 403 Forbidden** trước khi đi vào logic nghiệp vụ.
+* **`PermissionsGuard`**: Lấy danh sách các quyền hạn đính kèm sẵn trong JWT Payload Token (`request.user.permissions`) và đối sánh trực tiếp trên bộ nhớ (In-Memory). Nếu thiếu quyền `PERMISSIONS.USER.READ`, request bị ngắt và trả về lỗi **HTTP 403 Forbidden** tức thì mà không hề gọi tới Database.
 
 ### B. Cơ chế ghi nhật ký hoạt động (Audit Logs Interceptor)
 Mọi hành động thay đổi dữ liệu của Admin đều được giám sát tự động bằng tầng Interceptor:
 ```typescript
 @Post()
-@AuditLog('USER_CREATE', (req) => `Tạo tài khoản mới: ${req.body.email} với quyền: ${req.body.roles?.join(', ')}`)
+@AuditLog('USER_CREATE', (req) => `Tạo người dùng mới với Email: ${req.body.email}, Username: ${req.body.username}`)
 ```
 * **`AuditLogInterceptor`**: Đọc Metadata từ decorator, nếu request kết thúc thành công, nó sẽ tự động thu thập IP, User-Agent, Email của Admin đang thực thi và lưu một bản ghi lịch sử xuống bảng `audit_logs` một cách bất đồng bộ để không ảnh hưởng đến độ trễ phản hồi của client.
 
