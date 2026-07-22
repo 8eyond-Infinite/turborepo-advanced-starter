@@ -1,11 +1,11 @@
 import { IQuery } from '@nestjs/cqrs';
 
 export class GetMenusQuery implements IQuery {
-    public readonly permissions: string[];
+    public readonly userId: string;
 
     constructor(props: {
-        permissions: string[];
+        userId: string;
     }) {
-        this.permissions = props.permissions;
+        this.userId = props.userId;
     }
 }

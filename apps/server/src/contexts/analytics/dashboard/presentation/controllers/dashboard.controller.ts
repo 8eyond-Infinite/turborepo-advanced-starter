@@ -1,9 +1,8 @@
 import { Controller, Get, UseGuards, HttpStatus, HttpCode } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { QueryBus } from '@nestjs/cqrs';
-import { JwtAuthGuard } from '../../../auth/application/guards/jwt-auth.guard';
-import { PermissionsGuard } from '../../../auth/application/guards/permissions.guard';
-import { RequirePermissions } from '../../../auth/application/decorators/permissions.decorator';
+import { JwtAuthGuard, PermissionsGuard } from '@shared/infrastructure/guards';
+import { RequirePermissions } from '@shared/infrastructure/decorators';
 import { GetDashboardStatsQuery } from '../../application/queries/get-dashboard-stats.query';
 
 @ApiTags('Dashboard')

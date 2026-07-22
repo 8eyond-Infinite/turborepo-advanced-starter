@@ -1,10 +1,8 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, HttpStatus, HttpCode, BadRequestException } from '@nestjs/common';
 import { QueryBus, CommandBus } from '@nestjs/cqrs';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../../auth/application/guards/jwt-auth.guard';
-import { PermissionsGuard } from '../../../auth/application/guards/permissions.guard';
-import { RequirePermissions } from '../../../auth/application/decorators/permissions.decorator';
-import { GetUser } from '@shared/infrastructure/decorators/get-user.decorator';
+import { JwtAuthGuard, PermissionsGuard } from '@shared/infrastructure/guards';
+import { RequirePermissions, GetUser } from '@shared/infrastructure/decorators';
 import { GetRolesQuery } from '../../application/queries/get-roles.query';
 import { GetPermissionsQuery } from '../../application/queries/get-permissions.query';
 import { CreateRoleCommand } from '../../application/commands/create-role.command';

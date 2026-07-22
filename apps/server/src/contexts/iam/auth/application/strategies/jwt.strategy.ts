@@ -18,11 +18,12 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
         });
     }
 
-    async validate(payload: { sub: string; email: string }) {
+    async validate(payload: { sub: string; email: string; permissions?: string[] }) {
         const user = await this.userRepository.findById(payload.sub);
         if (!user || !user.isActive || user.isDeleted) {
             throw new UnauthorizedException('User is inactive or no longer exists');
         }
+        (user as any).permissions = payload.permissions || [];
         return user;
     }
 }

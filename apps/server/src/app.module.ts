@@ -7,6 +7,7 @@ import { RedisModule } from '@shared/infrastructure/cache/redis.module';
 import { QueueModule } from '@shared/infrastructure/queue/queue.module';
 import { EventDispatcherModule } from '@shared/infrastructure/event/event-dispatcher.module';
 import { IamModule } from './contexts/iam/iam.module';
+import { AnalyticsModule } from './contexts/analytics/analytics.module';
 import { StorageModule } from './contexts/storage/storage.module';
 import { MenuModule } from './contexts/menu/menu.module';
 import { RealtimeModule } from '@shared/infrastructure/realtime/realtime.module';
@@ -26,6 +27,7 @@ import { AuditLogInterceptor } from '@shared/infrastructure/interceptors/audit-l
     QueueModule,
     EventDispatcherModule,
     IamModule,
+    AnalyticsModule,
     StorageModule,
     MenuModule,
     RealtimeModule,

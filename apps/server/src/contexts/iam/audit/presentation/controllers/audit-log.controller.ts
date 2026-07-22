@@ -1,9 +1,8 @@
 import { Controller, Get, Query, UseGuards, HttpStatus, HttpCode } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { QueryBus } from '@nestjs/cqrs';
-import { JwtAuthGuard } from '../../../auth/application/guards/jwt-auth.guard';
-import { PermissionsGuard } from '../../../auth/application/guards/permissions.guard';
-import { RequirePermissions } from '../../../auth/application/decorators/permissions.decorator';
+import { JwtAuthGuard, PermissionsGuard } from '@shared/infrastructure/guards';
+import { RequirePermissions } from '@shared/infrastructure/decorators';
 import { PaginationQueryDto } from '@shared/infrastructure/dto/pagination-query.dto';
 import { PaginatedResponsePresenter } from '@shared/infrastructure/presenters/pagination.presenter';
 import { GetAuditLogsQuery } from '../../application/queries/get-audit-logs.query';

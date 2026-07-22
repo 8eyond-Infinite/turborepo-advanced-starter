@@ -1,10 +1,8 @@
 import { Controller, Get, Post, Put, Patch, Delete, Body, Query, Param, HttpStatus, HttpCode, UseGuards, UseInterceptors, BadRequestException } from '@nestjs/common';
 import { QueryBus, CommandBus } from '@nestjs/cqrs';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../../auth/application/guards/jwt-auth.guard';
-import { PermissionsGuard } from '../../../auth/application/guards/permissions.guard';
-import { RequirePermissions } from '../../../auth/application/decorators/permissions.decorator';
-import { GetUser } from '@shared/infrastructure/decorators/get-user.decorator';
+import { JwtAuthGuard, PermissionsGuard } from '@shared/infrastructure/guards';
+import { RequirePermissions, GetUser } from '@shared/infrastructure/decorators';
 import { GetUsersQuery, GetUserByIdQuery } from '../../application/queries';
 import { DeactivateUserCommand } from '../../application/commands/deactivate-user.command';
 import { CreateUserCommand } from '../../application/commands/create-user.command';

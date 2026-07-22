@@ -21,8 +21,9 @@ export class RefreshQueryHandler implements IQueryHandler<RefreshQuery, Result<{
     async execute(query: RefreshQuery): Promise<Result<{ accessToken: string; refreshToken: string }, DomainException>> {
         const { userId, email, jti: oldJti } = query;
 
+        const permissions = await this.userRepository.getPermissions(userId);
         const newJti = this.userRepository.nextIdentity();
-        const accessPayload = { sub: userId, email };
+        const accessPayload = { sub: userId, email, permissions };
         const refreshPayload = { sub: userId, email, jti: newJti };
 
         const accessToken = this.jwtService.sign(accessPayload, {

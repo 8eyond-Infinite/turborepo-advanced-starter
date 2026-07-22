@@ -21,7 +21,7 @@ import { RevokeSessionCommand } from '../../application/commands/revoke-session.
 import { LoginQuery } from '../../application/queries/login.query';
 import { RefreshQuery } from '../../application/queries/refresh.query';
 import { GetActiveSessionsQuery } from '../../application/queries/get-active-sessions.query';
-import { JwtAuthGuard } from '../../application/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '@shared/infrastructure/guards';
 import { JwtRefreshAuthGuard } from '../../application/guards/jwt-refresh-auth.guard';
 import { UserPresenter } from '@iam/users/presentation/presenters/user.presenter';
 import { PaginationQueryDto } from '@shared/infrastructure/dto/pagination-query.dto';

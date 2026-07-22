@@ -40,8 +40,9 @@ export class LoginQueryHandler implements IQueryHandler<LoginQuery, Result<{ acc
             return Result.fail(new InvalidCredentialsException());
         }
 
+        const permissions = await this.userRepository.getPermissions(user.id);
         const jti = this.userRepository.nextIdentity();
-        const accessPayload = { sub: user.id, email: user.email };
+        const accessPayload = { sub: user.id, email: user.email, permissions };
         const refreshPayload = { sub: user.id, email: user.email, jti };
 
         const accessToken = this.jwtService.sign(accessPayload, {
@@ -54,7 +55,6 @@ export class LoginQueryHandler implements IQueryHandler<LoginQuery, Result<{ acc
             expiresIn: '7d',
         });
 
-        // Store refresh token whitelist in cache with a 7-day TTL and session metadata
         const sessionData = {
             jti,
             ip: query.ip || 'Unknown',
