@@ -3,6 +3,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagg
 import { QueryBus } from '@nestjs/cqrs';
 import { JwtAuthGuard, PermissionsGuard } from '@shared/infrastructure/guards';
 import { RequirePermissions } from '@shared/infrastructure/decorators';
+import { PERMISSIONS } from '@repo/contracts';
 import { PaginationQueryDto } from '@shared/infrastructure/dto/pagination-query.dto';
 import { PaginatedResponsePresenter } from '@shared/infrastructure/presenters/pagination.presenter';
 import { GetAuditLogsQuery } from '../../application/queries/get-audit-logs.query';
@@ -17,7 +18,7 @@ export class AuditLogController {
     ) {}
 
     @Get()
-    @RequirePermissions('user:read')
+    @RequirePermissions(PERMISSIONS.AUDIT.READ)
     @HttpCode(HttpStatus.OK)
     @ApiOperation({ summary: 'Get paginated audit logs for administrators' })
     @ApiResponse({ status: 200, description: 'Return paginated list of audit logs' })

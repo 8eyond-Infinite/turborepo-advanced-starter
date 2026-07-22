@@ -5,7 +5,6 @@ import { UserPlus, Pencil, Shield, Trash2, LogOut, ShieldAlert, HelpCircle, Load
 import type { TimelineItem } from '@/components/timeline';
 import type { AuditLog } from '@repo/types';
 
-// Map audit actions to icons and types for Timeline component
 const actionMetaMap: Record<string, { icon: any; type: 'info' | 'success' | 'warning' | 'error' | 'neutral' }> = {
     USER_CREATE: { icon: UserPlus, type: 'success' },
     USER_UPDATE: { icon: Pencil, type: 'info' },
@@ -56,7 +55,7 @@ export const AuditLogsManagement = () => {
     // Transform API audit logs to TimelineItem elements
     const timelineItems: TimelineItem[] = logs.map((log: AuditLog) => {
         const metaInfo = actionMetaMap[log.action] || { icon: HelpCircle, type: 'neutral' };
-        
+
         return {
             id: log.id,
             title: `${log.action.replace(/_/g, ' ')}`,
@@ -115,7 +114,7 @@ export const AuditLogsManagement = () => {
                 ) : (
                     <div className="p-6 md:p-8 space-y-6">
                         <Timeline items={timelineItems} />
-                        
+
                         <div className="pt-4 border-t border-border/50">
                             <TablePagination
                                 currentPage={meta.currentPage}

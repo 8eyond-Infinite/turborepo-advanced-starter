@@ -3,6 +3,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagg
 import { QueryBus } from '@nestjs/cqrs';
 import { JwtAuthGuard, PermissionsGuard } from '@shared/infrastructure/guards';
 import { RequirePermissions } from '@shared/infrastructure/decorators';
+import { PERMISSIONS } from '@repo/contracts';
 import { GetDashboardStatsQuery } from '../../application/queries/get-dashboard-stats.query';
 
 @ApiTags('Dashboard')
@@ -15,7 +16,7 @@ export class DashboardController {
     ) {}
 
     @Get('stats')
-    @RequirePermissions('user:read')
+    @RequirePermissions(PERMISSIONS.USER.READ)
     @HttpCode(HttpStatus.OK)
     @ApiOperation({ summary: 'Get dashboard statistics for system overview' })
     @ApiResponse({ status: 200, description: 'Return statistics dashboard object' })

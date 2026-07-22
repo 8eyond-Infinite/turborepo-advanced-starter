@@ -3,6 +3,7 @@ import { QueryBus, CommandBus } from '@nestjs/cqrs';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { JwtAuthGuard, PermissionsGuard } from '@shared/infrastructure/guards';
 import { RequirePermissions, GetUser } from '@shared/infrastructure/decorators';
+import { PERMISSIONS } from '@repo/contracts';
 import { GetUsersQuery, GetUserByIdQuery } from '../../application/queries';
 import { DeactivateUserCommand } from '../../application/commands/deactivate-user.command';
 import { CreateUserCommand } from '../../application/commands/create-user.command';
@@ -33,15 +34,20 @@ export class UserController {
     @ApiOperation({ summary: 'Get current user profile' })
     @ApiResponse({ status: 200, description: 'Return current user details without password' })
     @ApiResponse({ status: 401, description: 'Unauthorized' })
-    async getMe(@GetUser('id') userId: string) {
-        const result = await this.queryBus.execute(new GetUserByIdQuery(userId));
-        const user = result.unwrap();
-        return user ? UserPresenter.toResponse(user) : null;
+    async getMe(@GetUser() currentUser: any) {
+        const result = await this.queryBus.execute(new GetUserByIdQuery(currentUser.id));
+        const userEntity = result.unwrap();
+        if (!userEntity) return null;
+        const responseData = UserPresenter.toResponse(userEntity);
+        return {
+            ...responseData,
+            permissions: currentUser.permissions || [],
+        };
     }
 
     @Get()
     @UseGuards(PermissionsGuard)
-    @RequirePermissions('user:read')
+    @RequirePermissions(PERMISSIONS.USER.READ)
     @ApiOperation({ summary: 'Get all users list with pagination' })
     @ApiResponse({ status: 200, description: 'Return paginated users list' })
     @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -62,7 +68,7 @@ export class UserController {
 
     @Post()
     @UseGuards(PermissionsGuard)
-    @RequirePermissions('user:create')
+    @RequirePermissions(PERMISSIONS.USER.CREATE)
     @UseInterceptors(CacheInvalidationInterceptor)
     @InvalidateCache('users:all')
     @HttpCode(HttpStatus.CREATED)
@@ -91,7 +97,7 @@ export class UserController {
 
     @Patch(':id/toggle-status')
     @UseGuards(PermissionsGuard)
-    @RequirePermissions('user:update')
+    @RequirePermissions(PERMISSIONS.USER.UPDATE)
     @UseInterceptors(CacheInvalidationInterceptor)
     @InvalidateCache('users:all', 'users:me:{id}')
     @HttpCode(HttpStatus.OK)
@@ -108,7 +114,7 @@ export class UserController {
 
     @Patch(':id/deactivate')
     @UseGuards(PermissionsGuard)
-    @RequirePermissions('user:update')
+    @RequirePermissions(PERMISSIONS.USER.UPDATE)
     @UseInterceptors(CacheInvalidationInterceptor)
     @InvalidateCache('users:all', 'users:me:{id}')
     @HttpCode(HttpStatus.OK)
@@ -124,7 +130,7 @@ export class UserController {
 
     @Put(':id')
     @UseGuards(PermissionsGuard)
-    @RequirePermissions('user:update')
+    @RequirePermissions(PERMISSIONS.USER.UPDATE)
     @UseInterceptors(CacheInvalidationInterceptor)
     @InvalidateCache('users:all', 'users:me:{id}')
     @HttpCode(HttpStatus.OK)
@@ -154,7 +160,7 @@ export class UserController {
 
     @Delete(':id')
     @UseGuards(PermissionsGuard)
-    @RequirePermissions('user:delete')
+    @RequirePermissions(PERMISSIONS.USER.DELETE)
     @UseInterceptors(CacheInvalidationInterceptor)
     @InvalidateCache('users:all', 'users:me:{id}')
     @HttpCode(HttpStatus.NO_CONTENT)

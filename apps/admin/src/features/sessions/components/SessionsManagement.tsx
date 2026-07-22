@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Laptop, Smartphone, LogOut, Clock, ShieldAlert, Loader2 } from 'lucide-react';
 import { useSessions } from '../hooks/useSessions';
 import type { ActiveSession } from '@repo/types';
+import { Can, usePermissions } from '@/hooks/usePermission';
+import { PERMISSIONS } from '@repo/contracts';
 
 const parseUserAgent = (uaString?: string) => {
     const ua = (uaString || '').toLowerCase();
@@ -45,6 +47,11 @@ export const SessionsManagement = () => {
         isRevokingAll,
     } = useSessions({ page: currentPage, limit: pageSize });
 
+    // Business capability access map
+    const access = usePermissions({
+        canRevokeSessions: PERMISSIONS.SESSION.DELETE,
+    });
+
     if (isLoading) {
         return (
             <div className="flex h-64 items-center justify-center gap-2 text-muted-foreground text-sm">
@@ -64,32 +71,34 @@ export const SessionsManagement = () => {
                 description="Xem các thiết bị và trình duyệt đang kết nối vào tài khoản của bạn, thu hồi quyền truy cập khi phát hiện bất thường."
             >
                 {sessions.length > 1 && (
-                    <ConfirmDialog
-                        trigger={
-                            <Button
-                                variant="destructive"
-                                size="sm"
-                                className="cursor-pointer font-medium"
-                                disabled={isRevokingAll}
-                            >
-                                {isRevokingAll ? (
-                                    <>
-                                        <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
-                                        Đang xử lý...
-                                    </>
-                                ) : (
-                                    <>
-                                        <ShieldAlert className="h-4 w-4 mr-1.5" /> Hủy tất cả phiên khác
-                                    </>
-                                )}
-                            </Button>
-                        }
-                        title="Hủy toàn bộ các phiên đăng nhập khác?"
-                        description="Hành động này sẽ xóa toàn bộ Refresh Token của tài khoản ngoại trừ phiên làm việc hiện tại của bạn trên trình duyệt này."
-                        confirmText="Xác nhận đăng xuất toàn bộ"
-                        variant="destructive"
-                        onConfirm={() => revokeAllSessions()}
-                    />
+                    <Can I={PERMISSIONS.SESSION.DELETE}>
+                        <ConfirmDialog
+                            trigger={
+                                <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    className="cursor-pointer font-medium"
+                                    disabled={isRevokingAll}
+                                >
+                                    {isRevokingAll ? (
+                                        <>
+                                            <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                                            Đang xử lý...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <ShieldAlert className="h-4 w-4 mr-1.5" /> Hủy tất cả phiên khác
+                                        </>
+                                    )}
+                                </Button>
+                            }
+                            title="Hủy toàn bộ các phiên đăng nhập khác?"
+                            description="Hành động này sẽ xóa toàn bộ Refresh Token của tài khoản ngoại trừ phiên làm việc hiện tại của bạn trên trình duyệt này."
+                            confirmText="Xác nhận đăng xuất toàn bộ"
+                            variant="destructive"
+                            onConfirm={() => revokeAllSessions()}
+                        />
+                    </Can>
                 )}
             </PageHeader>
 
@@ -140,24 +149,28 @@ export const SessionsManagement = () => {
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="flex items-center shrink-0 self-end sm:self-center">
-                                            <ConfirmDialog
-                                                trigger={
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer transition-colors"
-                                                    >
-                                                        <LogOut className="h-4 w-4 mr-1.5" /> Đăng xuất thiết bị
-                                                    </Button>
-                                                }
-                                                title="Đăng xuất thiết bị này?"
-                                                description={`Phiên đăng nhập tại địa chỉ IP ${session.ip} sử dụng trình duyệt ${browser} sẽ lập tức bị thu hồi.`}
-                                                confirmText="Đăng xuất thiết bị"
-                                                variant="destructive"
-                                                onConfirm={() => revokeSession(session.jti)}
-                                            />
-                                        </div>
+                                        {access.canRevokeSessions && (
+                                            <div className="flex items-center shrink-0 self-end sm:self-center">
+                                                <Can I={PERMISSIONS.SESSION.DELETE}>
+                                                    <ConfirmDialog
+                                                        trigger={
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer transition-colors"
+                                                            >
+                                                                <LogOut className="h-4 w-4 mr-1.5" /> Đăng xuất thiết bị
+                                                            </Button>
+                                                        }
+                                                        title="Đăng xuất thiết bị này?"
+                                                        description={`Phiên đăng nhập tại địa chỉ IP ${session.ip} sử dụng trình duyệt ${browser} sẽ lập tức bị thu hồi.`}
+                                                        confirmText="Đăng xuất thiết bị"
+                                                        variant="destructive"
+                                                        onConfirm={() => revokeSession(session.jti)}
+                                                    />
+                                                </Can>
+                                            </div>
+                                        )}
                                     </div>
                                 );
                             })}

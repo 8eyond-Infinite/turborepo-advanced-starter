@@ -3,6 +3,7 @@ import { QueryBus, CommandBus } from '@nestjs/cqrs';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { JwtAuthGuard, PermissionsGuard } from '@shared/infrastructure/guards';
 import { RequirePermissions, GetUser } from '@shared/infrastructure/decorators';
+import { PERMISSIONS } from '@repo/contracts';
 import { GetRolesQuery } from '../../application/queries/get-roles.query';
 import { GetPermissionsQuery } from '../../application/queries/get-permissions.query';
 import { CreateRoleCommand } from '../../application/commands/create-role.command';
@@ -21,7 +22,7 @@ export class RolesController {
     ) { }
 
     @Get()
-    @RequirePermissions('user:read')
+    @RequirePermissions(PERMISSIONS.ROLE.READ)
     @ApiOperation({ summary: 'Get all roles with their mapped permissions' })
     async getRoles() {
         const result = await this.queryBus.execute(new GetRolesQuery());
@@ -36,7 +37,7 @@ export class RolesController {
     }
 
     @Get('permissions')
-    @RequirePermissions('user:read')
+    @RequirePermissions(PERMISSIONS.ROLE.READ)
     @ApiOperation({ summary: 'Get all system permissions' })
     async getPermissions() {
         const result = await this.queryBus.execute(new GetPermissionsQuery());
@@ -44,7 +45,7 @@ export class RolesController {
     }
 
     @Post()
-    @RequirePermissions('user:update')
+    @RequirePermissions(PERMISSIONS.ROLE.CREATE)
     @HttpCode(HttpStatus.CREATED)
     @ApiOperation({ summary: 'Create a new role' })
     @AuditLog('ROLE_CREATE', (req) => `Tạo vai trò mới: ${req.body.name}`)
@@ -72,7 +73,7 @@ export class RolesController {
     }
 
     @Put(':id/permissions')
-    @RequirePermissions('user:update')
+    @RequirePermissions(PERMISSIONS.ROLE.UPDATE)
     @ApiOperation({ summary: 'Update role permissions' })
     @AuditLog('ROLE_UPDATE_PERMISSIONS', (req) => `Cập nhật quyền hạn cho vai trò ID: ${req.params.id}. Quyền mới: ${req.body.permissions?.join(', ')}`)
     async updatePermissions(
@@ -100,7 +101,7 @@ export class RolesController {
     }
 
     @Delete(':id')
-    @RequirePermissions('user:update')
+    @RequirePermissions(PERMISSIONS.ROLE.DELETE)
     @HttpCode(HttpStatus.NO_CONTENT)
     @ApiOperation({ summary: 'Delete a role' })
     @AuditLog('ROLE_DELETE', (req) => `Xóa vai trò ID: ${req.params.id}`)

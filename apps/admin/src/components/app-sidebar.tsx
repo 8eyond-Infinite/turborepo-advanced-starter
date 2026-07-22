@@ -5,6 +5,7 @@ import { ApiClient } from "@/lib/api-client"
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
 import { useAuthStore } from "@/features/auth/store/auth.store"
+import { usePermission } from "@/hooks/usePermission"
 import {
   Sidebar,
   SidebarContent,
@@ -18,8 +19,9 @@ import {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user: authUser } = useAuthStore()
+  const { can } = usePermission()
 
-  const { data: menuData } = useQuery({
+  const { data: rawMenuData } = useQuery({
     queryKey: ["sidebar-menus"],
     queryFn: async () => {
       const response = await ApiClient.get<any[]>("/menus")
@@ -30,6 +32,21 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       }))
     },
   })
+
+  const filteredMenuData = React.useMemo(() => {
+    if (!rawMenuData) return [];
+    return rawMenuData
+      .map((group: any) => {
+        const filteredItems = (group.items || []).filter((item: any) =>
+          can(item.permission)
+        );
+        return {
+          ...group,
+          items: filteredItems,
+        };
+      })
+      .filter((group: any) => (group.items || []).length > 0);
+  }, [rawMenuData, can]);
 
   const user = authUser
     ? {
@@ -61,7 +78,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
 
       <SidebarContent>
-        <NavMain items={menuData || []} />
+        <NavMain items={filteredMenuData} />
       </SidebarContent>
 
       <SidebarFooter className="p-2 border-t border-zinc-800">
