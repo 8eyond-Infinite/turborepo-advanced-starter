@@ -2,12 +2,10 @@ import { Module } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
 import { MenuController } from './presentation/controllers/menu.controller';
 import { GetMenusQueryHandler } from './application/queries/handlers/get-menus.handler';
-import { UsersModule } from '../iam/users/users.module';
 
 @Module({
     imports: [
         CqrsModule,
-        UsersModule,
     ],
     controllers: [
         MenuController,

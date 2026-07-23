@@ -13,7 +13,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { StoragePort } from '../../domain/ports/storage.port';
-import { JwtAuthGuard } from '../../../iam/auth/application/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '@shared/infrastructure/guards';
 
 @ApiTags('Storage')
 @ApiBearerAuth()

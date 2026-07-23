@@ -3,7 +3,6 @@ import { QueryBus } from '@nestjs/cqrs';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@shared/infrastructure/guards';
 import { GetUser } from '@shared/infrastructure/decorators';
-import { UserEntity } from '../../../iam/users/domain/user.entity';
 import { GetMenusQuery } from '../../application/queries/get-menus.query';
 
 @ApiTags('Menu')
@@ -18,9 +17,9 @@ export class MenuController {
     @Get()
     @ApiOperation({ summary: 'Get dynamic navigation menu items tree for the current user' })
     @ApiResponse({ status: 200, description: 'Return list of dynamic menus' })
-    async getMenus(@GetUser() user: UserEntity) {
+    async getMenus(@GetUser('id') userId: string) {
         const result = await this.queryBus.execute(new GetMenusQuery({
-            userId: user.id,
+            userId,
         }));
         return result.unwrap();
     }
