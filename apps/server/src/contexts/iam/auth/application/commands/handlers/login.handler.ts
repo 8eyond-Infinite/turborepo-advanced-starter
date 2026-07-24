@@ -1,7 +1,7 @@
-import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
+import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { Inject } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { LoginQuery } from '../login.query';
+import { LoginCommand } from '../login.command';
 import { InvalidCredentialsException } from '@iam/users/domain/exceptions/invalid-credentials.exception';
 import { UserDeactivatedException } from '@iam/users/domain/exceptions/user-deactivated.exception';
 import { Result } from '@shared/domain/result';
@@ -10,8 +10,8 @@ import { SESSION_STORE, ISessionStore } from '../../../domain/ports/session-stor
 import type { UserRepository } from '@iam/users/domain/ports/user.repository';
 import type { PasswordHasher } from '@iam/users/domain/ports/password-hasher';
 
-@QueryHandler(LoginQuery)
-export class LoginQueryHandler implements IQueryHandler<LoginQuery, Result<{ accessToken: string; refreshToken: string }, DomainException>> {
+@CommandHandler(LoginCommand)
+export class LoginCommandHandler implements ICommandHandler<LoginCommand, Result<{ accessToken: string; refreshToken: string }, DomainException>> {
     constructor(
         @Inject('UserRepository')
         private readonly userRepository: UserRepository,
@@ -22,8 +22,8 @@ export class LoginQueryHandler implements IQueryHandler<LoginQuery, Result<{ acc
         private readonly sessionStore: ISessionStore,
     ) { }
 
-    async execute(query: LoginQuery): Promise<Result<{ accessToken: string; refreshToken: string }, DomainException>> {
-        const { email, passwordRaw } = query;
+    async execute(command: LoginCommand): Promise<Result<{ accessToken: string; refreshToken: string }, DomainException>> {
+        const { email, passwordRaw } = command;
 
         const user = await this.userRepository.findByEmail(email);
         if (!user) {
@@ -56,8 +56,8 @@ export class LoginQueryHandler implements IQueryHandler<LoginQuery, Result<{ acc
 
         const sessionData = {
             jti,
-            ip: query.ip || 'Unknown',
-            userAgent: query.userAgent || 'Unknown',
+            ip: command.ip || 'Unknown',
+            userAgent: command.userAgent || 'Unknown',
             createdAt: new Date().toISOString(),
         };
         await this.sessionStore.saveRefreshToken(user.id, jti, sessionData, 604800);

@@ -1,14 +1,14 @@
-import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
+import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { Inject } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { RefreshQuery } from '../refresh.query';
+import { RefreshCommand } from '../refresh.command';
 import { SESSION_STORE, ISessionStore } from '../../../domain/ports/session-store.port';
 import { Result } from '@shared/domain/result';
 import { DomainException } from '@shared/domain/exceptions/domain.exception';
 import type { UserRepository } from '@iam/users/domain/ports/user.repository';
 
-@QueryHandler(RefreshQuery)
-export class RefreshQueryHandler implements IQueryHandler<RefreshQuery, Result<{ accessToken: string; refreshToken: string }, DomainException>> {
+@CommandHandler(RefreshCommand)
+export class RefreshCommandHandler implements ICommandHandler<RefreshCommand, Result<{ accessToken: string; refreshToken: string }, DomainException>> {
     constructor(
         private readonly jwtService: JwtService,
         @Inject('UserRepository')
@@ -17,8 +17,8 @@ export class RefreshQueryHandler implements IQueryHandler<RefreshQuery, Result<{
         private readonly sessionStore: ISessionStore,
     ) { }
 
-    async execute(query: RefreshQuery): Promise<Result<{ accessToken: string; refreshToken: string }, DomainException>> {
-        const { userId, email, jti: oldJti } = query;
+    async execute(command: RefreshCommand): Promise<Result<{ accessToken: string; refreshToken: string }, DomainException>> {
+        const { userId, email, jti: oldJti } = command;
 
         const permissions = await this.userRepository.getPermissions(userId);
         const newJti = this.userRepository.nextIdentity();

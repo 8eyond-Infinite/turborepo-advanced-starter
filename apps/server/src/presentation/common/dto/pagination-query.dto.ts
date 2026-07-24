@@ -8,7 +8,7 @@ export class PaginationQueryDto {
     @IsInt()
     @Min(1)
     @IsOptional()
-    readonly page?: number = 1;
+    readonly page: number = 1;
 
     @ApiPropertyOptional({ minimum: 1, maximum: 100, default: 10 })
     @Type(() => Number)
@@ -16,7 +16,7 @@ export class PaginationQueryDto {
     @Min(1)
     @Max(100)
     @IsOptional()
-    readonly limit?: number = 10;
+    readonly limit: number = 10;
 
     @ApiPropertyOptional()
     @IsString()

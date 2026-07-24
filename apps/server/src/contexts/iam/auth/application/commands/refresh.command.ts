@@ -1,6 +1,6 @@
-import { IQuery } from '@nestjs/cqrs';
+import { ICommand } from '@nestjs/cqrs';
 
-export class RefreshQuery implements IQuery {
+export class RefreshCommand implements ICommand {
     constructor(
         public readonly userId: string,
         public readonly email: string,

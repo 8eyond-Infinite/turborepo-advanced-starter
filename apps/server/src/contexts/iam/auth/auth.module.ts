@@ -2,8 +2,8 @@ import { Module } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
-import { LogoutAllCommandHandler, RevokeSessionCommandHandler, LogoutCommandHandler, RegisterHandler } from './application/commands/handlers';
-import { LoginQueryHandler, RefreshQueryHandler, GetActiveSessionsQueryHandler } from './application/queries/handlers';
+import { LogoutAllCommandHandler, RevokeSessionCommandHandler, LogoutCommandHandler, RegisterHandler, LoginCommandHandler, RefreshCommandHandler } from './application/commands/handlers';
+import { GetActiveSessionsQueryHandler } from './application/queries/handlers';
 import { UsersModule } from '../users/users.module';
 import { AuthController } from './presentation/controllers/auth.controller';
 import { JwtStrategy } from './application/strategies/jwt.strategy';
@@ -25,11 +25,11 @@ import { RedisSessionStore } from './infrastructure/stores/redis-session.store';
             useClass: RedisSessionStore,
         },
         RegisterHandler,
+        LoginCommandHandler,
+        RefreshCommandHandler,
         LogoutCommandHandler,
         LogoutAllCommandHandler,
         RevokeSessionCommandHandler,
-        LoginQueryHandler,
-        RefreshQueryHandler,
         GetActiveSessionsQueryHandler,
         JwtStrategy,
         JwtRefreshStrategy,

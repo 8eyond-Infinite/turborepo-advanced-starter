@@ -1,6 +1,6 @@
-import { IQuery } from '@nestjs/cqrs';
+import { ICommand } from '@nestjs/cqrs';
 
-export class LoginQuery implements IQuery {
+export class LoginCommand implements ICommand {
     constructor(
         public readonly email: string,
         public readonly passwordRaw: string,

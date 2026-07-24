@@ -9,21 +9,20 @@ import {
     HttpCode,
     HttpStatus,
     UseGuards,
-    Req
 } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { RegisterDto, LoginDto } from '../dtos';
 import {
     RegisterCommand,
+    LoginCommand,
+    RefreshCommand,
     LogoutCommand,
     LogoutAllCommand,
     RevokeSessionCommand,
 } from '../../application/commands';
 
 import {
-    LoginQuery,
-    RefreshQuery,
     GetActiveSessionsQuery,
 } from '../../application/queries';
 import { JwtAuthGuard } from '@presentation/guards';
@@ -31,8 +30,7 @@ import { JwtRefreshAuthGuard } from '../../application/guards/jwt-refresh-auth.g
 import { UserPresenter } from '@iam/users/presentation/presenters/user.presenter';
 import { PaginationQueryDto } from '@presentation/common/dto/pagination-query.dto';
 import { PaginatedResponsePresenter } from '@presentation/common/presenters/pagination.presenter';
-import { AuditLog } from '@presentation/decorators/audit-log.decorator';
-import type { Request } from 'express';
+import { AuditLog, GetUser, ClientInfo } from '@presentation/decorators';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -62,10 +60,8 @@ export class AuthController {
     @ApiOperation({ summary: 'Log in with credentials' })
     @ApiResponse({ status: 200, description: 'Return Access Token and Refresh Token' })
     @ApiResponse({ status: 401, description: 'Invalid credentials' })
-    async login(@Body() dto: LoginDto, @Req() req: Request) {
-        const ip = req.ip || req.headers['x-forwarded-for']?.toString() || req.socket.remoteAddress || 'Unknown';
-        const userAgent = req.headers['user-agent'] || 'Unknown';
-        const result = await this.queryBus.execute(new LoginQuery(dto.email, dto.password, ip, userAgent));
+    async login(@Body() dto: LoginDto, @ClientInfo() client: ClientInfo) {
+        const result = await this.commandBus.execute(new LoginCommand(dto.email, dto.password, client.ip, client.userAgent));
         return result.unwrap();
     }
 
@@ -76,9 +72,12 @@ export class AuthController {
     @ApiOperation({ summary: 'Refresh JWT access and refresh tokens' })
     @ApiResponse({ status: 200, description: 'Return new Access Token and Refresh Token' })
     @ApiResponse({ status: 401, description: 'Invalid refresh token' })
-    async refresh(@Req() req: any) {
-        const { user } = req;
-        const result = await this.queryBus.execute(new RefreshQuery(user.user.id, user.user.email, user.jti));
+    async refresh(
+        @GetUser('id') userId: string,
+        @GetUser('email') email: string,
+        @GetUser('jti') jti: string,
+    ) {
+        const result = await this.commandBus.execute(new RefreshCommand(userId, email, jti));
         return result.unwrap();
     }
 
@@ -89,12 +88,11 @@ export class AuthController {
     @ApiOperation({ summary: 'Logout from the current session' })
     @ApiResponse({ status: 200, description: 'Successfully logged out' })
     @ApiResponse({ status: 401, description: 'Invalid refresh token' })
-    async logout(@Req() req: any) {
-        const { user } = req;
-        const result = await this.commandBus.execute(new LogoutCommand({
-            userId: user.user.id,
-            jti: user.jti,
-        }));
+    async logout(
+        @GetUser('id') userId: string,
+        @GetUser('jti') jti: string,
+    ) {
+        const result = await this.commandBus.execute(new LogoutCommand({ userId, jti }));
         result.unwrap();
         return { success: true };
     }
@@ -106,12 +104,9 @@ export class AuthController {
     @ApiOperation({ summary: 'Logout from all devices / active sessions' })
     @ApiResponse({ status: 200, description: 'Successfully logged out from all sessions' })
     @ApiResponse({ status: 401, description: 'Invalid access token' })
-    @AuditLog('SESSION_REVOKE_ALL', (req) => 'Thu hồi toàn bộ các phiên hoạt động khác')
-    async logoutAll(@Req() req: any) {
-        const { user } = req;
-        const result = await this.commandBus.execute(new LogoutAllCommand({
-            userId: user.id,
-        }));
+    @AuditLog('SESSION_REVOKE_ALL', () => 'Thu hồi toàn bộ các phiên hoạt động khác')
+    async logoutAll(@GetUser('id') userId: string) {
+        const result = await this.commandBus.execute(new LogoutAllCommand({ userId }));
         result.unwrap();
         return { success: true };
     }
@@ -121,13 +116,13 @@ export class AuthController {
     @HttpCode(HttpStatus.OK)
     @ApiBearerAuth()
     @ApiOperation({ summary: 'Get active sessions for current user with pagination' })
-    async getSessions(@Req() req: any, @Query() query: PaginationQueryDto) {
-        const userId = req.user.id;
-        const page = query.page || 1;
-        const limit = query.limit || 10;
-        const result = await this.queryBus.execute(new GetActiveSessionsQuery(userId, page, limit));
+    async getSessions(
+        @GetUser('id') userId: string,
+        @Query() query: PaginationQueryDto,
+    ) {
+        const result = await this.queryBus.execute(new GetActiveSessionsQuery(userId, query.page, query.limit));
         const { sessions, total } = result.unwrap();
-        return PaginatedResponsePresenter.toResponse(sessions, total, page, limit);
+        return PaginatedResponsePresenter.toResponse(sessions, total, query.page, query.limit);
     }
 
     @UseGuards(JwtAuthGuard)
@@ -136,12 +131,11 @@ export class AuthController {
     @ApiBearerAuth()
     @ApiOperation({ summary: 'Revoke an active session by JTI' })
     @AuditLog('SESSION_REVOKE', (req) => `Thu hồi phiên đăng nhập: JTI ${req.params.jti}`)
-    async revokeSession(@Param('jti') jti: string, @Req() req: any) {
-        const userId = req.user.id;
-        const result = await this.commandBus.execute(new RevokeSessionCommand({
-            userId,
-            jti,
-        }));
+    async revokeSession(
+        @GetUser('id') userId: string,
+        @Param('jti') jti: string,
+    ) {
+        const result = await this.commandBus.execute(new RevokeSessionCommand({ userId, jti }));
         result.unwrap();
         return { success: true };
     }
