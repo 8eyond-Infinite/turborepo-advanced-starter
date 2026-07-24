@@ -14,13 +14,18 @@ import {
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { RegisterDto, LoginDto } from '../dtos';
-import { RegisterCommand } from '../../application/commands/register.command';
-import { LogoutCommand } from '../../application/commands/logout.command';
-import { LogoutAllCommand } from '../../application/commands/logout-all.command';
-import { RevokeSessionCommand } from '../../application/commands/revoke-session.command';
-import { LoginQuery } from '../../application/queries/login.query';
-import { RefreshQuery } from '../../application/queries/refresh.query';
-import { GetActiveSessionsQuery } from '../../application/queries/get-active-sessions.query';
+import {
+    RegisterCommand,
+    LogoutCommand,
+    LogoutAllCommand,
+    RevokeSessionCommand,
+} from '../../application/commands';
+
+import {
+    LoginQuery,
+    RefreshQuery,
+    GetActiveSessionsQuery,
+} from '../../application/queries';
 import { JwtAuthGuard } from '@presentation/guards';
 import { JwtRefreshAuthGuard } from '../../application/guards/jwt-refresh-auth.guard';
 import { UserPresenter } from '@iam/users/presentation/presenters/user.presenter';
