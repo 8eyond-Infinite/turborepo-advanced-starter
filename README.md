@@ -1,48 +1,143 @@
-# Turborepo Advanced Starter Kit (Vietnamese Edition)
+# 🚀 Turborepo Advanced Starter Kit Enterprise
 
-Dự án này là một **Monorepo Starter Kit** hoàn chỉnh và nâng cao sử dụng **Turborepo** để quản lý cấu trúc đa dự án (Multiproject), tích hợp đầy đủ công nghệ tốt nhất để xây dựng ứng dụng Web & API Server hiệu năng cao:
-
-*   **API Server (`apps/server`)**: NestJS áp dụng **Clean Architecture**, **DDD (Domain-Driven Design)**, **CQRS**, **EDA**, **Redis Caching**, và **BullMQ Worker**.
-*   **Web Portal (`apps/client` & `apps/admin`)**: Các frontend apps sẵn sàng hoạt động.
-*   **Shared Packages (`packages/database`)**: Kết nối PostgreSQL sử dụng Prisma, dùng chung schema và migrations trên toàn monorepo.
+Dự án này là một **Enterprise Monorepo Starter Kit** chuẩn mực và hoàn chỉnh, sử dụng **Turborepo** & **PNPM Workspace** để quản lý đa ứng dụng và đa gói dùng chung (Shared Packages). Hệ thống áp dụng các chuẩn kiến trúc hiện đại nhất hiện nay: **Clean Architecture**, **Domain-Driven Design (DDD)**, **CQRS**, **Event-Driven Architecture (EDA)**, **Hybrid JWT Auth (Stateless Access + Stateful Refresh)**.
 
 ---
 
-## 1. Bản Đồ Tài Liệu Hướng Dẫn Chi Tiết
+## 📐 1. Cấu Trúc Tổng Quan Monorepo (Workspace Architecture)
 
-Để thuận tiện cho việc đọc và tra cứu trực tiếp trên GitHub, hệ thống tài liệu tiếng Việt đã được phân chia như sau:
+Monorepo được phân chia làm 2 khu vực chính: **`apps/`** (các ứng dụng đầu cuối) và **`packages/`** (các thư viện/config dùng chung).
 
-*   📖 **[Tài liệu chi tiết kiến trúc & các luồng xử lý chính](https://github.com/8eyond-Infinite/turborepo-advanced-starter/blob/main/docs/architecture.md)**: Giải thích sâu về Clean Architecture, cấu trúc thư mục, các mẫu thiết kế (Value Objects, Aggregate Root, Result Pattern, Event-Driven Architecture) và luồng chạy thực tế.
-*   💻 **[Tài liệu chi tiết Backend API Server](https://github.com/8eyond-Infinite/turborepo-advanced-starter/blob/main/apps/server/README.md)**: Hướng dẫn cấu hình, cài đặt, chạy test và API Swagger UI cho gói máy chủ Backend.
-*   🛡️ **[Tài liệu Bounded Context Xác thực (Auth)](https://github.com/8eyond-Infinite/turborepo-advanced-starter/blob/main/apps/server/src/contexts/iam/auth/README.md)**: Luồng đăng nhập, Whitelist & Rotation Refresh Token, Đăng xuất/Đăng xuất toàn cầu với Redis.
-*   👤 **[Tài liệu Bounded Context Người dùng (Users)](https://github.com/8eyond-Infinite/turborepo-advanced-starter/blob/main/apps/server/src/contexts/iam/users/README.md)**: Quản lý thực thể User, vai trò phân quyền RBAC và cơ chế Tự động hủy cache (Cache Invalidation).
-*   🔑 **[Tài liệu Bounded Context Vai trò (Roles)](https://github.com/8eyond-Infinite/turborepo-advanced-starter/blob/main/apps/server/src/contexts/iam/roles/README.md)**: Định nghĩa Role, phân quyền Many-to-Many với Permissions và xử lý ghi nhận cập nhật quyền.
-*   📋 **[Tài liệu Bounded Context Nhật ký (Audit Logs)](https://github.com/8eyond-Infinite/turborepo-advanced-starter/blob/main/apps/server/src/contexts/iam/audit/README.md)**: Ghi log tự động thông qua Global Interceptor và khai báo Decorator an toàn, bất đồng bộ.
+```text
+turborepo-advanced-starter/
+├── apps/
+│   ├── server/                 # Backend API Server (NestJS, Clean Architecture, DDD, CQRS)
+│   ├── admin/                  # Admin Dashboard Web Portal (Vite + React / TypeScript)
+│   └── client/                 # Client Web Application (Next.js App Router)
+│
+├── packages/
+│   ├── contracts/              # Shared DTOs, Permissions, API Specs & Permission Utils
+│   ├── database/               # Prisma Schema, Database Migrations, Client Export
+│   ├── types/                  # Shared TypeScript Core Type Definitions
+│   ├── eslint-config/          # Standardized Shared ESLint Rules
+│   └── typescript-config/      # Base tsconfig.json Configurations
+│
+├── docker-compose.yml          # Local Infrastructure (PostgreSQL 16 & Redis Stack 7)
+├── turbo.json                  # Turborepo Build & Task Pipeline Config
+├── pnpm-workspace.yaml         # PNPM Monorepo Workspace Definition
+└── README.md                   # Tài liệu hướng dẫn cấp cao Monorepo
+```
 
 ---
 
-## 2. Hướng Dẫn Chạy Dự Án Nhanh (Quick Start)
+## 🏛️ 2. Kiến Trúc Backend (`apps/server`)
 
-### 2.1. Cài đặt các gói phụ thuộc
-Tại thư mục gốc của Monorepo:
+Máy chủ Backend NestJS (`apps/server`) được tổ chức theo mô hình **Modular Monolith** kết hợp **Clean Architecture** & **DDD**. Ranh giới mã nguồn được chia làm 4 lớp rõ ràng:
+
+```text
+apps/server/src/
+├── contexts/                   # 1. BOUNDED CONTEXTS (Tập trung logic nghiệp vụ)
+│   ├── iam/                    # Identity & Access Management (Auth, Users, Roles)
+│   ├── audit/                  # Audit Log Compliance Engine (Độc lập với IAM)
+│   ├── analytics/              # Dashboard & Business Analytics
+│   ├── storage/                # File Upload & Media Asset Management
+│   ├── menu/                   # Dynamic Navigation Management
+│   └── notifications/          # Realtime & System Notifications
+│
+├── infrastructure/             # 2. TECHNICAL INFRASTRUCTURE DRIVERS & ADAPTERS
+│   ├── database/               # PrismaModule & PrismaService Connection
+│   ├── cache/                  # RedisModule, RedisService & Cache Interceptors
+│   ├── queue/                  # QueueModule & BullMQ Job Adapters
+│   ├── realtime/               # RealtimeModule & Socket.io WebSockets Gateway
+│   └── event-bus/              # Domain Event Dispatcher & Infrastructure Bridges
+│
+├── presentation/               # 3. HTTP FRAMEWORK BUILDING BLOCKS
+│   ├── common/                 # Common DTOs (PaginationQueryDto) & Presenters
+│   ├── decorators/             # Custom Decorators (@GetUser, @ClientInfo, @AuditLog)
+│   ├── guards/                 # HTTP Guards (JwtAuthGuard, JwtRefreshAuthGuard, PermissionsGuard)
+│   ├── filters/                # DomainExceptionFilter
+│   └── interceptors/           # AuditLogInterceptor
+│
+└── shared/                     # 4. PURE SHARED KERNEL (Zero Framework Dependency)
+    ├── domain/                 # Base AggregateRoot, Result<T,E>, DomainException & Ports
+    └── constants/              # System Domain Constants
+```
+
+---
+
+## 🔄 3. Luồng Xử Lý Request (Request Execution Lifecycle)
+
+Mỗi Request gửi tới Server sẽ đi qua các lớp kiến trúc một cách chặt chẽ theo luồng 1 chiều:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Client
+    participant Pres as Presentation Layer<br/>(Controller / Guard / Filter)
+    participant App as Application Layer<br/>(CQRS Command / Query Handler)
+    participant Dom as Domain Layer<br/>(AggregateRoot / ValueObject)
+    participant Infra as Infrastructure Layer<br/>(Prisma / Redis / EventBus)
+
+    Client->>Pres: HTTP Request (Headers + Body)
+    Pres->>Pres: Validate Body DTO & Execute Guards (JwtAuthGuard / PermissionsGuard)
+    Pres->>App: Dispatch CQRS Command / Query (Data Transfer Object)
+    App->>Infra: Call Repository Port (Query Entity / Session)
+    Infra-->>App: Return Domain Entity / Model Data
+    App->>Dom: Execute Business Rules / Mutate Aggregate State
+    Dom-->>App: Return Result<Entity, DomainException>
+    App->>Infra: Save Changes (Repository.save) & Publish Domain Events
+    Infra-->>App: Persistence Completed
+    App-->>Pres: Return Result<T, E> Payload
+    Pres-->>Client: Transform via Presenter & Send HTTP Response JSON
+```
+
+---
+
+## 🔐 4. Cơ Chế Báo Mật Hybrid Auth Architecture
+
+Hệ thống kết hợp mô hình bảo mật chuẩn Enterprise:
+1. **Access Token (Short-lived 15m)**: **Stateless Access Token Validation**. `JwtStrategy` kiểm tra chữ ký Token & nhả trực tiếp `JwtPayload` (**0 DB Query**).
+2. **Refresh Token (Long-lived 7d)**: **Stateful Session Storage**. Được lưu trữ trong Redis (`ISessionStore` / `RedisSessionStore`) phục vụ Revoke Token, Logout, Đăng xuất khỏi mọi thiết bị & Quản lý danh sách phiên đang hoạt động.
+
+---
+
+## 🛠️ 5. Hướng Dẫn Khởi Chạy Nhanh (Quick Start)
+
+### 5.1. Cài đặt Phụ thuộc & Môi trường
 ```bash
+# Cài đặt toàn bộ node_modules trong Monorepo
 pnpm install
+
+# Tạo file .env từ template
+cp .env.example .env
 ```
 
-### 2.2. Khởi động PostgreSQL và Redis
-Chạy container Docker được cấu hình sẵn:
+### 5.2. Khởi động Infrastructure (Database & Cache)
 ```bash
-pnpm db:up
+# Khởi chạy Postgres (Port 5432) & Redis (Port 6380) qua Docker
+docker-compose up -d
+
+# Sync Prisma Schema và sinh Prisma Client
+pnpm db:generate
+pnpm db:push
 ```
 
-### 2.3. Khởi chạy toàn bộ môi trường Dev
-Chạy đồng thời tất cả các frontend apps, admin panel và backend server:
+### 5.3. Khởi chạy Môi trường Phát triển (Development)
 ```bash
+# Run tất cả apps (Server, Client, Admin) đồng thời qua Turborepo
 pnpm dev
 ```
+* **API Server**: [http://localhost:3001](http://localhost:3001)
+* **Swagger API Docs**: [http://localhost:3001/api](http://localhost:3001/api)
+* **Admin Dashboard**: [http://localhost:3000](http://localhost:3000)
+* **Client App**: [http://localhost:3002](http://localhost:3002)
 
-### 2.4. Chạy kiểm thử tự động (E2E Tests)
-Kiểm tra tính đúng đắn của toàn bộ luồng nghiệp vụ của Server:
-```bash
-pnpm --filter=server test:e2e
-```
+---
+
+## 📚 6. Chi Tiết Tài Liệu Các Bounded Contexts
+
+Dưới đây là các tài liệu thiết kế & luồng code chi tiết từng Bounded Context:
+- 🛡️ **[Auth Bounded Context README](apps/server/src/contexts/iam/auth/README.md)**: Chi tiết Login, Register, Refresh Token, Logout & Session Management.
+- 👤 **[Users Bounded Context README](apps/server/src/contexts/iam/users/README.md)**: Chi tiết User Entity, CRUD, Caching Invalidation & BullMQ Queue Processor.
+- 🔑 **[Roles Bounded Context README](apps/server/src/contexts/iam/roles/README.md)**: Chi tiết RBAC System, Roles & Permissions Mapping.
+- 📋 **[Audit Bounded Context README](apps/server/src/contexts/audit/README.md)**: Chi tiết Audit Logging Engine & Interceptors.
