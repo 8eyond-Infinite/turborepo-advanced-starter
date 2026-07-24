@@ -25,8 +25,7 @@ import {
 import {
     GetActiveSessionsQuery,
 } from '../../application/queries';
-import { JwtAuthGuard } from '@presentation/guards';
-import { JwtRefreshAuthGuard } from '../../application/guards/jwt-refresh-auth.guard';
+import { JwtAuthGuard, JwtRefreshAuthGuard } from '@presentation/guards';
 import { UserPresenter } from '@iam/users/presentation/presenters/user.presenter';
 import { PaginationQueryDto } from '@presentation/common/dto/pagination-query.dto';
 import { PaginatedResponsePresenter } from '@presentation/common/presenters/pagination.presenter';
