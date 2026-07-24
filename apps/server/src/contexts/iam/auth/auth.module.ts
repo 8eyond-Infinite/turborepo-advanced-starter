@@ -6,8 +6,7 @@ import { LogoutAllCommandHandler, RevokeSessionCommandHandler, LogoutCommandHand
 import { GetActiveSessionsQueryHandler } from './application/queries/handlers';
 import { UsersModule } from '../users/users.module';
 import { AuthController } from './presentation/controllers/auth.controller';
-import { JwtStrategy } from './application/strategies/jwt.strategy';
-import { JwtRefreshStrategy } from './application/strategies/jwt-refresh.strategy';
+import { JwtRefreshStrategy, JwtStrategy } from './infrastructure/strategies';
 import { SESSION_STORE } from './domain/ports/session-store.port';
 import { RedisSessionStore } from './infrastructure/stores/redis-session.store';
 
