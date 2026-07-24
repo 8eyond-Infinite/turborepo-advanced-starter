@@ -24,8 +24,8 @@ import { GetActiveSessionsQuery } from '../../application/queries/get-active-ses
 import { JwtAuthGuard } from '@presentation/guards';
 import { JwtRefreshAuthGuard } from '../../application/guards/jwt-refresh-auth.guard';
 import { UserPresenter } from '@iam/users/presentation/presenters/user.presenter';
-import { PaginationQueryDto } from '@presentation/dto/pagination-query.dto';
-import { PaginatedResponsePresenter } from '@presentation/presenters/pagination.presenter';
+import { PaginationQueryDto } from '@presentation/common/dto/pagination-query.dto';
+import { PaginatedResponsePresenter } from '@presentation/common/presenters/pagination.presenter';
 import { AuditLog } from '@presentation/decorators/audit-log.decorator';
 import type { Request } from 'express';
 

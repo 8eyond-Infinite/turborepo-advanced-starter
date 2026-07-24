@@ -6,8 +6,8 @@ import { PERMISSIONS } from '@repo/contracts';
 import { JwtAuthGuard, PermissionsGuard } from '@presentation/guards';
 import { RequirePermissions, GetUser, AuditLog } from '@presentation/decorators';
 import { CacheInterceptor, CacheKey, CacheTTL, CacheInvalidationInterceptor, InvalidateCache } from '@infrastructure/cache';
-import { PaginationQueryDto } from '@presentation/dto/pagination-query.dto';
-import { PaginatedResponsePresenter } from '@presentation/presenters/pagination.presenter';
+import { PaginationQueryDto } from '@presentation/common/dto/pagination-query.dto';
+import { PaginatedResponsePresenter } from '@presentation/common/presenters/pagination.presenter';
 
 import { GetUsersQuery, GetUserByIdQuery } from '../../application/queries';
 import {
