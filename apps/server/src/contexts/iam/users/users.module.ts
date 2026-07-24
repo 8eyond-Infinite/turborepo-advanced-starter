@@ -3,8 +3,6 @@ import { CqrsModule } from '@nestjs/cqrs';
 import { BullModule } from '@nestjs/bullmq';
 import { PrismaUserRepository } from './infrastructure/repositories/prisma-user.repository';
 import { BcryptPasswordHasher } from './infrastructure/services/bcrypt-password-hasher';
-import { UserPermissionFacade } from './infrastructure/user-permission.facade';
-import { USER_PERMISSION_FACADE } from '@shared/domain/ports/user-permission-facade.port';
 import { UserController } from './presentation/controllers/user.controller';
 import { GetUsersQueryHandler } from './application/queries/handlers/get-users.handler';
 import { GetUserByIdQueryHandler } from './application/queries/handlers/get-user-by-id.handler';
@@ -31,10 +29,6 @@ import { UserQueueProcessor } from './application/queues/user-queue.processor';
             provide: 'PasswordHasher',
             useClass: BcryptPasswordHasher,
         },
-        {
-            provide: USER_PERMISSION_FACADE,
-            useClass: UserPermissionFacade,
-        },
         GetUsersQueryHandler,
         GetUserByIdQueryHandler,
         DeactivateUserCommandHandler,
@@ -44,6 +38,6 @@ import { UserQueueProcessor } from './application/queues/user-queue.processor';
         UpdateUserCommandHandler,
         UserQueueProcessor,
     ],
-    exports: ['UserRepository', 'PasswordHasher', USER_PERMISSION_FACADE, BullModule],
+    exports: ['UserRepository', 'PasswordHasher', BullModule],
 })
 export class UsersModule { }

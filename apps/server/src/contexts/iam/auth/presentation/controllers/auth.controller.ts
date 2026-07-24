@@ -21,12 +21,12 @@ import { RevokeSessionCommand } from '../../application/commands/revoke-session.
 import { LoginQuery } from '../../application/queries/login.query';
 import { RefreshQuery } from '../../application/queries/refresh.query';
 import { GetActiveSessionsQuery } from '../../application/queries/get-active-sessions.query';
-import { JwtAuthGuard } from '@shared/infrastructure/guards';
+import { JwtAuthGuard } from '@presentation/guards';
 import { JwtRefreshAuthGuard } from '../../application/guards/jwt-refresh-auth.guard';
 import { UserPresenter } from '@iam/users/presentation/presenters/user.presenter';
-import { PaginationQueryDto } from '@shared/infrastructure/dto/pagination-query.dto';
-import { PaginatedResponsePresenter } from '@shared/infrastructure/presenters/pagination.presenter';
-import { AuditLog } from '@shared/infrastructure/decorators/audit-log.decorator';
+import { PaginationQueryDto } from '@presentation/dto/pagination-query.dto';
+import { PaginatedResponsePresenter } from '@presentation/presenters/pagination.presenter';
+import { AuditLog } from '@presentation/decorators/audit-log.decorator';
 import type { Request } from 'express';
 
 @ApiTags('Authentication')

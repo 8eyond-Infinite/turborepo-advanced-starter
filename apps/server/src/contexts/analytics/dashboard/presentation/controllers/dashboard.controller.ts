@@ -3,8 +3,8 @@ import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagg
 import { QueryBus } from '@nestjs/cqrs';
 import { PERMISSIONS } from '@repo/contracts';
 
-import { JwtAuthGuard, PermissionsGuard } from '@shared/infrastructure/guards';
-import { RequirePermissions } from '@shared/infrastructure/decorators';
+import { JwtAuthGuard, PermissionsGuard } from '@presentation/guards';
+import { RequirePermissions } from '@presentation/decorators';
 
 import { GetDashboardStatsQuery } from '../../application/queries';
 

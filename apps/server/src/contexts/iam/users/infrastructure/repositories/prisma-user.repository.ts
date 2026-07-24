@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '@shared/infrastructure/prisma/prisma.service';
+import { PrismaService } from '@infrastructure/database/prisma.service';
 import { UserRepository, FindAllOptions } from '../../domain/ports/user.repository';
 import { UserEntity } from '../../domain/user.entity';
 import { PrismaUserMapper } from '../mappers/prisma-user.mapper';
-import { DomainEventDispatcher } from '@shared/application/events/domain-event-dispatcher';
+import { DomainEventDispatcher } from '@infrastructure/event-bus/domain-event-dispatcher';
 import * as crypto from 'crypto';
 
 @Injectable()

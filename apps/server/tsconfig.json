@@ -24,6 +24,12 @@
       "@shared/*": [
         "src/shared/*"
       ],
+      "@infrastructure/*": [
+        "src/infrastructure/*"
+      ],
+      "@presentation/*": [
+        "src/presentation/*"
+      ],
       "@iam/*": [
         "src/contexts/iam/*"
       ],

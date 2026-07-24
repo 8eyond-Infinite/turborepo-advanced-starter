@@ -1,187 +1,116 @@
-# Tài liệu Kỹ thuật Chi tiết: Module Xác thực (Auth Bounded Context)
+# IAM / Auth bounded context
 
-Module này chịu trách nhiệm quản lý toàn bộ các khía cạnh liên quan đến định danh, xác thực và quản lý phiên làm việc của người dùng trong hệ thống (Identity and Access Management - IAM).
+> Tài liệu này mô tả **mã đang chạy** trong `apps/server/src/contexts/iam/auth`, không phải hợp đồng dự kiến. Auth là phần điều phối xác thực và phiên; dữ liệu người dùng, băm mật khẩu và truy vấn quyền thuộc Users context.
 
----
+## 1. Trách nhiệm và ranh giới
 
-## 1. Nghiệp vụ & Quy tắc cốt lõi (Domain Rules)
+Auth chịu trách nhiệm:
 
-* **Mật khẩu bảo mật**: Mật khẩu được mã hóa một chiều sử dụng Bcrypt trước khi ghi xuống cơ sở dữ liệu.
-* **Tích hợp Stateless JWT Permissions**: Khi đăng nhập thành công (`LoginQueryHandler`) hoặc làm mới phiên (`RefreshQueryHandler`), danh sách mảng quyền hạn `permissions` được nhúng trực tiếp vào payload của JWT Access Token. Nhờ đó, `PermissionsGuard` xử lý phân quyền hoàn toàn Stateless (In-Memory) với hiệu năng cực cao.
-* **Kiểm soát Token bằng Redis (Token Whitelisting)**:
-  * **Whitelist**: Khi đăng nhập, Refresh Token hợp lệ được lưu trong Redis dạng `refresh_token:${userId}:${jti}` với thời hạn 7 ngày.
-  * **Token Rotation**: Mỗi lần gọi API refresh token, Refresh Token cũ sẽ bị hủy bỏ (thu hồi JTI cũ) và cấp mới hoàn toàn (sinh JTI mới). Điều này bảo vệ người dùng trước các cuộc tấn công phát lại mã (Replay Attacks).
-* **Cơ chế đăng xuất**:
-  * *Đăng xuất đơn session*: Chỉ xóa JTI của phiên hiện tại khỏi Redis.
-  * *Đăng xuất toàn cầu*: Xóa toàn bộ JTI thuộc định danh của người dùng khỏi Redis (`refresh_token:${userId}:*`).
+- Đăng ký qua `RegisterCommand`; tạo `UserEntity` thông qua Users context.
+- Đăng nhập, phát access/refresh JWT và lưu trạng thái phiên refresh token vào Redis.
+- Xác thực access JWT/refresh JWT bằng Passport; kiểm tra người dùng còn tồn tại, active và chưa bị xóa.
+- Đổi refresh token (rotation), liệt kê phiên, thu hồi một phiên hoặc tất cả phiên của chính người dùng.
 
----
+Auth **không** sở hữu bảng hay aggregate riêng. Nó dùng `UserRepository`, `PasswordHasher` do `UsersModule` export, `CACHE_PORT` (Redis) và `JwtService`. `AuthModule` import `CqrsModule`, `UsersModule`, `PassportModule` và `JwtModule`; controller là `AuthController`, handlers/strategies là providers.
 
-## 2. Danh sách Use Cases (CQRS)
-
-### Nhánh Ghi - Lệnh (Commands)
-1. **`RegisterCommand`**: Tạo tài khoản người dùng mới. Băm mật khẩu thông qua cổng `PasswordHasher`, kiểm tra trùng lặp email thông qua `UserRepository`.
-2. **`LogoutCommand`**: Xóa JTI phiên làm việc hiện tại khỏi Redis Whitelist.
-3. **`LogoutAllCommand`**: Quét và hủy toàn bộ phiên làm việc của người dùng hiện tại khỏi Redis.
-
-### Nhánh Đọc - Truy vấn (Queries)
-1. **`LoginQuery`**: So khớp mật khẩu đã băm. Nhúng mảng `permissions` vào JWT payload, sinh cặp Access & Refresh Token kèm JWT ID (`jti`) và lưu thông tin vào Redis.
-2. **`RefreshQuery`**: Kiểm tra tính hợp lệ của JTI trên Redis, tiến hành thu hồi JTI cũ và sinh cặp token mới đính kèm `permissions` tươi mới.
-
----
-
-## 3. Đặc tả API Endpoints
-
-| Giao thức | Route | Bảo vệ bằng | DTO đầu vào | Trả về |
-| :--- | :--- | :--- | :--- | :--- |
-| **POST** | `/auth/register` | Không | `RegisterDto` | `UserResponse` |
-| **POST** | `/auth/login` | Không | `LoginDto` | `{ accessToken, refreshToken }` |
-| **POST** | `/auth/refresh` | `JwtRefreshAuthGuard` | Không (Lấy từ Header Bearer) | `{ accessToken, refreshToken }` |
-| **POST** | `/auth/logout` | `JwtRefreshAuthGuard` | Không | `{ success: true }` |
-| **POST** | `/auth/logout/global`| `JwtAuthGuard` | Không | `{ success: true }` |
-
----
-
-## 4. Chi tiết cấu trúc thư mục và Vai trò từng File
-
-```
-auth/
-├── application/                                 # LỚP ỨNG DỤNG/ĐIỀU HƯỚNG (APPLICATION LAYER)
-│   ├── commands/                                # Các hành động thay đổi trạng thái (Ghi)
-│   │   ├── register.command.ts                  # Data object chứa thông tin đăng ký
-│   │   ├── logout.command.ts                    # Data object chứa JTI phiên muốn xóa
-│   │   ├── logout-all.command.ts                # Data object chứa ID người dùng cần xóa hết token
-│   │   └── handlers/
-│   │       ├── register.handler.ts              # Xử lý đăng ký & lưu trữ User nghiệp vụ
-│   │       ├── logout.handler.ts                # Thực thi xóa khóa Redis của phiên đơn
-│   │       └── logout-all.handler.ts            # Quét và xóa toàn bộ khóa Redis của User
-│   └── queries/                                 # Các hành động lấy dữ liệu (Đọc)
-│       ├── login.query.ts                       # Data object chứa email/mật khẩu
-│       ├── refresh.query.ts                     # Data object chứa token để quay vòng
-│       └── handlers/
-│           ├── login.handler.ts                 # Xác thực tài khoản, nhúng permissions vào JWT, lưu Redis
-│           └── refresh.handler.ts               # Kiểm tra whitelist, thu hồi token cũ, cấp token mới đính kèm permissions
-│
-├── presentation/                                # LỚP GIAO TIẾP (PRESENTATION LAYER)
-│   └── controllers/
-│       └── auth.controller.ts                   # REST Controller phân phối các route đăng nhập/đăng xuất
+```mermaid
+flowchart LR
+  C[Admin SPA / client] -->|HTTP Bearer JWT| AC[AuthController]
+  AC -->|CommandBus / QueryBus| H[Auth handler]
+  H --> UR[UserRepository]
+  H --> PH[PasswordHasher bcrypt]
+  H --> JS[JwtService]
+  H --> R[(Redis: refresh_token:userId:jti)]
+  UR --> P[(PostgreSQL via Prisma)]
 ```
 
----
+## 2. Cấu trúc mã và ý nghĩa
 
-## 5. Sơ đồ tuần tự Xác thực & Token Rotation (Mermaid)
+| Vị trí | Vai trò |
+| --- | --- |
+| `presentation/controllers/auth.controller.ts` | Khai báo toàn bộ HTTP API, biến DTO thành command/query và gọi `Result.unwrap()`.
+| `presentation/dtos/*.dto.ts` | Validation cho đăng ký/đăng nhập: email hợp lệ, username ≥ 3 ký tự (register), password ≥ 6 ký tự.
+| `application/commands/*` | Lệnh làm thay đổi trạng thái: register, logout, logout-all, revoke-session.
+| `application/queries/*` | Query cho login, refresh và danh sách active sessions. Các query này có side-effect thực tế (ký token/ghi Redis), nên CQRS ở đây là phân tách cấu trúc chứ không hoàn toàn read-only.
+| `application/queries/handlers/login.handler.ts` | Kiểm tra thông tin đăng nhập và tạo phiên Redis.
+| `application/queries/handlers/refresh.handler.ts` | Cấp cặp token mới, sao chép metadata session và xóa key cũ.
+| `application/strategies/*.strategy.ts` | Passport strategy; strategy refresh kiểm tra whitelist Redis trước controller.
+| `application/guards/*.guard.ts` | Wrapper `AuthGuard('jwt')`/`AuthGuard('jwt-refresh')`; guard quyền được dùng thực tế là bản shared tại `@shared/infrastructure/guards`.
+
+## 3. Hợp đồng HTTP hiện tại
+
+| Method / URL | Guard | Quyền | Nội dung / kết quả |
+| --- | --- | --- | --- |
+| `POST /auth/register` | — | — | `{email,username,password}` → user đã presenter (không có password), `201` |
+| `POST /auth/login` | — | — | `{email,password}` → `{accessToken,refreshToken}` |
+| `POST /auth/refresh` | refresh JWT | — | Refresh token đặt trong `Authorization: Bearer …` → token pair mới |
+| `POST /auth/logout` | refresh JWT | — | Thu hồi JTI của refresh token hiện tại → `{success:true}` |
+| `POST /auth/logout/global` | access JWT | — | Xóa mọi `refresh_token:<userId>:*` → `{success:true}` |
+| `GET /auth/sessions?page&limit` | access JWT | — | Danh sách phiên Redis của người gọi, response phân trang |
+| `DELETE /auth/sessions/:jti` | access JWT | — | Xóa key phiên JTI của người gọi → `{success:true}` |
+
+`ValidationPipe` toàn cục trong `main.ts` bật `whitelist`, `forbidNonWhitelisted` và `transform`; field dư ở hai DTO sẽ bị từ chối. Các endpoint không có DTO (sessions, refresh…) dựa vào guard/`PaginationQueryDto`.
+
+## 4. Luồng đăng ký
+
+1. `POST /auth/register` được validate bởi `RegisterDto` rồi controller tạo `RegisterCommand`.
+2. `RegisterHandler` tìm email bằng `UserRepository.findByEmail`. Nếu có, trả `Result.fail(UserAlreadyExistsException)`.
+3. Handler gọi `PasswordHasher` (implementation `BcryptPasswordHasher`) để băm password raw, gọi `UserEntity.register`, rồi `save`.
+4. `UserEntity.register` dựng value objects (`UserId`, `Email`, `Username`, `Password`), mặc định `isActive=true`, `isDeleted=false`, role `USER`, và thêm `UserRegisteredEvent`.
+5. `PrismaUserRepository.save` upsert user, đồng bộ `user_roles` trong transaction, rồi `DomainEventDispatcher` publish event **sau** transaction.
+6. Các subscriber độc lập phản ứng: Queue bridge thêm job welcome-email vào BullMQ; Notifications context tạo welcome notification. Controller presenter hóa user và trả `201`.
+
+## 5. Luồng login, refresh và session
+
+### Login
 
 ```mermaid
 sequenceDiagram
-    autonumber
-    actor Client
-    participant AuthController
-    participant CommandBus
-    participant QueryBus
-    participant LoginQueryHandler
-    participant RefreshQueryHandler
-    participant RedisService
-    participant Database
-
-    Note over Client, RedisService: Tiến trình Đăng nhập (Login Flow)
-    Client->>AuthController: POST /auth/login { email, password }
-    activate AuthController
-    AuthController->>QueryBus: execute(new LoginQuery(email, password))
-    activate QueryBus
-    QueryBus->>LoginQueryHandler: execute(query)
-    activate LoginQueryHandler
-    LoginQueryHandler->>Database: Query user & assigned permissions by email
-    Database-->>LoginQueryHandler: User record & permissions array
-    LoginQueryHandler->>LoginQueryHandler: Compare password using bcrypt
-    LoginQueryHandler->>LoginQueryHandler: Embed permissions & generate jti / tokens
-    LoginQueryHandler->>RedisService: setex(refresh_token:userId:jti, 7 days)
-    RedisService-->>LoginQueryHandler: OK
-    LoginQueryHandler-->>QueryBus: Result.ok({ accessToken, refreshToken })
-    deactivate LoginQueryHandler
-    QueryBus-->>AuthController: Result.ok
-    deactivate QueryBus
-    AuthController-->>Client: Return { accessToken, refreshToken }
-    deactivate AuthController
-
-    Note over Client, RedisService: Tiến trình quay vòng Refresh Token (Token Rotation)
-    Client->>AuthController: POST /auth/refresh (Header Refresh Token)
-    activate AuthController
-    AuthController->>QueryBus: execute(new RefreshQuery(refreshTokenMetadata))
-    activate QueryBus
-    QueryBus->>RefreshQueryHandler: execute(query)
-    activate RefreshQueryHandler
-    RefreshQueryHandler->>RedisService: exists(refresh_token:userId:oldJti)
-    RedisService-->>RefreshQueryHandler: true (Token is valid)
-    RefreshQueryHandler->>RedisService: del(refresh_token:userId:oldJti) (Revoke old token)
-    RefreshQueryHandler->>Database: Query fresh permissions array
-    Database-->>RefreshQueryHandler: fresh permissions
-    RefreshQueryHandler->>RefreshQueryHandler: Embed fresh permissions & generate new jti / tokens
-    RefreshQueryHandler->>RedisService: setex(refresh_token:userId:newJti, 7 days)
-    RefreshQueryHandler-->>QueryBus: Result.ok({ accessToken, refreshToken })
-    deactivate RefreshQueryHandler
-    QueryBus-->>AuthController: Result.ok
-    deactivate QueryBus
-    AuthController-->>Client: Return { accessToken, refreshToken }
-    deactivate AuthController
+  actor U as Client
+  participant C as AuthController
+  participant H as LoginQueryHandler
+  participant DB as UserRepository/Prisma
+  participant R as Redis
+  U->>C: POST /auth/login
+  C->>H: LoginQuery(email,password,ip,userAgent)
+  H->>DB: findByEmail; kiểm tra active; getPermissions
+  H->>H: bcrypt.compare; UUID jti; ký JWT
+  H->>R: SET refresh_token:userId:jti metadata EX 604800
+  H-->>C: accessToken + refreshToken
+  C-->>U: 200
 ```
 
----
+Access token payload là `{ sub, email, permissions }`, ký bằng `JWT_ACCESS_SECRET`, TTL cố định `15m`. Refresh payload là `{ sub, email, jti }`, ký bằng `JWT_REFRESH_SECRET`, TTL `7d`. Redis lưu cùng TTL 604800 giây một object gồm `jti`, `ip`, `userAgent`, `createdAt`; đây là nguồn dữ liệu của màn hình Sessions. Secrets không có default khi ký, vì vậy phải cấu hình cả hai biến môi trường.
 
-## 6. Chi tiết hoạt động đi qua các Tầng (Layer Transition)
+### Refresh rotation
 
-Dưới đây là mô tả chi tiết cách thức hoạt động của từng tệp tin khi request đi qua các tầng của hệ thống:
+`JwtRefreshStrategy` lấy Bearer token, kiểm chữ ký/expiry bằng `JWT_REFRESH_SECRET`, load user và từ chối user inactive/soft-deleted. Nó **bắt buộc** key `refresh_token:<sub>:<jti>` còn tồn tại trong Redis, rồi gắn `{ user, refreshToken, jti }` vào `req.user`.
 
-### Tầng 1: Presentation (Đón nhận & Điều hướng HTTP)
+`RefreshQueryHandler` lấy quyền mới từ DB, sinh JTI mới, ký token mới, đọc metadata key cũ nếu có, `SET` key mới 7 ngày rồi `DEL` key cũ. Như vậy rotation được bảo vệ ở strategy trước khi handler chạy; hai refresh request đồng thời có thể cùng vượt qua kiểm tra tồn tại trước khi một request xóa key cũ — đây là một race condition cần cân nhắc nếu yêu cầu one-time-use tuyệt đối.
 
-#### 1. `presentation/controllers/auth.controller.ts`
-* **Nhiệm vụ**: Cung cấp giao diện REST API cho client đăng nhập, đăng ký, đăng xuất, làm mới phiên.
-* **Hoạt động**:
-  1. Hứng request HTTP POST.
-  2. Bọc thông tin email/mật khẩu vào các DTO.
-  3. Gửi DTO đó đi dưới dạng Command (`RegisterCommand`) hoặc Query (`LoginQuery`) qua các Bus tương ứng.
-  4. Trả kết quả JSON chứa Access & Refresh Token hoặc thông tin phản hồi thành công về cho Client.
+### Thu hồi
 
----
+- Logout và `DELETE /sessions/:jti`: xóa chính xác một key Redis.
+- Logout global: `invalidatePattern('refresh_token:<userId>:*')`; implementation Redis dùng `KEYS` + `DEL`.
+- Deactivate ở Users phát `UserDeactivatedEvent`; cache/event bridge xóa toàn bộ refresh key, realtime bridge gửi `force_logout`, queue gửi email và Notifications context tạo notification.
 
-### Tầng 2: Application (Thực thi nghiệp vụ điều phối)
+## 6. Authentication và authorization
 
-#### 2. `application/queries/handlers/login.handler.ts`
-* **Nhiệm vụ**: Xác thực định danh người dùng và phát hành bộ Token.
-* **Hoạt động**:
-  1. Lấy thông tin user bằng email từ `UserRepository`.
-  2. Khớp mật khẩu đã băm bằng `bcrypt.compare`.
-  3. Truy vấn danh sách quyền hạn của tài khoản và nhúng mảng `permissions` vào JWT payload.
-  4. Tạo JWT ID (`jti`) duy nhất bằng UUID để theo dõi phiên làm việc.
-  5. Ký phát hành Access Token và Refresh Token.
-  6. Đăng ký JTI này vào Redis cache (`refresh_token:${userId}:${jti}`) với thời gian sống (TTL) là 7 ngày nhằm đánh dấu whitelist.
+`JwtStrategy` xác minh access token, sau đó vẫn gọi `findById`; user không tồn tại, inactive hoặc soft-deleted nhận `401`. Strategy gắn `payload.permissions` vào entity trả về. API shared `PermissionsGuard` kiểm tra permissions trực tiếp từ payload này với logic **AND** (`every`). Vì quyền được snapshot trong access JWT, thay đổi role có hiệu lực với request access-token mới sau login/refresh (tối đa TTL access token), trừ khi user bị deactivate thì strategy chặn ngay.
 
-#### 3. `application/queries/handlers/refresh.handler.ts`
-* **Nhiệm vụ**: Triển khai cơ chế Refresh Token Rotation (Quay vòng Refresh Token).
-* **Hoạt động**:
-  1. Đọc JTI từ Refresh Token do người dùng gửi lên.
-  2. Kiểm tra xem JTI đó còn tồn tại trong Redis whitelist hay không.
-  3. Nếu không tìm thấy, lập tức ném ra lỗi Unauthorized (401) vì token có thể đã bị đánh cắp hoặc thu hồi trước đó.
-  4. Nếu tìm thấy, lập tức xóa khóa JTI cũ này khỏi Redis.
-  5. Truy vấn danh sách quyền tươi mới, sinh mới một JTI và bộ token mới đính kèm `permissions`, tiếp tục đưa JTI mới vào Redis whitelist và trả về cho người dùng.
+Lưu ý: trong thư mục Auth cũng có `application/guards/permissions.guard.ts` truy vấn DB, nhưng controllers hiện import `@shared/infrastructure/guards`; bản shared mới là đường chạy thực tế.
 
-#### 4. `application/commands/handlers/logout.handler.ts` và `logout-all.handler.ts`
-* **Nhiệm vụ**: Thu hồi quyền truy cập của người dùng.
-* **Hoạt động**:
-  * **Logout**: Xóa trực tiếp JTI của phiên hiện tại khỏi Redis.
-  * **Logout All**: Thực hiện quét mẫu `refresh_token:${userId}:*` bằng lệnh SCAN/KEYS của Redis để thu hồi toàn bộ khóa lưu trữ phiên của người dùng đó trên mọi thiết bị.
+## 7. Client admin liên quan
 
----
+`ApiClient` của `apps/admin` giữ access token trong memory và refresh token trong `localStorage`. Khi API trả `401`, nó serialise refresh qua `isRefreshing`/subscriber queue, gọi `POST /auth/refresh` bằng refresh token Bearer, lưu token pair mới rồi phát lại request ban đầu. Login store chịu trách nhiệm đặt token; `useWebSocket` dùng access token khi mở Socket.IO và xử lý event `force_logout` bằng `logout()`.
 
-### Tầng 3: Infrastructure (Security Guards & Strategies)
+## 8. Lỗi, audit và vận hành
 
-#### 5. `application/strategies/jwt.strategy.ts` và `jwt-refresh.strategy.ts`
-* **Nhiệm vụ**: Giải mã và xác thực chữ ký của Token (Passport).
-* **Hoạt động**:
-  1. Nhận chuỗi token từ Authorization Header.
-  2. Sử dụng Secret Key của hệ thống để giải mã thông tin payload (chứa `userId`, `jti`, `email`, và `permissions`).
-  3. Đính đối tượng user đã giải mã (bao gồm cả mảng `permissions`) vào context request (`req.user`) để `PermissionsGuard` kiểm tra hoàn toàn Stateless (In-Memory).
+- Handler trả `Result<T, DomainException>`; `unwrap()` ném `DomainException`, rồi global `DomainExceptionFilter` chuẩn hóa `{statusCode,code,translationKey,message,args,error,timestamp}`.
+- `logout/global` và `DELETE /sessions/:jti` có `@AuditLog`; interceptor toàn cục chỉ ghi audit **sau khi** handler HTTP thành công. Login/register/logout không được decorate nên không có audit row từ cơ chế này.
+- Redis mặc định host `localhost`, port `6380` ở cả Redis/BullMQ module, không phải `6379`; kiểm tra `.env`/Docker trước khi chạy.
+- Dữ liệu session chỉ có Redis, không persistence database: restart/flush Redis thu hồi mọi refresh session.
 
-#### 6. `application/guards/jwt-auth.guard.ts` và `jwt-refresh-auth.guard.ts`
-* **Nhiệm vụ**: Ngăn chặn request không có chữ ký hợp lệ.
-* **Hoạt động**:
-  * Chạy Passport strategy tương ứng, nếu xác minh chữ ký không hợp lệ, lập tức trả về lỗi **HTTP 401 Unauthorized** trước khi đi vào Controller.
+## 9. Khi mở rộng
+
+Thêm endpoint Auth theo chuỗi: DTO (nếu có input) → command/query object → handler đăng ký trong `AuthModule` → controller/guard → test. Không import Prisma trực tiếp vào Auth handler nếu use case đã có port ở Users. Với action cần audit, gắn `@AuditLog(action, callback)` vào method controller; callback không được đưa password/token vào `details`.

@@ -3,8 +3,8 @@ import { QueryBus, CommandBus } from '@nestjs/cqrs';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { PERMISSIONS } from '@repo/contracts';
 
-import { JwtAuthGuard, PermissionsGuard } from '@shared/infrastructure/guards';
-import { RequirePermissions, GetUser, AuditLog } from '@shared/infrastructure/decorators';
+import { JwtAuthGuard, PermissionsGuard } from '@presentation/guards';
+import { RequirePermissions, GetUser, AuditLog } from '@presentation/decorators';
 
 import { GetRolesQuery, GetPermissionsQuery } from '../../application/queries';
 import { CreateRoleCommand, UpdateRolePermissionsCommand, DeleteRoleCommand } from '../../application/commands';

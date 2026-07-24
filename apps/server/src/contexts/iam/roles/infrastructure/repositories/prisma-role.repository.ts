@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '@shared/infrastructure/prisma/prisma.service';
+import { PrismaService } from '@infrastructure/database/prisma.service';
 import { RoleRepository } from '../../domain/ports/role.repository';
 import { RoleEntity } from '../../domain/role.entity';
 import * as crypto from 'crypto';

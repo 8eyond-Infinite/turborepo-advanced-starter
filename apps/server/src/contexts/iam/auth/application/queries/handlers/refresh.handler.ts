@@ -2,8 +2,7 @@ import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
 import { Inject } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { RefreshQuery } from '../refresh.query';
-import { CACHE_PORT } from '@shared/domain/ports/cache.port';
-import type { ICachePort } from '@shared/domain/ports/cache.port';
+import { SESSION_STORE, ISessionStore } from '../../../domain/ports/session-store.port';
 import { Result } from '@shared/domain/result';
 import { DomainException } from '@shared/domain/exceptions/domain.exception';
 import type { UserRepository } from '@iam/users/domain/ports/user.repository';
@@ -14,8 +13,8 @@ export class RefreshQueryHandler implements IQueryHandler<RefreshQuery, Result<{
         private readonly jwtService: JwtService,
         @Inject('UserRepository')
         private readonly userRepository: UserRepository,
-        @Inject(CACHE_PORT)
-        private readonly cache: ICachePort,
+        @Inject(SESSION_STORE)
+        private readonly sessionStore: ISessionStore,
     ) { }
 
     async execute(query: RefreshQuery): Promise<Result<{ accessToken: string; refreshToken: string }, DomainException>> {
@@ -43,18 +42,18 @@ export class RefreshQueryHandler implements IQueryHandler<RefreshQuery, Result<{
             createdAt: new Date().toISOString(),
         };
 
-        const oldData = await this.cache.get<any>(`refresh_token:${userId}:${oldJti}`);
-        if (oldData && oldData !== '1' && typeof oldData === 'object') {
+        const oldData = await this.sessionStore.getRefreshTokenSession(userId, oldJti);
+        if (oldData) {
             sessionData = {
                 ...oldData,
-                jti: newJti, // Update JTI
+                jti: newJti,
             };
         }
 
-        await this.cache.set(`refresh_token:${userId}:${newJti}`, sessionData, 604800);
-
-        await this.cache.del(`refresh_token:${userId}:${oldJti}`);
+        await this.sessionStore.saveRefreshToken(userId, newJti, sessionData, 604800);
+        await this.sessionStore.revokeRefreshToken(userId, oldJti);
 
         return Result.ok({ accessToken, refreshToken });
     }
 }
+

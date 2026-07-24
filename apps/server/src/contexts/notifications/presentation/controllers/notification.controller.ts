@@ -1,8 +1,8 @@
 import { Controller, Get, Post, Patch, Param, Query, UseGuards, HttpStatus, HttpCode, BadRequestException } from '@nestjs/common';
 import { QueryBus, CommandBus } from '@nestjs/cqrs';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { JwtAuthGuard } from '@shared/infrastructure/guards';
-import { GetUser } from '@shared/infrastructure/decorators';
+import { JwtAuthGuard } from '@presentation/guards';
+import { GetUser } from '@presentation/decorators';
 import { GetNotificationsQuery } from '../../application/queries/get-notifications.query';
 import { MarkNotificationReadCommand } from '../../application/commands/mark-read.command';
 

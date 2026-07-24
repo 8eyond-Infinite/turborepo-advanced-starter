@@ -3,7 +3,7 @@ import { Inject } from '@nestjs/common';
 import { GetDashboardStatsQuery } from '../get-dashboard-stats.query';
 import { Result } from '@shared/domain/result';
 import { DomainException } from '@shared/domain/exceptions/domain.exception';
-import { PrismaService } from '@shared/infrastructure/prisma/prisma.service';
+import { PrismaService } from '@infrastructure/database/prisma.service';
 import { CACHE_PORT } from '@shared/domain/ports/cache.port';
 import type { ICachePort } from '@shared/domain/ports/cache.port';
 

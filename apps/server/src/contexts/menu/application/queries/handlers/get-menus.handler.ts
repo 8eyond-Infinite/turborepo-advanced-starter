@@ -1,23 +1,17 @@
 import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
-import { Inject } from '@nestjs/common';
 import { GetMenusQuery } from '../get-menus.query';
 import { Result } from '@shared/domain/result';
 import { DomainException } from '@shared/domain/exceptions/domain.exception';
-import { PrismaService } from '@shared/infrastructure/prisma/prisma.service';
-import { USER_PERMISSION_FACADE, IUserPermissionFacade } from '@shared/domain/ports/user-permission-facade.port';
+import { PrismaService } from '@infrastructure/database/prisma.service';
 
 @QueryHandler(GetMenusQuery)
 export class GetMenusQueryHandler implements IQueryHandler<GetMenusQuery, Result<any[], DomainException>> {
     constructor(
         private readonly prisma: PrismaService,
-        @Inject(USER_PERMISSION_FACADE)
-        private readonly permissionFacade: IUserPermissionFacade,
     ) { }
 
     async execute(query: GetMenusQuery): Promise<Result<any[], DomainException>> {
-        const { userId } = query;
-
-        const permissions = await this.permissionFacade.getPermissions(userId);
+        const { permissions = [] } = query;
 
         const allMenus = await this.prisma.menu.findMany({
             orderBy: [
@@ -27,7 +21,7 @@ export class GetMenusQueryHandler implements IQueryHandler<GetMenusQuery, Result
 
         const allowedMenus = allMenus.filter((menu) => {
             if (!menu.permission) return true;
-            return permissions.includes(menu.permission);
+            return permissions.includes(menu.permission as any);
         });
 
         const roots = allowedMenus.filter((m) => !m.parentId);
@@ -55,3 +49,4 @@ export class GetMenusQueryHandler implements IQueryHandler<GetMenusQuery, Result
         return Result.ok(filteredTree);
     }
 }
+

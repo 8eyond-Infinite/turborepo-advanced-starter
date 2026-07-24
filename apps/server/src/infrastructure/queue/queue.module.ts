@@ -1,0 +1,38 @@
+import { Module, Global } from '@nestjs/common';
+import { BullModule } from '@nestjs/bullmq';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { CqrsModule } from '@nestjs/cqrs';
+import { BullmqQueueAdapter } from './bullmq-queue.adapter';
+import { QueueEventBridge } from '@infrastructure/event-bus/bridges/queue.bridge';
+import { JOB_QUEUE_PORT } from '@shared/domain/ports/job-queue.port';
+
+@Global()
+@Module({
+    imports: [
+        CqrsModule,
+        BullModule.forRootAsync({
+            imports: [ConfigModule],
+            inject: [ConfigService],
+            useFactory: (configService: ConfigService) => ({
+                connection: {
+                    host: configService.get<string>('REDIS_HOST', 'localhost'),
+                    port: Number(configService.get<number>('REDIS_PORT', 6380)),
+                    password: configService.get<string>('REDIS_PASSWORD') || undefined,
+                },
+            }),
+        }),
+    ],
+    providers: [
+        BullmqQueueAdapter,
+        QueueEventBridge,
+        {
+            provide: JOB_QUEUE_PORT,
+            useClass: BullmqQueueAdapter,
+        },
+    ],
+    exports: [
+        BullModule,
+        JOB_QUEUE_PORT,
+    ],
+})
+export class QueueModule {}

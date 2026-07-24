@@ -15,3 +15,4 @@ import { GetMenusQueryHandler } from './application/queries/handlers/get-menus.h
     ],
 })
 export class MenuModule {}
+

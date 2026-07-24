@@ -6,8 +6,7 @@ import { InvalidCredentialsException } from '@iam/users/domain/exceptions/invali
 import { UserDeactivatedException } from '@iam/users/domain/exceptions/user-deactivated.exception';
 import { Result } from '@shared/domain/result';
 import { DomainException } from '@shared/domain/exceptions/domain.exception';
-import { CACHE_PORT } from '@shared/domain/ports/cache.port';
-import type { ICachePort } from '@shared/domain/ports/cache.port';
+import { SESSION_STORE, ISessionStore } from '../../../domain/ports/session-store.port';
 import type { UserRepository } from '@iam/users/domain/ports/user.repository';
 import type { PasswordHasher } from '@iam/users/domain/ports/password-hasher';
 
@@ -19,8 +18,8 @@ export class LoginQueryHandler implements IQueryHandler<LoginQuery, Result<{ acc
         @Inject('PasswordHasher')
         private readonly passwordHasher: PasswordHasher,
         private readonly jwtService: JwtService,
-        @Inject(CACHE_PORT)
-        private readonly cache: ICachePort,
+        @Inject(SESSION_STORE)
+        private readonly sessionStore: ISessionStore,
     ) { }
 
     async execute(query: LoginQuery): Promise<Result<{ accessToken: string; refreshToken: string }, DomainException>> {
@@ -61,7 +60,7 @@ export class LoginQueryHandler implements IQueryHandler<LoginQuery, Result<{ acc
             userAgent: query.userAgent || 'Unknown',
             createdAt: new Date().toISOString(),
         };
-        await this.cache.set(`refresh_token:${user.id}:${jti}`, sessionData, 604800);
+        await this.sessionStore.saveRefreshToken(user.id, jti, sessionData, 604800);
 
         return Result.ok({ accessToken, refreshToken });
     }

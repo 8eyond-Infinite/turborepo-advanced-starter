@@ -3,11 +3,11 @@ import { QueryBus, CommandBus } from '@nestjs/cqrs';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { PERMISSIONS } from '@repo/contracts';
 
-import { JwtAuthGuard, PermissionsGuard } from '@shared/infrastructure/guards';
-import { RequirePermissions, GetUser, AuditLog } from '@shared/infrastructure/decorators';
-import { CacheInterceptor, CacheKey, CacheTTL, CacheInvalidationInterceptor, InvalidateCache } from '@shared/infrastructure/cache';
-import { PaginationQueryDto } from '@shared/infrastructure/dto/pagination-query.dto';
-import { PaginatedResponsePresenter } from '@shared/infrastructure/presenters/pagination.presenter';
+import { JwtAuthGuard, PermissionsGuard } from '@presentation/guards';
+import { RequirePermissions, GetUser, AuditLog } from '@presentation/decorators';
+import { CacheInterceptor, CacheKey, CacheTTL, CacheInvalidationInterceptor, InvalidateCache } from '@infrastructure/cache';
+import { PaginationQueryDto } from '@presentation/dto/pagination-query.dto';
+import { PaginatedResponsePresenter } from '@presentation/presenters/pagination.presenter';
 
 import { GetUsersQuery, GetUserByIdQuery } from '../../application/queries';
 import {

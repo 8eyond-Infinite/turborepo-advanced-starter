@@ -8,6 +8,8 @@ import { UsersModule } from '../users/users.module';
 import { AuthController } from './presentation/controllers/auth.controller';
 import { JwtStrategy } from './application/strategies/jwt.strategy';
 import { JwtRefreshStrategy } from './application/strategies/jwt-refresh.strategy';
+import { SESSION_STORE } from './domain/ports/session-store.port';
+import { RedisSessionStore } from './infrastructure/stores/redis-session.store';
 
 @Module({
     imports: [
@@ -18,6 +20,10 @@ import { JwtRefreshStrategy } from './application/strategies/jwt-refresh.strateg
     ],
     controllers: [AuthController],
     providers: [
+        {
+            provide: SESSION_STORE,
+            useClass: RedisSessionStore,
+        },
         RegisterHandler,
         LogoutCommandHandler,
         LogoutAllCommandHandler,
@@ -28,6 +34,6 @@ import { JwtRefreshStrategy } from './application/strategies/jwt-refresh.strateg
         JwtStrategy,
         JwtRefreshStrategy,
     ],
-    exports: [PassportModule, JwtStrategy, JwtRefreshStrategy],
+    exports: [PassportModule, JwtStrategy, JwtRefreshStrategy, SESSION_STORE],
 })
 export class AuthModule { }
