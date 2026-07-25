@@ -13,31 +13,30 @@ import { ToggleUserStatusCommandHandler } from './application/commands/handlers/
 import { UpdateUserCommandHandler } from './application/commands/handlers/update-user.handler';
 import { USER_QUEUE } from './application/queues/user-queue.constants';
 import { UserQueueProcessor } from './application/queues/user-queue.processor';
+import { USER_REPOSITORY } from './domain/ports/user.repository';
+import { PASSWORD_HASHER } from './domain/ports/password-hasher';
 
 @Module({
-    imports: [
-        CqrsModule,
-        BullModule.registerQueue({ name: USER_QUEUE }),
-    ],
-    controllers: [UserController],
-    providers: [
-        {
-            provide: 'UserRepository',
-            useClass: PrismaUserRepository,
-        },
-        {
-            provide: 'PasswordHasher',
-            useClass: BcryptPasswordHasher,
-        },
-        GetUsersQueryHandler,
-        GetUserByIdQueryHandler,
-        DeactivateUserCommandHandler,
-        CreateUserCommandHandler,
-        DeleteUserCommandHandler,
-        ToggleUserStatusCommandHandler,
-        UpdateUserCommandHandler,
-        UserQueueProcessor,
-    ],
-    exports: ['UserRepository', 'PasswordHasher', BullModule],
+  imports: [CqrsModule, BullModule.registerQueue({ name: USER_QUEUE })],
+  controllers: [UserController],
+  providers: [
+    {
+      provide: USER_REPOSITORY,
+      useClass: PrismaUserRepository,
+    },
+    {
+      provide: PASSWORD_HASHER,
+      useClass: BcryptPasswordHasher,
+    },
+    GetUsersQueryHandler,
+    GetUserByIdQueryHandler,
+    DeactivateUserCommandHandler,
+    CreateUserCommandHandler,
+    DeleteUserCommandHandler,
+    ToggleUserStatusCommandHandler,
+    UpdateUserCommandHandler,
+    UserQueueProcessor,
+  ],
+  exports: [USER_REPOSITORY, PASSWORD_HASHER, BullModule],
 })
-export class UsersModule { }
+export class UsersModule {}

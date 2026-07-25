@@ -1,695 +1,440 @@
-# Backend Architecture Guide
+# Backend Architecture Handbook
 
-Tài liệu này mô tả kiến trúc backend trong `apps/server` theo đúng trạng thái code hiện tại sau refactor.
+Tài liệu này là bản đồ kiến trúc chính thức của backend trong `apps/server`. Mục tiêu không chỉ là cho biết dự án có những thư mục nào, mà giúp một thành viên mới hiểu được hệ thống đang giải quyết vấn đề gì, vì sao code được chia như hiện tại, một request đi qua những lớp nào và phải mở rộng code theo cách nào để không phá vỡ kiến trúc.
 
-Mục tiêu của nó là để một người mới nhìn vào có thể hiểu:
+Các README bên trong từng bounded context đi sâu vào nghiệp vụ cụ thể:
 
-- dự án được chia thành những khối nào
-- mỗi khối có trách nhiệm gì
-- luồng request đi qua các lớp ra sao
-- `shared/` đang đóng vai trò gì trong kiến trúc mới
-- nên đọc file nào trước để học code nhanh nhất
+- [Auth](./src/contexts/iam/auth/README.md): đăng ký, đăng nhập, refresh token và quản lý session.
+- [Users](./src/contexts/iam/users/README.md): User aggregate, trạng thái tài khoản và domain events.
+- [Roles](./src/contexts/iam/roles/README.md): RBAC, role và permission.
+- [Audit](./src/contexts/audit/README.md): audit trail và cơ chế ghi log xuyên suốt request.
 
-## 1. Kiến trúc tổng quan
+## 1. Mental model: nên hình dung backend này như thế nào?
 
-Backend này là một NestJS application được tổ chức theo kiểu modular monolith.
-Bên trong app, kiến trúc đi theo hướng:
+Backend là một **modular monolith** viết bằng NestJS. Toàn bộ hệ thống được deploy như một application, dùng chung process và database, nhưng code không được tổ chức như một khối lớn. Nó được chia thành các bounded context theo năng lực nghiệp vụ: IAM, Notifications, Audit, Analytics, Menu và Storage.
 
-- Clean Architecture / Hexagonal Architecture
-- Domain-Driven Design
-- CQRS
-- domain events
-- Redis-backed session/cache
-- BullMQ jobs
-- Prisma persistence
-- realtime and audit as cross-cutting concerns
+“Monolith” ở đây nói về đơn vị triển khai. “Modular” nói về ranh giới trong code. Một context sở hữu model và use case của chính nó; context khác không được tùy tiện truy cập sâu vào repository hoặc entity nội bộ. Cách tổ chức này giữ chi phí vận hành thấp như monolith, đồng thời tạo ranh giới đủ rõ để hệ thống có thể phát triển lâu dài.
 
-Nếu tóm gọn trong một câu:
-
-> HTTP đi vào `presentation`, use case chạy ở `application`, luật nghiệp vụ nằm ở `domain`, còn tích hợp kỹ thuật nằm ở `infrastructure`.
-
-## 2. Cây thư mục cấp cao
+Bên trong mỗi context, dependency đi từ ngoài vào trong:
 
 ```text
-apps/server/src
-├── main.ts
-├── app.module.ts
-├── app.controller.ts
-├── app.service.ts
-├── shared/
-├── infrastructure/
-├── presentation/
-└── contexts/
+HTTP / WebSocket / Worker
+          │
+          ▼
+    Presentation
+          │
+          ▼
+     Application
+          │
+          ▼
+        Domain
+
+Infrastructure ──implements──> Port do Domain/Application định nghĩa
 ```
 
-### `main.ts`
+Domain là lõi ổn định nhất. Presentation và infrastructure là chi tiết có thể thay đổi. Vì vậy domain không được biết NestJS controller, Prisma, Redis, BullMQ, Socket.IO hay HTTP status.
 
-Điểm bootstrap của ứng dụng.
-Nó cài đặt:
+## 2. Các phong cách kiến trúc đang được áp dụng
 
-- static assets
-- CORS
-- validation toàn cục
-- domain exception mapping
-- Swagger
-- start server
+### 2.1 Domain-Driven Design
 
-### `app.module.ts`
+DDD trong dự án thể hiện ở việc code được chia theo bounded context và hành vi nghiệp vụ được đặt trong aggregate/entity thay vì controller hoặc repository.
 
-Root module của application.
-Nó lắp các foundation module và bounded context vào runtime.
+Ví dụ, vô hiệu hóa user không phải là câu lệnh Prisma `isActive = false` nằm trong controller. `UserEntity.deactivate()` chịu trách nhiệm đổi trạng thái, tăng `tokenVersion`, cập nhật audit fields và ghi nhận `UserDeactivatedEvent`. Nhờ vậy mọi đường gọi đều phải đi qua cùng một luật nghiệp vụ.
 
-### `shared/`
+### 2.2 Clean/Hexagonal Architecture
 
-Shared kernel của backend.
-Đây là nơi chứa các abstraction, base classes, contracts, và model dùng chung.
+Lõi hệ thống định nghĩa các port như `UserRepository`, `PasswordHasher`, `ISessionStore`, `ICachePort` hoặc `AuditWriter`. Adapter kỹ thuật hiện thực các port này bằng Prisma, bcrypt hoặc Redis.
 
-### `infrastructure/`
-
-Các adapter kỹ thuật cấp toàn app:
-
-- database
-- cache
-- event bus
-- queue
-- realtime
-
-### `presentation/`
-
-Các thành phần HTTP boundary dùng chung cấp toàn app:
-
-- decorators
-- guards
-- filters
-- interceptors
-- DTO base
-- presenters
-
-### `contexts/`
-
-Các bounded context nghiệp vụ:
-
-- `iam`
-- `analytics`
-- `audit`
-- `menu`
-- `notifications`
-- `storage`
-
-## 3. Hướng phụ thuộc
-
-Một nguyên tắc quan trọng của repo này là dependency direction đi từ ngoài vào trong.
+Hướng phụ thuộc là điểm quan trọng nhất:
 
 ```text
-presentation -> application -> domain
-infrastructure -> domain/application ports
-shared -> cung cấp nền tảng chung cho các tầng khác
+Application/Domain biết interface
+Infrastructure biết interface và implementation
+Interface không biết implementation
 ```
 
-### Điều đó có nghĩa là
+Nếu thay Redis bằng một session store khác, application use case không cần đổi. Nếu thay Prisma, domain entity vẫn giữ nguyên.
 
-- controller không nên tự query DB nếu đã có use case rõ ràng
-- application nên làm việc qua port / abstraction thay vì concrete class
-- infrastructure được quyền implement interface của domain
-- domain không nên biết Prisma, Redis, HTTP hay NestJS controller là gì
+### 2.3 CQRS
 
-### Tại sao cách này tốt
+Write use case được biểu diễn bằng Command; read use case được biểu diễn bằng Query. Nest `CommandBus` và `QueryBus` tìm handler tương ứng.
 
-- dễ test
-- dễ thay implementation
-- giảm coupling giữa feature và framework
-- business rule nằm tập trung
+CQRS ở đây không đồng nghĩa với hai database riêng. Mục tiêu hiện tại là tách ý định:
 
-## 4. Request lifecycle
+- Command diễn tả một thay đổi trạng thái, chẳng hạn `DeactivateUserCommand`.
+- Query diễn tả nhu cầu đọc, chẳng hạn `GetUsersQuery`.
+- Handler là nơi orchestration use case.
+- Entity là nơi giữ invariant và state transition.
 
-Luồng request điển hình:
+### 2.4 Transactional Outbox
+
+Domain event không được phát thẳng ra Redis, queue hoặc WebSocket trong transaction nghiệp vụ. Repository ghi thay đổi aggregate và bản ghi outbox trong cùng một database transaction. Một publisher độc lập xử lý delivery sau đó.
+
+Thiết kế này giải quyết “dual-write problem”: nếu user đã được lưu nhưng process chết trước khi enqueue email hoặc force logout, outbox vẫn còn và có thể retry.
+
+## 3. Bản đồ codebase
+
+```text
+apps/server/
+├── src/
+│   ├── main.ts                    # Bootstrap HTTP application
+│   ├── app.module.ts              # Composition root
+│   ├── config/                    # Validate và parse environment
+│   ├── contexts/                  # Các bounded context
+│   │   ├── iam/
+│   │   │   ├── auth/
+│   │   │   ├── users/
+│   │   │   └── roles/
+│   │   ├── notifications/
+│   │   ├── audit/
+│   │   ├── analytics/
+│   │   ├── menu/
+│   │   └── storage/
+│   ├── shared/
+│   │   ├── domain/                # Domain primitives dùng chung
+│   │   └── application/           # Technical application ports dùng chung
+│   ├── infrastructure/            # Adapter cấp toàn application
+│   ├── presentation/              # HTTP concerns dùng xuyên context
+│   └── architecture/              # Test bảo vệ dependency rules
+└── test/                          # E2E tests và test DB setup
+```
+
+`app.module.ts` là **composition root**. Đây là nơi module, port và adapter được ghép lại. File này được phép biết nhiều thành phần; business logic không được đặt tại đây.
+
+## 4. Bounded context và quyền sở hữu
+
+### IAM
+
+IAM là nhóm context về identity và access:
+
+- Auth sở hữu token lifecycle và refresh sessions.
+- Users sở hữu User aggregate và trạng thái tài khoản.
+- Roles sở hữu role/permission mapping.
+
+Ba context liên quan chặt chẽ nhưng không nên gộp thành một folder phẳng. Auth có thể dùng `UserRepository` để xác thực, nhưng luật thay đổi User vẫn thuộc Users.
+
+### Notifications
+
+Notifications sở hữu notification entity, trạng thái read/unread và API lấy notification. Notification có thể được tạo từ event của context khác, nhưng context phát event không tự ghi bảng Notification.
+
+### Audit
+
+Audit sở hữu audit record và read API. Các context khác chỉ gắn metadata `@AuditLog`; việc ghi dữ liệu đi qua `AuditWriter`.
+
+### Analytics, Menu và Storage
+
+Analytics tổng hợp dữ liệu đọc cho dashboard. Menu tạo navigation tree dựa trên permission. Storage định nghĩa port upload/delete và có adapter local/S3. Đây là các context nhỏ hơn nhưng vẫn tuân theo ranh giới presentation/application/domain/infrastructure khi độ phức tạp yêu cầu.
+
+## 5. Request lifecycle
+
+Một HTTP request thông thường đi theo chuỗi sau:
 
 ```mermaid
-flowchart LR
-    Client[Client] --> Controller[Presentation Controller]
-    Controller --> DTO[DTO / Validation Pipe]
-    DTO --> Handler[Application Handler]
-    Handler --> Domain[Domain Entity / Value Object]
-    Handler --> Repo[Repository / Port]
-    Repo --> Infra[Infrastructure Adapter]
-    Infra --> DB[(Prisma / Postgres)]
-    Handler --> Events[Domain Event Dispatcher]
-    Events --> Bridges[Cache / Queue / Realtime Bridges]
-    Controller --> Presenter[Presenter / Response Mapping]
-    Presenter --> Client
+sequenceDiagram
+    autonumber
+    actor Client
+    participant Context as RequestContextInterceptor
+    participant Guard as Auth/Permission Guards
+    participant Pipe as ValidationPipe
+    participant Controller
+    participant Bus as CommandBus/QueryBus
+    participant Handler
+    participant Domain
+    participant Port
+    participant Adapter
+    participant DB as PostgreSQL/Redis
+
+    Client->>Context: HTTP request
+    Context->>Context: Resolve x-correlation-id
+    Context->>Guard: Continue pipeline
+    Guard->>Guard: Authenticate and authorize
+    Guard->>Pipe: Valid principal
+    Pipe->>Controller: Validated DTO
+    Controller->>Bus: Dispatch message
+    Bus->>Handler: execute()
+    Handler->>Domain: Apply business behavior
+    Handler->>Port: Persist/read
+    Port->>Adapter: Runtime implementation
+    Adapter->>DB: I/O
+    DB-->>Controller: Result through layers
+    Controller-->>Client: HTTP response + correlation id
 ```
 
-### Happy path
-
-1. Client gửi request.
-2. Controller nhận request.
-3. DTO và validation pipe kiểm tra input.
-4. Application handler chạy use case.
-5. Domain entity và value object enforce rule.
-6. Repository port đọc hoặc ghi dữ liệu.
-7. Infrastructure adapter chạm DB hoặc service ngoài.
-8. Domain events được phát nếu có side effect.
-9. Controller trả response JSON.
-
-### Side effects
-
-Không phải mọi hậu quả nghiệp vụ đều xử lý trong request chính.
-Một số thứ đi qua đường phụ trợ:
-
-- notification
-- cache invalidation
-- realtime update
-- background jobs
-- audit logging
-
-### Error path
-
-Có 2 nhóm lỗi chính:
-
-- lỗi nghiệp vụ: invalid input, not found, conflict, forbidden
-- lỗi kỹ thuật: DB, Redis, queue, runtime
-
-Lỗi nghiệp vụ được map sang HTTP qua `DomainExceptionFilter`.
-
-## 5. Application bootstrap
-
-### `main.ts`
-
-File này là nơi runtime được thiết lập.
-
-Nó đang làm các việc sau:
-
-- tạo Nest application
-- serve `public/` dưới prefix `/public`
-- bật CORS
-- gắn `ValidationPipe` toàn cục
-- gắn `DomainExceptionFilter`
-- tạo Swagger document và mount tại `/api`
-- listen port
-
-Ý nghĩa kiến trúc:
-
-- đây là lớp platform
-- không đặt business logic ở đây
-
-### `app.module.ts`
-
-File này cho thấy app được ghép từ những khối nào.
-
-Nó import:
-
-- `ConfigModule`
-- `PrismaModule`
-- `RedisModule`
-- `QueueModule`
-- `EventDispatcherModule`
-- `IamModule`
-- `AnalyticsModule`
-- `StorageModule`
-- `MenuModule`
-- `RealtimeModule`
-- `NotificationModule`
-- `AuditLogModule`
-
-Nó cũng đăng ký `AuditLogInterceptor` ở cấp global.
-
-Ý nghĩa:
-
-- audit log là concern xuyên suốt request lifecycle
-- đây không phải logic cục bộ của một feature
-
-## 6. Shared kernel
-
-`shared/` là điểm thay đổi đáng chú ý sau refactor.
-Nó hiện rõ vai trò là shared kernel, không phải chỗ nhét tạm file dùng chung.
-
-### 6.1 `shared/domain`
-
-Đây là lớp nền tảng cho các model nghiệp vụ dùng chung.
-
-Hiện tại có:
-
-- `base/aggregate-root.ts`
-- `base/result.ts`
-- `events/`
-- `exceptions/`
-- `ports/`
-- plus các file compatibility ở root như `aggregate-root.ts`, `result.ts`
-
-### `base/aggregate-root.ts`
-
-Base class cho aggregate root.
-
-Nó giữ một danh sách domain events nội bộ và cho phép:
-
-- `addDomainEvent(event)`
-- `pullDomainEvents()`
-
-Ý nghĩa:
-
-- entity có thể ghi nhận sự kiện phát sinh trong lúc thay đổi state
-- sau đó application layer hoặc dispatcher sẽ lấy các event này ra để phát tiếp
-
-### `base/result.ts`
-
-Wrapper cho kết quả xử lý nghiệp vụ.
-
-Nó cung cấp các trạng thái:
-
-- thành công
-- thất bại
-
-và các helper như:
-
-- `ok`
-- `fail`
-- `unwrap`
-
-Ý nghĩa:
-
-- handler có thể trả về outcome rõ ràng
-- controller hoặc layer ngoài có thể unwrap và để filter xử lý lỗi
-
-### compatibility exports
-
-File `shared/domain/index.ts` đang export cả:
-
-- `./base/aggregate-root`
-- `./base/result`
-- `./aggregate-root`
-- `./result`
-
-Điều này cho thấy repo đang giữ một lớp tương thích giữa đường dẫn cũ và cấu trúc mới.
-
-### 6.2 `shared/domain/events`
-
-Các contract của event được đặt ở đây.
-
-#### `domain-event.ts`
-
-Base class cho domain event.
-Hiện nó chỉ giữ `occurredOn`.
-
-Điều đó có nghĩa:
-
-- mọi event đều có timestamp chuẩn
-- event trở thành một object nghiệp vụ có vòng đời rõ ràng
-
-#### `queue-event.interface.ts`
-
-Contract cho event có thể được chuyển sang queue.
-
-#### `cache-invalidation-event.interface.ts`
-
-Contract cho event có thể dẫn tới invalidation cache.
-
-#### `realtime-event.interface.ts`
-
-Contract cho event có thể được phát qua realtime channel.
-
-### 6.3 `shared/domain/ports`
-
-Đây là các abstraction cấp nền tảng cho các integration kỹ thuật.
-
-#### `cache.port.ts`
-
-Định nghĩa `ICachePort` với các hành vi:
-
-- `get`
-- `set`
-- `del`
-- `invalidatePattern`
-- `keys`
-
-#### `job-queue.port.ts`
-
-Định nghĩa `IJobQueuePort` cho việc enqueue job nền.
-
-#### `realtime.port.ts`
-
-Định nghĩa `IRealtimePort` cho việc:
-
-- gửi event cho một user
-- broadcast cho nhiều client
-
-### 6.4 `shared/domain/exceptions`
-
-`DomainException` là base cho lỗi nghiệp vụ.
-
-Ý nghĩa:
-
-- domain có thể phát lỗi có ngữ nghĩa
-- presentation layer map lỗi đó sang HTTP response phù hợp
-
-### 6.5 `shared/domain/result.ts` và `shared/domain/aggregate-root.ts`
-
-Ngoài `base/`, repo vẫn giữ các file ở root để tương thích import cũ.
-Khi đọc code mới, ưu tiên coi `base/` là nơi định nghĩa chính.
-
-## 7. Infrastructure layer
-
-`infrastructure/` là nơi hiện thực các abstraction của toàn app.
-Sau refactor, layer này nằm tách riêng ở root thay vì nằm rải trong `shared/infrastructure`.
-
-### 7.1 `infrastructure/database`
-
-Chứa Prisma module và service.
-
-Đây là nơi nối app với database thật.
-
-### 7.2 `infrastructure/cache`
-
-Chứa:
-
-- `redis.module.ts`
-- `redis.service.ts`
-- cache interceptors
-
-Vai trò:
-
-- kết nối Redis
-- làm cache backend
-- hỗ trợ invalidation
-
-### 7.3 `infrastructure/event-bus`
-
-Đây là layer quan trọng của shared side effects.
-
-Gồm:
-
-- `event-dispatcher.module.ts`
-- `domain-event-dispatcher.ts`
-- `bridges/cache.bridge.ts`
-- `bridges/queue.bridge.ts`
-- `bridges/realtime.bridge.ts`
-
-Ý nghĩa:
-
-- domain/app phát event
-- dispatcher đẩy event cho các bridge
-- mỗi bridge xử lý theo một concern riêng
-
-Ví dụ:
-
-- cache bridge invalidates cache
-- queue bridge enqueue job
-- realtime bridge push data ra client
-
-### 7.4 `infrastructure/queue`
-
-Chứa BullMQ adapter và module.
-
-Nó hiện thực `IJobQueuePort`.
-
-### 7.5 `infrastructure/realtime`
-
-Chứa gateway và service realtime.
-
-Nó hiện thực `IRealtimePort` hoặc các behavior tương tự.
-
-## 8. Presentation layer
-
-`presentation/` là lớp HTTP boundary dùng chung.
-
-Nó chứa:
-
-- `decorators`
-- `guards`
-- `filters`
-- `interceptors`
-- `presenters`
-- base DTO
-
-Ý nghĩa:
-
-- tách các concern liên quan HTTP ra khỏi business code
-- cho phép các context dùng cùng một bộ guard/filter/interceptor chuẩn
-
-### So với code cũ
-
-Sau refactor, các helper này không còn nằm trong `shared/infrastructure/...` mà được đẩy ra `src/presentation/...`.
-Điều này làm ranh giới rõ hơn:
-
-- `presentation` là lớp tiếp xúc HTTP
-- `infrastructure` là lớp hiện thực kỹ thuật hậu trường
-
-## 9. Bounded contexts
-
-### 9.1 `iam`
-
-Khối Identity & Access Management.
-
-Nó bao gồm:
-
-- `auth`
-- `users`
-- `roles`
-
-#### `auth`
-
-Xử lý:
-
-- register
-- login
-- refresh token
-- logout
-- revoke session
-- active sessions
-
-Auth phụ thuộc nhiều vào:
-
-- `users`
-- `roles`
-- session store
-- JWT strategy / guards
-
-#### `users`
-
-Xử lý:
-
-- create/update/deactivate/delete user
-- query user
-- emit user lifecycle events
-
-Đây là nơi đi qua:
-
-- entity
-- value object
-- repository
-- password hasher
-- queue processor
-- notification / realtime / cache side effects thông qua events
-
-#### `roles`
-
-Xử lý:
-
-- create role
-- update permissions
-- delete role
-- list roles
-- list permissions
-
-Đây là nguồn sự thật cho RBAC catalog.
-
-### 9.2 `audit`
-
-Khối đọc lịch sử hoạt động.
-
-Ghi log được gắn ở tầng interceptor toàn cục, còn audit context chủ yếu phục vụ query/reading.
-
-### 9.3 `analytics`
-
-Khối query cho dashboard và số liệu tổng hợp.
-
-### 9.4 `menu`
-
-Khối dựng menu cho frontend, thường dựa trên permission hoặc cấu hình hiển thị.
-
-### 9.5 `notifications`
-
-Khối nhận event từ các context khác và chuyển thành notification.
-
-### 9.6 `storage`
-
-Khối trừu tượng hóa việc lưu file.
-
-Có local adapter và S3 adapter.
-
-## 10. Cách đọc một context
-
-Mỗi bounded context thường có dạng:
-
-```text
-context/
-├── *.module.ts
-├── application/
-├── domain/
-├── infrastructure/
-├── presentation/
-└── README.md
+### Vai trò của từng bước
+
+`RequestContextInterceptor` lấy correlation id do client gửi hoặc sinh UUID mới. Khi request kết thúc, nó ghi method, path, status, duration và user id nếu có.
+
+Guard trả lời hai câu hỏi khác nhau:
+
+1. Request đến từ ai?
+2. Principal đó có permission cần thiết không?
+
+Validation pipe chỉ kiểm tra dữ liệu tại HTTP boundary. Nó không thay thế domain invariant. Email có thể được kiểm tra format ở DTO để trả lỗi sớm, nhưng `Email` value object vẫn phải tự bảo vệ tính hợp lệ vì entity có thể được tạo từ worker hoặc test, không chỉ controller.
+
+Controller chuyển HTTP input thành Command/Query và format output. Controller không chứa transaction, Prisma query hoặc business decision.
+
+Handler orchestration các bước của use case. Handler có thể tải aggregate, gọi hành vi domain và lưu qua repository.
+
+## 6. Một read flow hoàn chỉnh
+
+Lấy danh sách users minh họa read path:
+
+1. `GET /users` đi qua JWT và permission guards.
+2. `GetUsersQueryDto` validate page, limit, search, sort field và sort order.
+3. `UserController` dựng `GetUsersQuery` rồi gọi `QueryBus`.
+4. `GetUsersQueryHandler` tính offset và gọi `UserRepository.findAll`.
+5. `PrismaUserRepository` dựng `Prisma.UserWhereInput` và typed order input.
+6. Repository chạy `findMany` và `count`.
+7. Prisma record được map về `UserEntity`.
+8. `UserPresenter` tạo response allowlist, không trả password hoặc tokenVersion.
+9. Pagination presenter bổ sung metadata.
+
+Read flow không được thay đổi domain state và không tạo domain event.
+
+## 7. Một write flow hoàn chỉnh
+
+Vô hiệu hóa user minh họa write path:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Admin
+    participant Controller as UserController
+    participant Handler as DeactivateUserHandler
+    participant User as UserEntity
+    participant Repo as PrismaUserRepository
+    participant DB as PostgreSQL
+
+    Admin->>Controller: PATCH /users/:id/deactivate
+    Controller->>Handler: DeactivateUserCommand
+    Handler->>Repo: findById(id)
+    Repo-->>Handler: UserEntity
+    Handler->>User: deactivate(adminId)
+    User->>User: isActive=false, tokenVersion++, add event
+    Handler->>Repo: save(user)
+    Repo->>DB: BEGIN
+    Repo->>DB: UPDATE User
+    Repo->>DB: INSERT OutboxEvent
+    Repo->>DB: COMMIT
+    Repo->>User: clearDomainEvents()
+    Handler-->>Controller: Result.ok()
 ```
 
-### `*.module.ts`
+Transaction boundary nằm trong repository vì repository biết cách persistence aggregate và outbox atomically. Domain không biết transaction; controller cũng không điều khiển transaction.
 
-Nên đọc đầu tiên để biết module đó được gắn vào app thế nào.
+## 8. Domain event và outbox delivery
 
-### `presentation/`
+Sau write transaction, `OutboxPublisherService` poll các event đủ điều kiện. Publisher claim event bằng optimistic update từ `PENDING` sang `PROCESSING`, tăng số lần thử và đặt `lockedAt`.
 
-Để hiểu endpoint, DTO, guard, decorator, output shape.
+`OutboxEventRouter` rehydrate event rồi route theo type:
 
-### `application/`
+- `UserRegisteredEvent`: enqueue welcome email và tạo notification.
+- `UserDeactivatedEvent`: revoke Redis sessions, enqueue email, tạo notification và force logout qua realtime.
+- `NotificationCreatedEvent`: push notification qua Socket.IO.
 
-Để hiểu use case chạy ra sao.
+Nếu delivery thành công, event chuyển sang `PUBLISHED`. Nếu thất bại, event trở lại `PENDING` với exponential backoff. Sau ngưỡng tối đa, event chuyển `FAILED` để operator xử lý như dead letter.
 
-### `domain/`
+Publisher phục hồi claim bị treo. Khi application shutdown, timer dừng và poll đang chạy được chờ hoàn tất trước khi Prisma pool đóng.
 
-Để hiểu luật nghiệp vụ thật.
+At-least-once delivery có nghĩa consumer có thể nhận lại event. Vì vậy:
 
-### `infrastructure/`
+- BullMQ dùng `eventId` làm `jobId`.
+- Notification do event tạo dùng deterministic id.
+- Side effect mới phải được thiết kế idempotent.
 
-Để hiểu adapter, mapper, repository, service, gateway.
+## 9. Shared kernel: đặt gì và không đặt gì?
+
+`shared/domain` chỉ chứa khái niệm domain thực sự dùng chung:
+
+- `AggregateRoot`: quản lý domain event trong vòng đời aggregate.
+- `DomainEvent`: cung cấp `eventId` và `occurredOn`.
+- `Result<T, E>`: biểu diễn success/failure của use case.
+- `DomainException`: base error có mã nghiệp vụ.
+
+`shared/application/ports` chứa abstraction kỹ thuật dùng cho orchestration ở nhiều context:
+
+- cache;
+- job queue;
+- realtime.
+
+Port kỹ thuật không nằm trong domain. Redis, BullMQ và Socket.IO càng không nằm trong `shared`.
+
+Trước khi đưa file vào shared, hãy hỏi: “Nếu bỏ context hiện tại đi, khái niệm này còn có ý nghĩa độc lập cho nhiều context khác không?” Nếu câu trả lời là không, file phải ở context sở hữu nó.
+
+## 10. Authentication và token revocation
+
+Access token chứa subject, email, permissions và `tokenVersion`. `JwtStrategy` không chỉ verify chữ ký; nó tải User hiện tại và từ chối request nếu user:
+
+- không tồn tại;
+- đã bị soft delete;
+- không active;
+- có token version khác payload.
+
+Các mutation làm thay đổi quyền truy cập như update role/profile, deactivate, activate, delete hoặc restore đều tăng `tokenVersion`. Do đó access token cũ mất hiệu lực ngay.
+
+Refresh token có JTI và phải có session tương ứng trong Redis. Session key có dạng `refresh_token:{userId}:{jti}`. Refresh thực hiện rotation; logout xóa một session; global logout xóa toàn bộ session của user bằng cursor-based `SCAN`.
 
 ## 11. Cross-cutting concerns
 
-### 11.1 Authentication
+### Validation và error mapping
 
-Auth không chỉ là login.
-Nó bao gồm:
+Global `ValidationPipe` bật whitelist, reject field lạ và transform DTO. Domain/application trả `Result` hoặc ném `DomainException`; `DomainExceptionFilter` map lỗi có ngữ nghĩa sang HTTP response.
 
-- JWT access token
-- refresh token
-- session store
-- strategy
-- guards
+### Audit
 
-### 11.2 Authorization
+Endpoint cần audit gắn `@AuditLog(action, detailsCallback)`. `AuditLogInterceptor` đọc metadata sau khi handler thành công, tạo audit entry rồi `await` `AuditWriter`. Interceptor phụ thuộc port, còn `PrismaAuditWriter` là adapter.
 
-Authorization dùng permission/role model.
+Không được ghi password, JWT, refresh token hoặc secret vào audit details.
 
-Các mảnh thường tham gia:
+### Cache
 
-- permission decorator
-- permissions guard
-- role repository
-- user-role mapping
+Read endpoint có thể dùng `CacheInterceptor`. Mutation dùng `CacheInvalidationInterceptor`, và invalidation chỉ chạy sau response thành công. Pattern deletion sử dụng Redis `SCAN` theo batch để không block server.
 
-### 11.3 Audit
+### Health và shutdown
 
-Audit là concern xuyên suốt.
-Nó được gắn global để ghi trace theo request.
+- `/health/live` xác nhận process còn sống.
+- `/health/ready` kiểm tra PostgreSQL và Redis.
+- Nest shutdown hooks đóng resource có trật tự.
 
-### 11.4 Cache
+Liveness không nên kiểm tra dependency ngoài vì dependency outage không có nghĩa process cần restart. Readiness phải phản ánh application có đủ khả năng nhận traffic hay không.
 
-Cache là một phần của data flow, không chỉ là tối ưu phụ.
+## 12. Composition root và dependency injection
 
-### 11.5 Queue
+Các port sử dụng `Symbol` làm DI token, chẳng hạn `USER_REPOSITORY`, `CACHE_PORT` và `AUDIT_WRITER`. Module chịu trách nhiệm bind token với implementation.
 
-Queue dùng cho work không cần trả lời ngay:
+Ví dụ:
 
-- notification fan-out
-- background processing
-- retryable tasks
+```text
+UserRepository port ──bound to──> PrismaUserRepository
+PasswordHasher port ──bound to──> BcryptPasswordHasher
+ISessionStore port  ──bound to──> RedisSessionStore
+AuditWriter port    ──bound to──> PrismaAuditWriter
+```
 
-### 11.6 Realtime
+Không inject concrete adapter vào handler nếu đã có port. Concrete class chỉ nên xuất hiện ở module wiring hoặc code infrastructure.
 
-Realtime là đường đẩy trạng thái ra client ngay khi cần.
+## 13. Quy tắc phụ thuộc bắt buộc
 
-## 12. Data flow theo concern
+### Domain được phép
 
-### 12.1 Write flow
+- TypeScript và domain code cùng context.
+- Shared domain primitives.
+- Contract thuần không mang framework/runtime.
 
-1. Controller nhận request.
-2. DTO validate input.
-3. Handler chạy command.
-4. Domain entity enforce rule.
-5. Repository ghi dữ liệu.
-6. Domain event được phát.
-7. Cache / queue / realtime / audit phản ứng.
-8. Response trả về client.
+### Domain không được phép
 
-### 12.2 Read flow
+- NestJS decorators/service.
+- Prisma types/client.
+- Redis, BullMQ, Socket.IO.
+- Controller DTO.
+- Adapter của context khác.
 
-1. Controller nhận request.
-2. Query handler xử lý.
-3. Repository đọc dữ liệu.
-4. Presenter format response.
-5. Response trả về client.
+### Application được phép
 
-### 12.3 Session flow
+- Domain của context.
+- Port do domain/application định nghĩa.
+- CQRS message/handler primitives.
 
-1. Login tạo access token và refresh token.
-2. Session info được lưu ở Redis.
-3. Refresh endpoint kiểm tra session.
-4. Logout/revoke xóa session.
+### Presentation và infrastructure
 
-### 12.4 Event flow
+Presentation được gọi application nhưng không gọi thẳng Prisma. Infrastructure được hiện thực port và phụ thuộc library kỹ thuật, nhưng không quyết định business rule.
 
-1. Aggregate root thu thập event.
-2. Dispatcher lấy event ra.
-3. Bridge/handler phản ứng theo concern riêng.
-4. Side effects được xử lý độc lập với core use case.
+`src/architecture/dependency-rules.spec.ts` là executable documentation bảo vệ các hướng phụ thuộc quan trọng.
 
-## 13. Cách hiểu phần `shared` sau refactor
+## 14. Cách thêm một use case mới
 
-Đây là điểm quan trọng nhất nếu bạn vừa refactor.
+Giả sử cần thêm “restore user”:
 
-`shared/` bây giờ nên được hiểu là:
+1. Xác định invariant và đặt state transition trong `UserEntity.restore()`.
+2. Xác định mutation có cần tăng tokenVersion hoặc phát event không.
+3. Tạo `RestoreUserCommand` diễn tả input của use case.
+4. Tạo handler: tải user, gọi entity, lưu qua `UserRepository`.
+5. Chỉ mở rộng repository port nếu use case thật sự cần capability mới.
+6. Tạo DTO runtime validation và endpoint.
+7. Gắn permission, audit và cache invalidation phù hợp.
+8. Viết unit test cho domain transition và handler.
+9. Viết E2E cho authentication, authorization, persistence và side effect quan trọng.
+10. Cập nhật README của Users nếu flow hoặc invariant thay đổi.
 
-- nền tảng domain dùng chung
-- không phải nơi chứa logic ứng dụng
-- không phải nơi chứa adapter kỹ thuật cụ thể
+Đối với query mới, không tạo state transition hoặc domain event. Query handler nên trả một contract rõ ràng, tránh `any`.
 
-### Nên để trong `shared`
+## 15. Anti-pattern cần tránh
 
-- base aggregate / result
-- domain event base
-- common ports
-- common exception base
-- model hoặc contract thật sự dùng xuyên nhiều context
+### Business logic trong controller
 
-### Không nên để trong `shared`
+Sai: controller tự đổi `isActive`, tự tăng token version và gọi Prisma.
 
-- business rule chỉ thuộc một context
-- repository implementation cụ thể
-- controller logic
-- các helper chỉ dùng cho một feature nhỏ
+Đúng: controller dispatch command; entity quyết định state transition; repository persistence.
 
-### Vì sao điều này quan trọng
+### Domain event chứa delivery instruction
 
-Nếu `shared` phình ra thành nơi chứa mọi thứ:
+Sai: event có `queueName`, `cachePattern` hoặc Socket.IO room.
 
-- dependency sẽ mờ đi
-- domain dễ bị trộn với infrastructure
-- tài liệu sẽ khó đọc
-- refactor sau này sẽ đau hơn
+Đúng: event chỉ mô tả fact nghiệp vụ; router infrastructure quyết định delivery.
 
-## 14. File đọc trước
+### Ghi aggregate rồi enqueue riêng lẻ
 
-Nếu mới vào codebase, nên đọc theo thứ tự:
+Sai: `await repository.save(); await queue.add();`.
 
-1. [main.ts](/D:/Workspaces/Repo/turborepo-advanced-starter/apps/server/src/main.ts)
-2. [app.module.ts](/D:/Workspaces/Repo/turborepo-advanced-starter/apps/server/src/app.module.ts)
-3. [shared/domain/base/aggregate-root.ts](/D:/Workspaces/Repo/turborepo-advanced-starter/apps/server/src/shared/domain/base/aggregate-root.ts)
-4. [shared/domain/base/result.ts](/D:/Workspaces/Repo/turborepo-advanced-starter/apps/server/src/shared/domain/base/result.ts)
-5. [shared/domain/events/domain-event.ts](/D:/Workspaces/Repo/turborepo-advanced-starter/apps/server/src/shared/domain/events/domain-event.ts)
-6. [infrastructure/event-bus/domain-event-dispatcher.ts](/D:/Workspaces/Repo/turborepo-advanced-starter/apps/server/src/infrastructure/event-bus/domain-event-dispatcher.ts)
-7. [presentation/filters/domain-exception.filter.ts](/D:/Workspaces/Repo/turborepo-advanced-starter/apps/server/src/presentation/filters/domain-exception.filter.ts)
-8. [IAM / Auth README](/D:/Workspaces/Repo/turborepo-advanced-starter/apps/server/src/contexts/iam/auth/README.md)
-9. [IAM / Users README](/D:/Workspaces/Repo/turborepo-advanced-starter/apps/server/src/contexts/iam/users/README.md)
-10. [IAM / Roles README](/D:/Workspaces/Repo/turborepo-advanced-starter/apps/server/src/contexts/iam/roles/README.md)
-11. [Audit README](/D:/Workspaces/Repo/turborepo-advanced-starter/apps/server/src/contexts/audit/README.md)
+Đúng: ghi aggregate + outbox atomically, delivery sau commit.
 
-## 15. Mental model
+### `shared` thành thư mục tiện ích
 
-Chỉ cần giữ mấy câu này trong đầu:
+Không đưa code vào shared chỉ vì hai file đang import nó. Shared phải có ý nghĩa kiến trúc ổn định và ownership rõ ràng.
 
-- `presentation` là cửa vào
-- `application` là nơi chạy use case
-- `domain` là nơi giữ luật
-- `infrastructure` là nơi gắn công nghệ
-- `shared` là nền tảng dùng chung, không phải bãi chứa logic
+### Promise fire-and-forget
 
-Nếu phải nhớ thêm một câu:
+Side effect quan trọng phải được await hoặc đưa vào queue/outbox có retry. `tap(async () => ...)` tạo promise không được observable theo dõi và không được dùng cho persistence quan trọng.
 
-> Một thay đổi nghiệp vụ nên bắt đầu từ domain/application, không phải từ database hay controller.
+## 16. Testing và quality gates
+
+Các lớp kiểm thử có mục đích khác nhau:
+
+- Domain unit test bảo vệ invariant và state transition.
+- Application/infrastructure unit test bảo vệ mapper, router, retry và error handling.
+- Architecture test bảo vệ dependency direction.
+- E2E test dùng PostgreSQL/Redis/BullMQ thật để kiểm tra flow xuyên lớp.
+
+Test database chỉ được reset nếu tên kết thúc bằng `_test`. Global setup dùng Prisma `db push --force-reset` và seed dữ liệu chuẩn.
+
+Quality gate:
+
+```bash
+pnpm --filter=server verify
+pnpm --filter=server test:e2e
+```
+
+`verify` chạy lint, build, typecheck và unit tests. E2E chạy riêng vì cần infrastructure local.
+
+## 17. Lộ trình đọc code cho thành viên mới
+
+Đọc theo một flow thay vì đọc alphabet:
+
+1. `src/main.ts` và `src/app.module.ts` để hiểu bootstrap/composition.
+2. `src/shared/domain/base/aggregate-root.ts`, `result.ts` và `events/domain-event.ts`.
+3. README Users, sau đó lần theo `UserController → Command → Handler → UserEntity → Repository`.
+4. `PrismaUserRepository.save()` để hiểu transaction + outbox.
+5. `OutboxPublisherService` và `OutboxEventRouter`.
+6. README Auth và hai JWT strategies.
+7. README Roles và `PermissionsGuard`.
+8. README Audit và global interceptors.
+9. E2E test để thấy các flow được chứng minh ở runtime.
+
+## 18. Checklist review kiến trúc
+
+Trước khi merge một thay đổi backend, reviewer nên trả lời được:
+
+- Context nào sở hữu nghiệp vụ này?
+- Business invariant nằm trong domain hay đang rò ra controller/repository?
+- Hướng dependency có đi từ ngoài vào trong?
+- Handler phụ thuộc port hay concrete adapter?
+- Mutation aggregate và event có được ghi atomically?
+- Side effect có retry/idempotency không?
+- Mutation có ảnh hưởng tokenVersion, audit hoặc cache không?
+- DTO có runtime validation và reject field lạ không?
+- Response có vô tình lộ password, token hoặc internal field không?
+- Có unit/E2E test đúng cấp độ không?
+- Tài liệu context đã phản ánh flow mới chưa?
+
+Nếu giữ đúng các nguyên tắc này, backend có thể tiếp tục là nền tảng cho nhiều dự án mà không biến thành một monolith khó kiểm soát.

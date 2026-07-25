@@ -3,75 +3,82 @@ import { PrismaService } from '@infrastructure/database/prisma.service';
 import { NotificationRepository } from '../../domain/ports/notification.repository';
 import { NotificationEntity } from '../../domain/notification.entity';
 import { NotificationMapper } from '../mappers/notification.mapper';
-import { DomainEventDispatcher } from '@infrastructure/event-bus/domain-event-dispatcher';
+import { serializeDomainEvent } from '@infrastructure/event-bus/outbox/outbox-event.mapper';
 
 @Injectable()
 export class PrismaNotificationRepository implements NotificationRepository {
-    constructor(
-        private readonly prisma: PrismaService,
-        private readonly domainEventDispatcher: DomainEventDispatcher,
-    ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-    async save(notification: NotificationEntity): Promise<void> {
-        const raw = NotificationMapper.toPersistence(notification);
+  async save(notification: NotificationEntity): Promise<void> {
+    const raw = NotificationMapper.toPersistence(notification);
+    const outboxEvents = notification
+      .getDomainEvents()
+      .map(serializeDomainEvent);
 
-        await this.prisma.notification.upsert({
-            where: { id: raw.id },
-            update: {
-                isRead: raw.isRead,
-            },
-            create: {
-                id: raw.id,
-                userId: raw.userId,
-                title: raw.title,
-                content: raw.content,
-                type: raw.type,
-                isRead: raw.isRead,
-                createdAt: raw.createdAt,
-            },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.notification.upsert({
+        where: { id: raw.id },
+        update: {
+          isRead: raw.isRead,
+        },
+        create: {
+          id: raw.id,
+          userId: raw.userId,
+          title: raw.title,
+          content: raw.content,
+          type: raw.type,
+          isRead: raw.isRead,
+          createdAt: raw.createdAt,
+        },
+      });
+
+      if (outboxEvents.length > 0) {
+        await tx.outboxEvent.createMany({
+          data: outboxEvents,
         });
+      }
+    });
 
-        // Dispatch domain events (NotificationCreatedEvent, etc.)
-        await this.domainEventDispatcher.dispatch(notification);
-    }
+    notification.clearDomainEvents();
+  }
 
-    async findById(id: string): Promise<NotificationEntity | null> {
-        const raw = await this.prisma.notification.findUnique({
-            where: { id },
-        });
+  async findById(id: string): Promise<NotificationEntity | null> {
+    const raw = await this.prisma.notification.findUnique({
+      where: { id },
+    });
 
-        return raw ? NotificationMapper.toDomain(raw) : null;
-    }
+    return raw ? NotificationMapper.toDomain(raw) : null;
+  }
 
-    async findByUserId(
-        userId: string,
-        options: { page: number; limit: number }
-    ): Promise<{ items: NotificationEntity[]; total: number }> {
-        const { page, limit } = options;
-        const skip = (page - 1) * limit;
+  async findByUserId(
+    userId: string,
+    options: { page: number; limit: number },
+  ): Promise<{ items: NotificationEntity[]; total: number }> {
+    const { page, limit } = options;
+    const skip = (page - 1) * limit;
 
-        const [raws, total] = await Promise.all([
-            this.prisma.notification.findMany({
-                where: { userId },
-                orderBy: { createdAt: 'desc' },
-                skip,
-                take: limit,
-            }),
-            this.prisma.notification.count({
-                where: { userId },
-            }),
-        ]);
+    const [raws, total] = await Promise.all([
+      this.prisma.notification.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.notification.count({
+        where: { userId },
+      }),
+    ]);
 
-        return {
-            items: raws.map((raw) => NotificationMapper.toDomain(raw)),
-            total,
-        };
-    }
+    return {
+      items: raws.map((raw) => NotificationMapper.toDomain(raw)),
+      total,
+    };
+  }
 
-    async markAllAsRead(userId: string): Promise<void> {
-        await this.prisma.notification.updateMany({
-            where: { userId, isRead: false },
-            data: { isRead: true },
-        });
-    }
+  async markAllAsRead(userId: string): Promise<void> {
+    await this.prisma.notification.updateMany({
+      where: { userId, isRead: false },
+      data: { isRead: true },
+    });
+  }
 }

@@ -14,6 +14,7 @@ model User {
   avatar    String?
   isActive Boolean @default(true)
   isDeleted Boolean @default(false)
+  tokenVersion Int @default(0) @map("token_version")
 
   userRoles UserRole[]
   notifications Notification[]
@@ -122,4 +123,22 @@ model Notification {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notifications")
+}
+
+model OutboxEvent {
+  id            String    @id @default(uuid())
+  type          String
+  aggregateId   String?   @map("aggregate_id")
+  payload       Json
+  occurredAt    DateTime  @map("occurred_at")
+  status        String    @default("PENDING")
+  attempts      Int       @default(0)
+  availableAt   DateTime  @default(now()) @map("available_at")
+  lockedAt      DateTime? @map("locked_at")
+  processedAt   DateTime? @map("processed_at")
+  lastError     String?   @map("last_error")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@index([status, availableAt])
+  @@map("outbox_events")
 }

@@ -4,26 +4,34 @@ import { DeactivateUserCommand } from '../deactivate-user.command';
 import { UserNotFoundException } from '@iam/users/domain/exceptions/user-not-found.exception';
 import { Result } from '@shared/domain/result';
 import { DomainException } from '@shared/domain/exceptions/domain.exception';
-import type { UserRepository } from '@iam/users/domain/ports/user.repository';
+import {
+  USER_REPOSITORY,
+  type UserRepository,
+} from '@iam/users/domain/ports/user.repository';
 
 @CommandHandler(DeactivateUserCommand)
-export class DeactivateUserCommandHandler implements ICommandHandler<DeactivateUserCommand, Result<void, DomainException>> {
-    constructor(
-        @Inject('UserRepository')
-        private readonly userRepository: UserRepository,
-    ) { }
+export class DeactivateUserCommandHandler implements ICommandHandler<
+  DeactivateUserCommand,
+  Result<void, DomainException>
+> {
+  constructor(
+    @Inject(USER_REPOSITORY)
+    private readonly userRepository: UserRepository,
+  ) {}
 
-    async execute(command: DeactivateUserCommand): Promise<Result<void, DomainException>> {
-        const { id, adminId } = command;
+  async execute(
+    command: DeactivateUserCommand,
+  ): Promise<Result<void, DomainException>> {
+    const { id, adminId } = command;
 
-        const user = await this.userRepository.findById(id);
-        if (!user) {
-            return Result.fail(new UserNotFoundException(id));
-        }
-
-        user.deactivate(adminId);
-        await this.userRepository.save(user);
-
-        return Result.ok(undefined);
+    const user = await this.userRepository.findById(id);
+    if (!user) {
+      return Result.fail(new UserNotFoundException(id));
     }
+
+    user.deactivate(adminId);
+    await this.userRepository.save(user);
+
+    return Result.ok(undefined);
+  }
 }

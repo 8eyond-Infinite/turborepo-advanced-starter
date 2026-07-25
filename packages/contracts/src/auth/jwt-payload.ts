@@ -4,5 +4,6 @@ export interface JwtPayload {
     sub: string;
     email: string;
     permissions: Permission[];
+    tokenVersion: number;
     jti?: string;
 }

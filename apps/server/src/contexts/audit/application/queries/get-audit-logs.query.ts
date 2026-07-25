@@ -2,7 +2,5 @@ import type { PaginationQueryDto } from '@presentation/common/dto/pagination-que
 import { IQuery } from '@nestjs/cqrs';
 
 export class GetAuditLogsQuery implements IQuery {
-    constructor(
-        public readonly paginationQuery: PaginationQueryDto,
-    ) {}
+  constructor(public readonly paginationQuery: PaginationQueryDto) {}
 }

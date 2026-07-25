@@ -1,302 +1,430 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { HttpStatus, INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
-import { DomainExceptionFilter } from '../src/shared/infrastructure/filters/domain-exception.filter';
-import { RedisService } from '../src/shared/infrastructure/cache/redis.service';
-import { PrismaService } from '../src/shared/infrastructure/prisma/prisma.service';
+import { DomainExceptionFilter } from '../src/presentation/filters/domain-exception.filter';
+import { RedisService } from '../src/infrastructure/cache/redis.service';
+import { PrismaService } from '../src/infrastructure/database/prisma.service';
 import { getQueueToken } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { USER_QUEUE } from '../src/contexts/iam/users/application/queues/user-queue.constants';
 
 describe('AuthController (E2E)', () => {
-    let app: INestApplication;
-    const testEmail = `e2e.${Date.now()}@example.com`;
-    const testPassword = 'supersecretpassword';
+  let app: INestApplication;
+  const testEmail = `e2e.${Date.now()}@example.com`;
+  const testUsername = `e2e_${Date.now()}`;
+  const testPassword = 'supersecretpassword';
 
-    beforeAll(async () => {
-        const moduleFixture: TestingModule = await Test.createTestingModule({
-            imports: [AppModule],
-        }).compile();
+  const waitForUnauthorizedRefresh = async (refreshToken: string) => {
+    const deadline = Date.now() + 2_000;
 
-        app = moduleFixture.createNestApplication();
-        app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
-        app.useGlobalFilters(new DomainExceptionFilter());
-        await app.init();
+    while (Date.now() < deadline) {
+      const response = await request(app.getHttpServer())
+        .post('/auth/refresh')
+        .set('Authorization', `Bearer ${refreshToken}`);
+
+      if (response.status === HttpStatus.UNAUTHORIZED) {
+        return;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+
+    throw new Error('Refresh token was not revoked within 2 seconds');
+  };
+
+  const waitForQueueJob = async (
+    queue: Queue,
+    predicate: (job: { name: string; data: unknown }) => boolean,
+  ) => {
+    const deadline = Date.now() + 2_000;
+
+    while (Date.now() < deadline) {
+      const jobs = await queue.getJobs([
+        'waiting',
+        'active',
+        'completed',
+        'failed',
+        'delayed',
+      ]);
+      const job = jobs.find(predicate);
+      if (job) return job;
+
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+
+    throw new Error('Expected queue job was not published within 2 seconds');
+  };
+
+  beforeAll(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+
+    app = moduleFixture.createNestApplication();
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, transform: true }),
+    );
+    app.useGlobalFilters(new DomainExceptionFilter());
+    await app.init();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it('/health/live and /health/ready expose deployment probes', async () => {
+    await request(app.getHttpServer())
+      .get('/health/live')
+      .expect(HttpStatus.OK)
+      .expect(({ body }) => {
+        expect(body.status).toBe('ok');
+      });
+
+    await request(app.getHttpServer())
+      .get('/health/ready')
+      .expect(HttpStatus.OK)
+      .expect(({ body }) => {
+        expect(body.checks).toEqual({
+          database: 'up',
+          redis: 'up',
+        });
+      });
+  });
+
+  it('propagates or creates an HTTP correlation id', async () => {
+    const suppliedId = `e2e-${Date.now()}`;
+    const propagated = await request(app.getHttpServer())
+      .get('/health/live')
+      .set('x-correlation-id', suppliedId)
+      .expect(HttpStatus.OK);
+    expect(propagated.headers['x-correlation-id']).toBe(suppliedId);
+
+    const generated = await request(app.getHttpServer())
+      .get('/health/live')
+      .expect(HttpStatus.OK);
+    expect(generated.headers['x-correlation-id']).toEqual(expect.any(String));
+  });
+
+  it('/auth/register (POST) -> Nên đăng ký thành công', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/auth/register')
+      .send({
+        email: testEmail,
+        username: testUsername,
+        password: testPassword,
+      })
+      .expect(201);
+
+    expect(response.body.email).toEqual(testEmail);
+
+    // Verify that the welcome email job was added to BullMQ
+    const userQueue = app.get<Queue>(getQueueToken(USER_QUEUE));
+    const welcomeJob = await waitForQueueJob(
+      userQueue,
+      (job) =>
+        job.name === 'send-welcome-email' &&
+        typeof job.data === 'object' &&
+        job.data !== null &&
+        'email' in job.data &&
+        job.data.email === testEmail,
+    );
+    expect(welcomeJob.name).toEqual('send-welcome-email');
+
+    const prisma = app.get(PrismaService);
+    const outboxEvent = await prisma.outboxEvent.findFirst({
+      where: {
+        aggregateId: response.body.id,
+        type: 'iam.user.registered.v1',
+      },
     });
+    expect(outboxEvent?.status).toBe('PUBLISHED');
+  });
 
-    afterAll(async () => {
-        await app.close();
+  it('/auth/register (POST) -> rejects an invalid runtime payload', async () => {
+    await request(app.getHttpServer())
+      .post('/auth/register')
+      .send({
+        email: 'not-an-email',
+        username: 'ab',
+        password: '123',
+        unexpected: true,
+      })
+      .expect(HttpStatus.BAD_REQUEST);
+  });
+
+  it('/auth/login (POST) -> Nên trả về Access & Refresh Token', async () => {
+    return request(app.getHttpServer())
+      .post('/auth/login')
+      .send({
+        email: testEmail,
+        password: testPassword,
+      })
+      .expect(200)
+      .expect((res) => {
+        expect(res.body).toHaveProperty('accessToken');
+        expect(res.body).toHaveProperty('refreshToken');
+      });
+  });
+
+  it('/auth/refresh (POST) -> Nên làm mới token thành công', async () => {
+    const loginRes = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({
+        email: testEmail,
+        password: testPassword,
+      })
+      .expect(200);
+
+    const { refreshToken } = loginRes.body;
+
+    return request(app.getHttpServer())
+      .post('/auth/refresh')
+      .set('Authorization', `Bearer ${refreshToken}`)
+      .expect(200)
+      .expect((res) => {
+        expect(res.body).toHaveProperty('accessToken');
+        expect(res.body).toHaveProperty('refreshToken');
+      });
+  });
+
+  it('/users/me (GET) -> Nên lấy được thông tin cá nhân của người dùng đăng nhập', async () => {
+    const loginRes = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({
+        email: testEmail,
+        password: testPassword,
+      })
+      .expect(200);
+
+    const { accessToken } = loginRes.body;
+
+    const response = await request(app.getHttpServer())
+      .get('/users/me')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+
+    expect(response.body).toHaveProperty('id');
+    expect(response.body.email).toEqual(testEmail);
+    expect(response.body).not.toHaveProperty('password');
+
+    // Verify that the response is cached in Redis
+    const redisService = app.get(RedisService);
+    const cacheKey = `users:me:${response.body.id}`;
+    const cachedData = await redisService.get<any>(cacheKey);
+    expect(cachedData).toBeDefined();
+    expect(cachedData).toHaveProperty('email', testEmail);
+  });
+
+  it('/users (GET) -> Nên lấy được danh sách user vì mặc định có quyền user:read', async () => {
+    const loginRes = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({
+        email: testEmail,
+        password: testPassword,
+      })
+      .expect(200);
+
+    const { accessToken } = loginRes.body;
+
+    const response = await request(app.getHttpServer())
+      .get('/users')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+
+    expect(Array.isArray(response.body.data)).toBe(true);
+    expect(response.body.data.length).toBeGreaterThan(0);
+    expect(response.body.data[0]).not.toHaveProperty('password');
+    expect(response.body.meta).toEqual(
+      expect.objectContaining({
+        totalItems: expect.any(Number),
+        currentPage: 1,
+      }),
+    );
+
+    await request(app.getHttpServer())
+      .get('/users?sortBy=password')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(HttpStatus.BAD_REQUEST);
+  });
+
+  it('/auth/refresh (POST) -> Đăng ký rotation: Token cũ phải không dùng lại được', async () => {
+    const loginRes = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({
+        email: testEmail,
+        password: testPassword,
+      })
+      .expect(200);
+
+    const { refreshToken: token1 } = loginRes.body;
+
+    // Lần 1: Refresh thành công
+    const refreshRes1 = await request(app.getHttpServer())
+      .post('/auth/refresh')
+      .set('Authorization', `Bearer ${token1}`)
+      .expect(200);
+
+    const { refreshToken: token2 } = refreshRes1.body;
+    expect(token2).toBeDefined();
+
+    // Lần 2: Dùng lại token1 (cũ) phải bị lỗi 401
+    await request(app.getHttpServer())
+      .post('/auth/refresh')
+      .set('Authorization', `Bearer ${token1}`)
+      .expect(401);
+  });
+
+  it('/auth/logout (POST) -> Đăng xuất đơn lẻ thành công', async () => {
+    const loginRes = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({
+        email: testEmail,
+        password: testPassword,
+      })
+      .expect(200);
+
+    const { refreshToken } = loginRes.body;
+
+    // Gọi logout với refresh token
+    await request(app.getHttpServer())
+      .post('/auth/logout')
+      .set('Authorization', `Bearer ${refreshToken}`)
+      .expect(200);
+
+    // Thử refresh lại phải bị lỗi 401
+    await request(app.getHttpServer())
+      .post('/auth/refresh')
+      .set('Authorization', `Bearer ${refreshToken}`)
+      .expect(401);
+  });
+
+  it('/auth/logout/global (POST) -> Đăng xuất tất cả thiết bị thành công', async () => {
+    // Tạo Session 1
+    const loginRes1 = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({
+        email: testEmail,
+        password: testPassword,
+      })
+      .expect(200);
+
+    // Tạo Session 2
+    const loginRes2 = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({
+        email: testEmail,
+        password: testPassword,
+      })
+      .expect(200);
+
+    const { accessToken: access1, refreshToken: refresh1 } = loginRes1.body;
+    const { refreshToken: refresh2 } = loginRes2.body;
+
+    // Gọi global logout sử dụng accessToken của Session 1
+    await request(app.getHttpServer())
+      .post('/auth/logout/global')
+      .set('Authorization', `Bearer ${access1}`)
+      .expect(200);
+
+    const prisma = app.get(PrismaService);
+    const auditLog = await prisma.auditLog.findFirst({
+      where: {
+        action: 'SESSION_REVOKE_ALL',
+        userEmail: testEmail,
+      },
+      orderBy: { createdAt: 'desc' },
     });
+    expect(auditLog).not.toBeNull();
 
-    it('/auth/register (POST) -> Nên đăng ký thành công', async () => {
-        const response = await request(app.getHttpServer())
-            .post('/auth/register')
-            .send({
-                email: testEmail,
-                password: testPassword,
-            })
-            .expect(201);
+    // Thử refresh cả 2 session đều phải lỗi 401
+    await waitForUnauthorizedRefresh(refresh1);
+    await waitForUnauthorizedRefresh(refresh2);
+  });
 
-        expect(response.body.email).toEqual(testEmail);
+  it('/users/:id/deactivate (PATCH) -> Nên hủy kích hoạt user, xóa cache users:all, users:me và buộc đăng xuất', async () => {
+    // 1. Tạo User B
+    const userBEmail = `user.b.${Date.now()}@example.com`;
+    const userBPassword = 'userbpassword';
+    await request(app.getHttpServer())
+      .post('/auth/register')
+      .send({
+        email: userBEmail,
+        username: `user_b_${Date.now()}`,
+        password: userBPassword,
+      })
+      .expect(201);
 
-        // Verify that the welcome email job was added to BullMQ
-        const userQueue = app.get<Queue>(getQueueToken(USER_QUEUE));
-        const jobs = await userQueue.getJobs(['waiting', 'active', 'completed', 'failed']);
-        const welcomeJob = jobs.find((job) => job.data.email === testEmail);
-        expect(welcomeJob).toBeDefined();
-        expect(welcomeJob?.name).toEqual('send-welcome-email');
+    // Login User B to get their tokens
+    const loginResB = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: userBEmail, password: userBPassword })
+      .expect(200);
+
+    const { accessToken: accessB, refreshToken: refreshB } = loginResB.body;
+
+    // Fetch user:me for User B (populates cache)
+    const meResB = await request(app.getHttpServer())
+      .get('/users/me')
+      .set('Authorization', `Bearer ${accessB}`)
+      .expect(200);
+
+    const userBId = meResB.body.id;
+
+    // 2. Cấp quyền ADMIN cho testEmail (Admin)
+    const prisma = app.get(PrismaService);
+    const adminRole = await prisma.role.findFirst({ where: { name: 'ADMIN' } });
+    const adminUser = await prisma.user.findFirst({
+      where: { email: testEmail },
     });
+    if (adminRole && adminUser) {
+      await prisma.userRole.create({
+        data: {
+          userId: adminUser.id,
+          roleId: adminRole.id,
+        },
+      });
+    }
 
-    it('/auth/login (POST) -> Nên trả về Access & Refresh Token', async () => {
-        return request(app.getHttpServer())
-            .post('/auth/login')
-            .send({
-                email: testEmail,
-                password: testPassword,
-            })
-            .expect(200)
-            .expect((res) => {
-                expect(res.body).toHaveProperty('accessToken');
-                expect(res.body).toHaveProperty('refreshToken');
-            });
-    });
+    // Login Admin to get token (now as Admin)
+    const loginResAdmin = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: testEmail, password: testPassword })
+      .expect(200);
 
-    it('/auth/refresh (POST) -> Nên làm mới token thành công', async () => {
-        const loginRes = await request(app.getHttpServer())
-            .post('/auth/login')
-            .send({
-                email: testEmail,
-                password: testPassword,
-            })
-            .expect(200);
+    const { accessToken: accessAdmin } = loginResAdmin.body;
 
-        const { refreshToken } = loginRes.body;
+    // Fetch users list (populates users:all cache)
+    await request(app.getHttpServer())
+      .get('/users')
+      .set('Authorization', `Bearer ${accessAdmin}`)
+      .expect(200);
 
-        return request(app.getHttpServer())
-            .post('/auth/refresh')
-            .set('Authorization', `Bearer ${refreshToken}`)
-            .expect(200)
-            .expect((res) => {
-                expect(res.body).toHaveProperty('accessToken');
-                expect(res.body).toHaveProperty('refreshToken');
-            });
-    });
+    // Verify caches exist in Redis
+    const redisService = app.get(RedisService);
+    const cacheMeKey = `users:me:${userBId}`;
+    const cacheAllKey = `users:all`;
 
-    it('/users/me (GET) -> Nên lấy được thông tin cá nhân của người dùng đăng nhập', async () => {
-        const loginRes = await request(app.getHttpServer())
-            .post('/auth/login')
-            .send({
-                email: testEmail,
-                password: testPassword,
-            })
-            .expect(200);
+    expect(await redisService.get(cacheMeKey)).toBeDefined();
+    expect(await redisService.get(cacheAllKey)).toBeDefined();
 
-        const { accessToken } = loginRes.body;
+    // 3. Admin hủy kích hoạt User B
+    await request(app.getHttpServer())
+      .patch(`/users/${userBId}/deactivate`)
+      .set('Authorization', `Bearer ${accessAdmin}`)
+      .expect(200);
 
-        const response = await request(app.getHttpServer())
-            .get('/users/me')
-            .set('Authorization', `Bearer ${accessToken}`)
-            .expect(200);
+    // 4. Kiểm tra caches và refresh token trong Redis phải bị xóa sạch (evicted)
+    expect(await redisService.get(cacheMeKey)).toBeNull();
+    expect(await redisService.get(cacheAllKey)).toBeNull();
 
-        expect(response.body).toHaveProperty('id');
-        expect(response.body.email).toEqual(testEmail);
-        expect(response.body).not.toHaveProperty('password');
+    // Access tokens issued before deactivation are revoked immediately.
+    await request(app.getHttpServer())
+      .get('/users/me')
+      .set('Authorization', `Bearer ${accessB}`)
+      .expect(HttpStatus.UNAUTHORIZED);
 
-        // Verify that the response is cached in Redis
-        const redisService = app.get(RedisService);
-        const cacheKey = `users:me:${response.body.id}`;
-        const cachedData = await redisService.get<any>(cacheKey);
-        expect(cachedData).toBeDefined();
-        expect(cachedData).toHaveProperty('email', testEmail);
-    });
-
-    it('/users (GET) -> Nên lấy được danh sách user vì mặc định có quyền user:read', async () => {
-        const loginRes = await request(app.getHttpServer())
-            .post('/auth/login')
-            .send({
-                email: testEmail,
-                password: testPassword,
-            })
-            .expect(200);
-
-        const { accessToken } = loginRes.body;
-
-        const response = await request(app.getHttpServer())
-            .get('/users')
-            .set('Authorization', `Bearer ${accessToken}`)
-            .expect(200);
-
-        expect(Array.isArray(response.body)).toBe(true);
-        expect(response.body.length).toBeGreaterThan(0);
-        expect(response.body[0]).not.toHaveProperty('password');
-    });
-
-    it('/auth/refresh (POST) -> Đăng ký rotation: Token cũ phải không dùng lại được', async () => {
-        const loginRes = await request(app.getHttpServer())
-            .post('/auth/login')
-            .send({
-                email: testEmail,
-                password: testPassword,
-            })
-            .expect(200);
-
-        const { refreshToken: token1 } = loginRes.body;
-
-        // Lần 1: Refresh thành công
-        const refreshRes1 = await request(app.getHttpServer())
-            .post('/auth/refresh')
-            .set('Authorization', `Bearer ${token1}`)
-            .expect(200);
-
-        const { refreshToken: token2 } = refreshRes1.body;
-        expect(token2).toBeDefined();
-
-        // Lần 2: Dùng lại token1 (cũ) phải bị lỗi 401
-        await request(app.getHttpServer())
-            .post('/auth/refresh')
-            .set('Authorization', `Bearer ${token1}`)
-            .expect(401);
-    });
-
-    it('/auth/logout (POST) -> Đăng xuất đơn lẻ thành công', async () => {
-        const loginRes = await request(app.getHttpServer())
-            .post('/auth/login')
-            .send({
-                email: testEmail,
-                password: testPassword,
-            })
-            .expect(200);
-
-        const { refreshToken } = loginRes.body;
-
-        // Gọi logout với refresh token
-        await request(app.getHttpServer())
-            .post('/auth/logout')
-            .set('Authorization', `Bearer ${refreshToken}`)
-            .expect(200);
-
-        // Thử refresh lại phải bị lỗi 401
-        await request(app.getHttpServer())
-            .post('/auth/refresh')
-            .set('Authorization', `Bearer ${refreshToken}`)
-            .expect(401);
-    });
-
-    it('/auth/logout/global (POST) -> Đăng xuất tất cả thiết bị thành công', async () => {
-        // Tạo Session 1
-        const loginRes1 = await request(app.getHttpServer())
-            .post('/auth/login')
-            .send({
-                email: testEmail,
-                password: testPassword,
-            })
-            .expect(200);
-
-        // Tạo Session 2
-        const loginRes2 = await request(app.getHttpServer())
-            .post('/auth/login')
-            .send({
-                email: testEmail,
-                password: testPassword,
-            })
-            .expect(200);
-
-        const { accessToken: access1, refreshToken: refresh1 } = loginRes1.body;
-        const { refreshToken: refresh2 } = loginRes2.body;
-
-        // Gọi global logout sử dụng accessToken của Session 1
-        await request(app.getHttpServer())
-            .post('/auth/logout/global')
-            .set('Authorization', `Bearer ${access1}`)
-            .expect(200);
-
-        // Thử refresh cả 2 session đều phải lỗi 401
-        await request(app.getHttpServer())
-            .post('/auth/refresh')
-            .set('Authorization', `Bearer ${refresh1}`)
-            .expect(401);
-
-        await request(app.getHttpServer())
-            .post('/auth/refresh')
-            .set('Authorization', `Bearer ${refresh2}`)
-            .expect(401);
-    });
-
-    it('/users/:id/deactivate (PATCH) -> Nên hủy kích hoạt user, xóa cache users:all, users:me và buộc đăng xuất', async () => {
-        // 1. Tạo User B
-        const userBEmail = `user.b.${Date.now()}@example.com`;
-        const userBPassword = 'userbpassword';
-        await request(app.getHttpServer())
-            .post('/auth/register')
-            .send({ email: userBEmail, password: userBPassword })
-            .expect(201);
-
-        // Login User B to get their tokens
-        const loginResB = await request(app.getHttpServer())
-            .post('/auth/login')
-            .send({ email: userBEmail, password: userBPassword })
-            .expect(200);
-
-        const { accessToken: accessB, refreshToken: refreshB } = loginResB.body;
-
-        // Fetch user:me for User B (populates cache)
-        const meResB = await request(app.getHttpServer())
-            .get('/users/me')
-            .set('Authorization', `Bearer ${accessB}`)
-            .expect(200);
-
-        const userBId = meResB.body.id;
-
-        // 2. Cấp quyền ADMIN cho testEmail (Admin)
-        const prisma = app.get(PrismaService);
-        const adminRole = await prisma.role.findFirst({ where: { name: 'ADMIN' } });
-        const adminUser = await prisma.user.findFirst({ where: { email: testEmail } });
-        if (adminRole && adminUser) {
-            await prisma.userRole.create({
-                data: {
-                    userId: adminUser.id,
-                    roleId: adminRole.id,
-                }
-            });
-        }
-
-        // Login Admin to get token (now as Admin)
-        const loginResAdmin = await request(app.getHttpServer())
-            .post('/auth/login')
-            .send({ email: testEmail, password: testPassword })
-            .expect(200);
-
-        const { accessToken: accessAdmin } = loginResAdmin.body;
-
-        // Fetch users list (populates users:all cache)
-        await request(app.getHttpServer())
-            .get('/users')
-            .set('Authorization', `Bearer ${accessAdmin}`)
-            .expect(200);
-
-        // Verify caches exist in Redis
-        const redisService = app.get(RedisService);
-        const cacheMeKey = `users:me:${userBId}`;
-        const cacheAllKey = `users:all`;
-
-        expect(await redisService.get(cacheMeKey)).toBeDefined();
-        expect(await redisService.get(cacheAllKey)).toBeDefined();
-
-        // 3. Admin hủy kích hoạt User B
-        await request(app.getHttpServer())
-            .patch(`/users/${userBId}/deactivate`)
-            .set('Authorization', `Bearer ${accessAdmin}`)
-            .expect(200);
-
-        // 4. Kiểm tra caches và refresh token trong Redis phải bị xóa sạch (evicted)
-        expect(await redisService.get(cacheMeKey)).toBeNull();
-        expect(await redisService.get(cacheAllKey)).toBeNull();
-
-        // Thử refresh token của User B phải bị lỗi 401
-        await request(app.getHttpServer())
-            .post('/auth/refresh')
-            .set('Authorization', `Bearer ${refreshB}`)
-            .expect(401);
-    });
+    // Thử refresh token của User B phải bị lỗi 401
+    await waitForUnauthorizedRefresh(refreshB);
+  });
 });

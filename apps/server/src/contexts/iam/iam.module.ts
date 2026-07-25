@@ -4,11 +4,7 @@ import { UsersModule } from './users/users.module';
 import { RolesModule } from './roles/roles.module';
 
 @Module({
-    imports: [
-        AuthModule,
-        UsersModule,
-        RolesModule,
-    ],
-    exports: [AuthModule, UsersModule, RolesModule],
+  imports: [AuthModule, UsersModule, RolesModule],
+  exports: [AuthModule, UsersModule, RolesModule],
 })
-export class IamModule { }
+export class IamModule {}

@@ -1,3 +1,6 @@
+import { randomUUID } from 'node:crypto';
+
 export abstract class DomainEvent {
-    public readonly occurredOn = new Date();
+  public readonly eventId = randomUUID();
+  public readonly occurredOn = new Date();
 }

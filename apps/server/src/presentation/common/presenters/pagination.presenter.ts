@@ -1,18 +1,23 @@
 import type { PaginatedResult } from '@repo/types';
 
-export class PaginatedResponsePresenter<T> {
-    static toResponse<T>(data: T[], totalItems: number, page: number, limit: number): PaginatedResult<T> {
-        const totalPages = Math.ceil(totalItems / limit);
-        
-        return {
-            data,
-            meta: {
-                totalItems,
-                itemCount: data.length,
-                itemsPerPage: limit,
-                totalPages,
-                currentPage: page,
-            },
-        };
-    }
+export class PaginatedResponsePresenter {
+  static toResponse<T>(
+    data: T[],
+    totalItems: number,
+    page: number,
+    limit: number,
+  ): PaginatedResult<T> {
+    const totalPages = Math.ceil(totalItems / limit);
+
+    return {
+      data,
+      meta: {
+        totalItems,
+        itemCount: data.length,
+        itemsPerPage: limit,
+        totalPages,
+        currentPage: page,
+      },
+    };
+  }
 }

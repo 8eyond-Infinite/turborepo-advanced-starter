@@ -14,7 +14,7 @@ export const NotificationBell: React.FC = () => {
     const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
 
     const getIcon = (type: string) => {
-        const iconClass = "w-4 h-4 mr-2";
+        const iconClass = "w-4 h-4 mr-2 shrink-0";
         switch (type.toUpperCase()) {
             case 'SUCCESS':
                 return <CheckCircle className={`${iconClass} text-green-500`} />;
@@ -42,12 +42,12 @@ export const NotificationBell: React.FC = () => {
                 <Button
                     variant="ghost"
                     size="icon"
-                    className="relative text-muted-foreground hover:text-foreground rounded-full hover:bg-white/5 cursor-pointer"
+                    className="relative rounded-full cursor-pointer"
                     title="Thông báo"
                 >
                     <Bell className="w-5 h-5" />
                     {unreadCount > 0 && (
-                        <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-red-500 text-[10px] font-bold text-white flex items-center justify-center rounded-full animate-pulse">
+                        <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-destructive text-[10px] font-bold text-destructive-foreground flex items-center justify-center rounded-full animate-pulse">
                             {unreadCount > 9 ? '9+' : unreadCount}
                         </span>
                     )}
@@ -57,17 +57,17 @@ export const NotificationBell: React.FC = () => {
             <PopoverContent
                 align="end"
                 sideOffset={8}
-                className="w-80 p-0 max-h-[480px] bg-zinc-950/90 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden flex flex-col"
+                className="w-80 p-0 max-h-[480px] bg-popover text-popover-foreground border-border rounded-xl shadow-xl overflow-hidden flex flex-col"
             >
                 {/* Header */}
-                <div className="p-4 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+                <div className="p-4 border-b border-border flex items-center justify-between bg-muted/30">
                     <h4 className="font-bold text-sm text-foreground">Thông báo</h4>
                     {unreadCount > 0 && (
                         <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => markAllAsRead()}
-                            className="h-auto p-0 text-xs text-blue-500 hover:text-blue-400 hover:bg-transparent flex items-center gap-1 font-semibold transition-colors duration-200 cursor-pointer"
+                            className="h-auto p-0 text-xs text-primary hover:text-primary/80 hover:bg-transparent flex items-center gap-1 font-semibold transition-colors duration-200 cursor-pointer"
                         >
                             <CheckCheck className="w-3.5 h-3.5" />
                             Đọc tất cả
@@ -76,7 +76,7 @@ export const NotificationBell: React.FC = () => {
                 </div>
 
                 {/* Notification List */}
-                <div className="overflow-y-auto flex-1 divide-y divide-white/5 max-h-[360px] custom-scrollbar">
+                <div className="overflow-y-auto flex-1 divide-y divide-border max-h-[360px] custom-scrollbar">
                     {notifications.length === 0 ? (
                         <div className="p-8 text-center text-sm text-muted-foreground">
                             Không có thông báo nào.
@@ -87,8 +87,8 @@ export const NotificationBell: React.FC = () => {
                                 key={n.id}
                                 onClick={() => !n.isRead && markAsRead(n.id)}
                                 className={`p-4 text-left transition-all duration-200 cursor-pointer ${n.isRead
-                                        ? 'opacity-65 hover:bg-white/[0.01]'
-                                        : 'bg-white/[0.03] hover:bg-white/[0.05]'
+                                        ? 'opacity-60 hover:bg-accent/50'
+                                        : 'bg-accent/20 hover:bg-accent'
                                     }`}
                             >
                                 <div className="flex items-start justify-between">
@@ -99,16 +99,16 @@ export const NotificationBell: React.FC = () => {
                                         </h5>
                                     </div>
                                     {!n.isRead && (
-                                        <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
+                                        <span className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
                                     )}
                                 </div>
                                 <p className="mt-1 text-xs text-muted-foreground line-clamp-3 leading-relaxed pl-6">
                                     {n.content}
                                 </p>
-                                <div className="mt-2 text-[10px] text-zinc-500 flex items-center justify-between pl-6">
+                                <div className="mt-2 text-[10px] text-muted-foreground flex items-center justify-between pl-6">
                                     <span>{formatTime(n.createdAt)}</span>
                                     {!n.isRead && (
-                                        <span className="text-[9px] text-blue-400 flex items-center gap-0.5 hover:underline">
+                                        <span className="text-[9px] text-primary flex items-center gap-0.5 hover:underline">
                                             <Check className="w-2.5 h-2.5" />
                                             Đánh dấu đọc
                                         </span>

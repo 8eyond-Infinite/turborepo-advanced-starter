@@ -5,35 +5,47 @@ import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import { USER_QUEUE, USER_JOBS } from './user-queue.constants';
 
+interface UserQueueJobData {
+  email: string;
+}
+
+interface UserQueueJobResult {
+  sent: true;
+  email: string;
+}
+
 @Processor(USER_QUEUE)
 export class UserQueueProcessor extends WorkerHost {
-    private readonly logger = new Logger(UserQueueProcessor.name);
-    private readonly transporter: nodemailer.Transporter;
+  private readonly logger = new Logger(UserQueueProcessor.name);
+  private readonly transporter: nodemailer.Transporter;
 
-    constructor(
-        private readonly configService: ConfigService,
-    ) {
-        super();
-        this.transporter = nodemailer.createTransport({
-            host: this.configService.get<string>('MAIL_HOST', 'localhost'),
-            port: Number(this.configService.get<number>('MAIL_PORT', 1025)),
-            secure: false,
-            tls: {
-                rejectUnauthorized: false,
-            },
-        });
-    }
+  constructor(private readonly configService: ConfigService) {
+    super();
+    this.transporter = nodemailer.createTransport({
+      host: this.configService.get<string>('MAIL_HOST', 'localhost'),
+      port: Number(this.configService.get<number>('MAIL_PORT', 1025)),
+      secure: false,
+      tls: {
+        rejectUnauthorized: false,
+      },
+    });
+  }
 
-    async process(job: Job<any, any, string>): Promise<any> {
-        this.logger.log(`Processing job ${job.id} of type ${job.name}...`);
-        const fromEmail = this.configService.get<string>('MAIL_FROM', 'no-reply@turbostarter.dev');
+  async process(
+    job: Job<UserQueueJobData, UserQueueJobResult, string>,
+  ): Promise<UserQueueJobResult> {
+    this.logger.log(`Processing job ${job.id} of type ${job.name}...`);
+    const fromEmail = this.configService.get<string>(
+      'MAIL_FROM',
+      'no-reply@turbostarter.dev',
+    );
 
-        switch (job.name) {
-            case USER_JOBS.SEND_WELCOME_EMAIL: {
-                const { email } = job.data;
-                this.logger.log(`[Worker] Sending welcome email to ${email}...`);
+    switch (job.name) {
+      case USER_JOBS.SEND_WELCOME_EMAIL: {
+        const { email } = job.data;
+        this.logger.log(`[Worker] Sending welcome email to ${email}...`);
 
-                const welcomeHtml = `
+        const welcomeHtml = `
                     <div style="background-color: #09090b; color: #fafafa; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px; border-radius: 12px; max-width: 600px; margin: 0 auto; border: 1px border #27272a;">
                         <h2 style="color: #3b82f6; font-size: 24px; font-weight: 800; letter-spacing: -0.025em; margin-bottom: 16px;">Chào mừng tới Turborepo Starter Kit! 🎉</h2>
                         <p style="font-size: 14px; color: #a1a1aa; line-height: 1.6;">Tài khoản của bạn với email <strong>${email}</strong> đã được khởi tạo thành công trên hệ thống quản trị.</p>
@@ -44,21 +56,25 @@ export class UserQueueProcessor extends WorkerHost {
                     </div>
                 `;
 
-                await this.transporter.sendMail({
-                    from: fromEmail,
-                    to: email,
-                    subject: 'Chào mừng thành viên mới - Turborepo Advanced Starter',
-                    html: welcomeHtml,
-                });
+        await this.transporter.sendMail({
+          from: fromEmail,
+          to: email,
+          subject: 'Chào mừng thành viên mới - Turborepo Advanced Starter',
+          html: welcomeHtml,
+        });
 
-                this.logger.log(`[Worker] Welcome email successfully sent to ${email}!`);
-                return { sent: true, email };
-            }
-            case USER_JOBS.SEND_DEACTIVATION_EMAIL: {
-                const { email } = job.data;
-                this.logger.log(`[Worker] Sending account deactivation alert to ${email}...`);
+        this.logger.log(
+          `[Worker] Welcome email successfully sent to ${email}!`,
+        );
+        return { sent: true, email };
+      }
+      case USER_JOBS.SEND_DEACTIVATION_EMAIL: {
+        const { email } = job.data;
+        this.logger.log(
+          `[Worker] Sending account deactivation alert to ${email}...`,
+        );
 
-                const alertHtml = `
+        const alertHtml = `
                     <div style="background-color: #09090b; color: #fafafa; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px; border-radius: 12px; max-width: 600px; margin: 0 auto; border: 1px solid #ef4444;">
                         <h2 style="color: #ef4444; font-size: 22px; font-weight: 800; letter-spacing: -0.025em; margin-bottom: 16px;">Cảnh báo bảo mật: Tài khoản bị vô hiệu hóa ⚠️</h2>
                         <p style="font-size: 14px; color: #a1a1aa; line-height: 1.6;">Tài khoản <strong>${email}</strong> của bạn đã bị tạm khóa bởi quản trị viên hệ thống.</p>
@@ -70,20 +86,22 @@ export class UserQueueProcessor extends WorkerHost {
                     </div>
                 `;
 
-                await this.transporter.sendMail({
-                    from: fromEmail,
-                    to: email,
-                    subject: 'Thông báo: Tài khoản của bạn đã bị khóa',
-                    html: alertHtml,
-                });
+        await this.transporter.sendMail({
+          from: fromEmail,
+          to: email,
+          subject: 'Thông báo: Tài khoản của bạn đã bị khóa',
+          html: alertHtml,
+        });
 
-                this.logger.log(`[Worker] Account deactivation email sent to ${email}.`);
-                return { sent: true, email };
-            }
-            default: {
-                this.logger.warn(`Unknown job name: ${job.name}`);
-                throw new Error(`Job name ${job.name} not supported`);
-            }
-        }
+        this.logger.log(
+          `[Worker] Account deactivation email sent to ${email}.`,
+        );
+        return { sent: true, email };
+      }
+      default: {
+        this.logger.warn(`Unknown job name: ${job.name}`);
+        throw new Error(`Job name ${job.name} not supported`);
+      }
     }
+  }
 }

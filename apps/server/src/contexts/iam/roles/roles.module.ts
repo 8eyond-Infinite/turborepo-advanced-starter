@@ -8,24 +8,25 @@ import { CreateRoleCommandHandler } from './application/commands/handlers/create
 import { UpdateRolePermissionsCommandHandler } from './application/commands/handlers/update-role-permissions.handler';
 import { DeleteRoleCommandHandler } from './application/commands/handlers/delete-role.handler';
 import { UsersModule } from '../users/users.module';
+import { ROLE_REPOSITORY } from './domain/ports/role.repository';
 
 @Module({
-    imports: [
-        CqrsModule,
-        UsersModule, // Needed for UserRepository injection in guards
-    ],
-    controllers: [RolesController],
-    providers: [
-        {
-            provide: 'RoleRepository',
-            useClass: PrismaRoleRepository,
-        },
-        GetRolesQueryHandler,
-        GetPermissionsQueryHandler,
-        CreateRoleCommandHandler,
-        UpdateRolePermissionsCommandHandler,
-        DeleteRoleCommandHandler,
-    ],
-    exports: ['RoleRepository'],
+  imports: [
+    CqrsModule,
+    UsersModule, // Needed for UserRepository injection in guards
+  ],
+  controllers: [RolesController],
+  providers: [
+    {
+      provide: ROLE_REPOSITORY,
+      useClass: PrismaRoleRepository,
+    },
+    GetRolesQueryHandler,
+    GetPermissionsQueryHandler,
+    CreateRoleCommandHandler,
+    UpdateRolePermissionsCommandHandler,
+    DeleteRoleCommandHandler,
+  ],
+  exports: [ROLE_REPOSITORY],
 })
-export class RolesModule { }
+export class RolesModule {}

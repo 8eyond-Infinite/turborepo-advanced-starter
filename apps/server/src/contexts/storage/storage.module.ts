@@ -6,21 +6,21 @@ import { S3StorageAdapter } from './infrastructure/adapters/s3-storage.adapter';
 import { StorageController } from './presentation/controllers/storage.controller';
 
 @Module({
-    imports: [ConfigModule],
-    controllers: [StorageController],
-    providers: [
-        {
-            provide: StoragePort,
-            useFactory: (configService: ConfigService) => {
-                const provider = configService.get<string>('STORAGE_PROVIDER', 'local');
-                if (provider === 's3') {
-                    return new S3StorageAdapter(configService);
-                }
-                return new LocalStorageAdapter(configService);
-            },
-            inject: [ConfigService],
-        },
-    ],
-    exports: [StoragePort],
+  imports: [ConfigModule],
+  controllers: [StorageController],
+  providers: [
+    {
+      provide: StoragePort,
+      useFactory: (configService: ConfigService) => {
+        const provider = configService.get<string>('STORAGE_PROVIDER', 'local');
+        if (provider === 's3') {
+          return new S3StorageAdapter(configService);
+        }
+        return new LocalStorageAdapter(configService);
+      },
+      inject: [ConfigService],
+    },
+  ],
+  exports: [StoragePort],
 })
 export class StorageModule {}

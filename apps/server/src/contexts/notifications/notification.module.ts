@@ -5,25 +5,25 @@ import { NotificationController } from './presentation/controllers/notification.
 import { CreateNotificationHandler } from './application/commands/handlers/create-notification.handler';
 import { MarkNotificationReadHandler } from './application/commands/handlers/mark-read.handler';
 import { GetNotificationsHandler } from './application/queries/handlers/get-notifications.handler';
-import { UserDeactivatedNotificationHandler } from './application/events/handlers/user-deactivated-notification.handler';
-import { UserRegisteredNotificationHandler } from './application/events/handlers/user-registered-notification.handler';
+import { NOTIFICATION_REPOSITORY } from './domain/ports/notification.repository';
 
-const CommandHandlers = [CreateNotificationHandler, MarkNotificationReadHandler];
+const CommandHandlers = [
+  CreateNotificationHandler,
+  MarkNotificationReadHandler,
+];
 const QueryHandlers = [GetNotificationsHandler];
-const EventHandlers = [UserDeactivatedNotificationHandler, UserRegisteredNotificationHandler];
 
 @Module({
-    imports: [CqrsModule],
-    controllers: [NotificationController],
-    providers: [
-        {
-            provide: 'NotificationRepository',
-            useClass: PrismaNotificationRepository,
-        },
-        ...CommandHandlers,
-        ...QueryHandlers,
-        ...EventHandlers,
-    ],
-    exports: ['NotificationRepository'],
+  imports: [CqrsModule],
+  controllers: [NotificationController],
+  providers: [
+    {
+      provide: NOTIFICATION_REPOSITORY,
+      useClass: PrismaNotificationRepository,
+    },
+    ...CommandHandlers,
+    ...QueryHandlers,
+  ],
+  exports: [NOTIFICATION_REPOSITORY],
 })
 export class NotificationModule {}

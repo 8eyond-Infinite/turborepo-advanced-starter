@@ -6,13 +6,9 @@ import { DashboardController } from './presentation/controllers/dashboard.contro
 import { GetDashboardStatsQueryHandler } from './application/queries/handlers/get-dashboard-stats.handler';
 
 @Module({
-    imports: [
-        CqrsModule,
-        PrismaModule,
-        RedisModule,
-    ],
-    controllers: [DashboardController],
-    providers: [GetDashboardStatsQueryHandler],
-    exports: [GetDashboardStatsQueryHandler],
+  imports: [CqrsModule, PrismaModule, RedisModule],
+  controllers: [DashboardController],
+  providers: [GetDashboardStatsQueryHandler],
+  exports: [GetDashboardStatsQueryHandler],
 })
 export class DashboardModule {}
