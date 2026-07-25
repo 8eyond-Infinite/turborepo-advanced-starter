@@ -1,6 +1,5 @@
 import { Outlet, useLocation, Link } from 'react-router-dom'
-import { AppSidebar, ModeToggle, LanguageToggle } from "@/components"
-import { NotificationBell } from '@/components/NotificationBell'
+import { AppSidebar, ModeToggle, LanguageToggle, NotificationBell } from "@/components"
 import {
   Breadcrumb,
   BreadcrumbItem,

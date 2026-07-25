@@ -11,3 +11,4 @@ export * from './timeline';
 export * from './page-card';
 export * from './table-pagination';
 export * from './dynamic-icon';
+export * from './notification-bell';
