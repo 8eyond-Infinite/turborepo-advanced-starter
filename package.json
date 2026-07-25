@@ -23,6 +23,11 @@
     "turbo": "^2.10.4",
     "typescript": "5.9.2"
   },
+  "pnpm": {
+    "overrides": {
+      "typescript": "5.9.2"
+    }
+  },
   "packageManager": "pnpm@9.0.0",
   "engines": {
     "node": ">=18"
