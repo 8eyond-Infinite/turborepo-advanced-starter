@@ -76,14 +76,12 @@ export const RolesManagement = () => {
     isSaving,
   } = useRoles();
 
-  // Business capability access map
   const access = usePermissions({
     canCreateRole: PERMISSIONS.ROLE.CREATE,
     canManageRolePermissions: PERMISSIONS.ROLE.UPDATE,
     canDeleteRole: PERMISSIONS.ROLE.DELETE,
   });
 
-  // Track collapsed/expanded categories. Default: all expanded
   const [collapsedCategories, setCollapsedCategories] = useState<
     Record<string, boolean>
   >({});
@@ -124,7 +122,6 @@ export const RolesManagement = () => {
 
   return (
     <div className="space-y-6 bg-background text-foreground">
-      {/* Header */}
       <PageHeader
         title="Ma trận Vai trò & Quyền hạn"
         description="Quản lý quyền truy cập của từng nhóm vai trò trên hệ thống dưới dạng bảng ma trận."
@@ -146,8 +143,6 @@ export const RolesManagement = () => {
           </Button>
         </Can>
       </PageHeader>
-
-      {/* Create Role Form - rendered through <Can> */}
       {isAdding && (
         <Can I={PERMISSIONS.ROLE.CREATE}>
           <Card className="border-border bg-card p-5 max-w-xl transition-all">
@@ -212,8 +207,6 @@ export const RolesManagement = () => {
           </Card>
         </Can>
       )}
-
-      {/* Grid Table Matrix */}
       <Card className="border border-border bg-card overflow-hidden">
         <CardHeader className="border-b border-border pb-4 bg-muted/10">
           <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
@@ -328,8 +321,6 @@ export const RolesManagement = () => {
                           </div>
                         </TableCell>
                       </TableRow>
-
-                      {/* Individual Permission Rows (Shown only when not collapsed) */}
                       {!isCollapsed &&
                         group.permissions.map((perm) => (
                           <TableRow

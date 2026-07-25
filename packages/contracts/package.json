@@ -19,6 +19,6 @@
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
     "tsup": "^8.5.1",
-    "typescript": "~6.0.2"
+    "typescript": "5.9.2"
   }
 }
