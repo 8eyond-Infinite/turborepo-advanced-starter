@@ -1,182 +1,248 @@
-export class ApiError extends Error {
-    public readonly status: number;
-    public readonly code?: string;
-    public readonly details?: any;
-    public readonly translationKey?: string;
-    public readonly args?: Record<string, any>;
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
-    constructor(
-        message: string,
-        status: number,
-        code?: string,
-        details?: any,
-        translationKey?: string,
-        args?: Record<string, any>
-    ) {
-        super(message);
-        this.status = status;
-        this.code = code;
-        this.details = details;
-        this.translationKey = translationKey;
-        this.args = args;
-        this.name = 'ApiError';
-    }
+type JsonObject = Record<string, unknown>;
+
+interface ErrorResponse extends JsonObject {
+  message?: string;
+  code?: string;
+  error?: string;
+  details?: unknown;
+  translationKey?: string;
+  args?: Record<string, unknown>;
 }
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+interface TokenPair {
+  accessToken: string;
+  refreshToken: string;
+}
 
 interface RequestOptions extends RequestInit {
-    skipAuth?: boolean;
+  skipAuth?: boolean;
+  skipRefresh?: boolean;
+}
+
+export class ApiError extends Error {
+  public readonly status: number;
+  public readonly code?: string;
+  public readonly details?: unknown;
+  public readonly translationKey?: string;
+  public readonly args?: Record<string, unknown>;
+
+  constructor(
+    message: string,
+    status: number,
+    options: {
+      code?: string;
+      details?: unknown;
+      translationKey?: string;
+      args?: Record<string, unknown>;
+    } = {},
+  ) {
+    super(message);
+    this.status = status;
+    this.code = options.code;
+    this.details = options.details;
+    this.translationKey = options.translationKey;
+    this.args = options.args;
+    this.name = "ApiError";
+  }
 }
 
 export class ApiClient {
-    private static accessToken: string | null = null;
-    private static isRefreshing = false;
-    private static refreshSubscribers: ((token: string) => void)[] = [];
+  private static accessToken: string | null = null;
+  private static refreshPromise: Promise<string> | null = null;
 
-    public static setToken(token: string | null) {
-        this.accessToken = token;
+  public static setToken(token: string | null): void {
+    this.accessToken = token;
+  }
+
+  public static getToken(): string | null {
+    return this.accessToken;
+  }
+
+  public static async request<T>(
+    path: string,
+    options: RequestOptions = {},
+  ): Promise<T> {
+    const response = await fetch(`${API_URL}${path}`, {
+      ...options,
+      headers: this.createHeaders(options),
+    });
+
+    if (response.status === 401 && !options.skipAuth && !options.skipRefresh) {
+      const token = await this.refreshAccessToken();
+      return this.request<T>(path, {
+        ...options,
+        skipRefresh: true,
+        headers: this.createHeaders(options, token),
+      });
     }
 
-    public static getToken(): string | null {
-        return this.accessToken;
+    if (!response.ok) {
+      throw await this.createApiError(response);
     }
 
-    private static onRefreshed(token: string) {
-        this.refreshSubscribers.map((cb) => cb(token));
-        this.refreshSubscribers = [];
+    if (response.status === 204) {
+      return undefined as T;
     }
 
-    private static addRefreshSubscriber(cb: (token: string) => void) {
-        this.refreshSubscribers.push(cb);
+    return (await response.json()) as T;
+  }
+
+  private static createHeaders(
+    options: RequestOptions,
+    token = this.accessToken,
+  ): Headers {
+    const headers = new Headers(options.headers);
+
+    if (!options.skipAuth && token) {
+      headers.set("Authorization", `Bearer ${token}`);
+    }
+    if (options.body && !(options.body instanceof FormData)) {
+      headers.set("Content-Type", "application/json");
     }
 
-    public static async request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-        const url = `${API_URL}${path}`;
-        const headers = new Headers(options.headers || {});
+    return headers;
+  }
 
-        if (!options.skipAuth && this.accessToken) {
-            headers.set('Authorization', `Bearer ${this.accessToken}`);
-        }
+  private static refreshAccessToken(): Promise<string> {
+    if (!this.refreshPromise) {
+      this.refreshPromise = this.performTokenRefresh().finally(() => {
+        this.refreshPromise = null;
+      });
+    }
+    return this.refreshPromise;
+  }
 
-        if (options.body && !(options.body instanceof FormData)) {
-            headers.set('Content-Type', 'application/json');
-        }
-
-        const config: RequestInit = {
-            ...options,
-            headers,
-        };
-
-        try {
-            const response = await fetch(url, config);
-
-            if (response.status === 401 && !options.skipAuth) {
-                // If unauthorized and we have a refresh token, try silent refresh
-                return this.handle401Error<T>(path, options);
-            }
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new ApiError(
-                    errorData.message || `HTTP error! status: ${response.status}`,
-                    response.status,
-                    errorData.code || errorData.error || undefined,
-                    errorData.details || undefined,
-                    errorData.translationKey || undefined,
-                    errorData.args || undefined
-                );
-            }
-
-            if (response.status === 204) {
-                return {} as T;
-            }
-
-            return await response.json();
-        } catch (error: any) {
-            throw error;
-        }
+  private static async performTokenRefresh(): Promise<string> {
+    const refreshToken = localStorage.getItem("refresh_token");
+    if (!refreshToken) {
+      this.expireSession();
+      throw new ApiError("No refresh token available", 401);
     }
 
-    private static async handle401Error<T>(path: string, options: RequestOptions): Promise<T> {
-        if (!this.isRefreshing) {
-            this.isRefreshing = true;
+    try {
+      const response = await fetch(`${API_URL}/auth/refresh`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${refreshToken}`,
+          "Content-Type": "application/json",
+        },
+      });
 
-            try {
-                const refreshUrl = `${API_URL}/auth/refresh`;
-                // Read refresh token from storage
-                const storedRefreshToken = localStorage.getItem('refresh_token');
+      if (!response.ok) {
+        throw await this.createApiError(response);
+      }
 
-                if (!storedRefreshToken) {
-                    throw new Error('No refresh token available');
-                }
-
-                const refreshResponse = await fetch(refreshUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${storedRefreshToken}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
-
-                if (!refreshResponse.ok) {
-                    throw new Error('Refresh token expired');
-                }
-
-                const data = await refreshResponse.json();
-                this.accessToken = data.accessToken;
-                localStorage.setItem('refresh_token', data.refreshToken);
-                this.isRefreshing = false;
-                this.onRefreshed(data.accessToken);
-            } catch (refreshError) {
-                this.isRefreshing = false;
-                this.accessToken = null;
-                localStorage.removeItem('refresh_token');
-                window.dispatchEvent(new Event('auth:logout'));
-                throw refreshError;
-            }
-        }
-
-        return new Promise<T>((resolve, reject) => {
-            this.addRefreshSubscriber((token) => {
-                const headers = new Headers(options.headers || {});
-                headers.set('Authorization', `Bearer ${token}`);
-                this.request<T>(path, { ...options, headers })
-                    .then(resolve)
-                    .catch(reject);
-            });
-        });
+      const tokens = (await response.json()) as TokenPair;
+      this.accessToken = tokens.accessToken;
+      localStorage.setItem("refresh_token", tokens.refreshToken);
+      window.dispatchEvent(
+        new CustomEvent<string>("auth:token-refreshed", {
+          detail: tokens.accessToken,
+        }),
+      );
+      return tokens.accessToken;
+    } catch (error: unknown) {
+      this.expireSession();
+      throw error;
     }
+  }
 
-    public static async get<T>(path: string, options: RequestOptions = {}): Promise<T> {
-        return this.request<T>(path, { ...options, method: 'GET' });
-    }
+  private static expireSession(): void {
+    this.accessToken = null;
+    localStorage.removeItem("refresh_token");
+    window.dispatchEvent(new Event("auth:logout"));
+  }
 
-    public static async post<T>(path: string, body?: any, options: RequestOptions = {}): Promise<T> {
-        return this.request<T>(path, {
-            ...options,
-            method: 'POST',
-            body: body instanceof FormData ? body : (body ? JSON.stringify(body) : undefined),
-        });
-    }
+  private static async createApiError(response: Response): Promise<ApiError> {
+    const body = await this.readErrorResponse(response);
+    return new ApiError(
+      body.message || `HTTP error! status: ${response.status}`,
+      response.status,
+      {
+        code: body.code || body.error,
+        details: body.details,
+        translationKey: body.translationKey,
+        args: body.args,
+      },
+    );
+  }
 
-    public static async put<T>(path: string, body?: any, options: RequestOptions = {}): Promise<T> {
-        return this.request<T>(path, {
-            ...options,
-            method: 'PUT',
-            body: body instanceof FormData ? body : (body ? JSON.stringify(body) : undefined),
-        });
+  private static async readErrorResponse(
+    response: Response,
+  ): Promise<ErrorResponse> {
+    try {
+      const body: unknown = await response.json();
+      return this.isJsonObject(body) ? (body as ErrorResponse) : {};
+    } catch {
+      return {};
     }
+  }
 
-    public static async patch<T>(path: string, body?: any, options: RequestOptions = {}): Promise<T> {
-        return this.request<T>(path, {
-            ...options,
-            method: 'PATCH',
-            body: body instanceof FormData ? body : (body ? JSON.stringify(body) : undefined),
-        });
-    }
+  private static isJsonObject(value: unknown): value is JsonObject {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
 
-    public static async delete<T>(path: string, options: RequestOptions = {}): Promise<T> {
-        return this.request<T>(path, { ...options, method: 'DELETE' });
-    }
+  public static get<T>(path: string, options: RequestOptions = {}): Promise<T> {
+    return this.request<T>(path, { ...options, method: "GET" });
+  }
+
+  public static post<T>(
+    path: string,
+    body?: unknown,
+    options: RequestOptions = {},
+  ): Promise<T> {
+    return this.request<T>(path, {
+      ...options,
+      method: "POST",
+      body:
+        body instanceof FormData
+          ? body
+          : body === undefined
+            ? undefined
+            : JSON.stringify(body),
+    });
+  }
+
+  public static put<T>(
+    path: string,
+    body?: unknown,
+    options: RequestOptions = {},
+  ): Promise<T> {
+    return this.request<T>(path, {
+      ...options,
+      method: "PUT",
+      body:
+        body instanceof FormData
+          ? body
+          : body === undefined
+            ? undefined
+            : JSON.stringify(body),
+    });
+  }
+
+  public static patch<T>(
+    path: string,
+    body?: unknown,
+    options: RequestOptions = {},
+  ): Promise<T> {
+    return this.request<T>(path, {
+      ...options,
+      method: "PATCH",
+      body:
+        body instanceof FormData
+          ? body
+          : body === undefined
+            ? undefined
+            : JSON.stringify(body),
+    });
+  }
+
+  public static delete<T>(
+    path: string,
+    options: RequestOptions = {},
+  ): Promise<T> {
+    return this.request<T>(path, { ...options, method: "DELETE" });
+  }
 }

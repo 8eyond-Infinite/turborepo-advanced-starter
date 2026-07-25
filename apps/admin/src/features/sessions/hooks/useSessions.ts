@@ -1,61 +1,68 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ApiClient } from '@/lib/api-client';
-import { toast } from 'sonner';
-
-import type { ActiveSession, PaginatedResult } from '@repo/types';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { getFriendlyErrorMessage } from "@/lib/error-handler";
+import { sessionApi } from "../api/session.api";
+import { sessionKeys } from "../api/session.keys";
 
 export const useSessions = (options?: { page?: number; limit?: number }) => {
-    const queryClient = useQueryClient();
-    const page = options?.page || 1;
-    const limit = options?.limit || 10;
+  const queryClient = useQueryClient();
+  const params = {
+    page: options?.page || 1,
+    limit: options?.limit || 10,
+  };
 
-    const { data, isLoading } = useQuery<PaginatedResult<ActiveSession>>({
-        queryKey: ['active-sessions', page, limit],
-        queryFn: async () => {
-            const queryParams = new URLSearchParams();
-            queryParams.append('page', page.toString());
-            queryParams.append('limit', limit.toString());
-            return await ApiClient.get<PaginatedResult<ActiveSession>>(`/auth/sessions?${queryParams.toString()}`);
-        },
-        staleTime: 30000,
-    });
+  const sessionsQuery = useQuery({
+    queryKey: sessionKeys.list(params),
+    queryFn: () => sessionApi.getSessions(params),
+    staleTime: 30000,
+  });
 
-    const sessions = data?.data || [];
-    const meta = data?.meta || { totalItems: 0, itemCount: 0, itemsPerPage: limit, totalPages: 1, currentPage: page };
+  const sessions = sessionsQuery.data?.data || [];
+  const meta = sessionsQuery.data?.meta || {
+    totalItems: 0,
+    itemCount: 0,
+    itemsPerPage: params.limit,
+    totalPages: 1,
+    currentPage: params.page,
+  };
 
-    const revokeSessionMutation = useMutation({
-        mutationFn: async (jti: string) => {
-            return await ApiClient.delete(`/auth/sessions/${jti}`);
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['active-sessions'] });
-            toast.success("Đã thu hồi phiên đăng nhập thành công!");
-        },
-        onError: (err: any) => {
-            toast.error("Không thể thu hồi phiên đăng nhập: " + err.message);
-        }
-    });
+  const revokeSessionMutation = useMutation({
+    mutationFn: sessionApi.revoke,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: sessionKeys.all });
+      toast.success("Đã thu hồi phiên đăng nhập thành công!");
+    },
+    onError: (error: unknown) => {
+      toast.error(
+        `Không thể thu hồi phiên đăng nhập: ${getFriendlyErrorMessage(error)}`,
+      );
+    },
+  });
 
-    const revokeAllSessionsMutation = useMutation({
-        mutationFn: async () => {
-            return await ApiClient.post('/auth/logout/global');
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['active-sessions'] });
-            toast.success("Đã thu hồi toàn bộ các phiên đăng nhập khác!");
-        },
-        onError: (err: any) => {
-            toast.error("Không thể thu hồi các phiên đăng nhập: " + err.message);
-        }
-    });
+  const revokeAllSessionsMutation = useMutation({
+    mutationFn: sessionApi.revokeOthers,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: sessionKeys.all });
+      toast.success("Đã thu hồi toàn bộ các phiên đăng nhập khác!");
+    },
+    onError: (error: unknown) => {
+      toast.error(
+        `Không thể thu hồi các phiên đăng nhập: ${getFriendlyErrorMessage(error)}`,
+      );
+    },
+  });
 
-    return {
-        sessions,
-        meta,
-        isLoading,
-        revokeSession: revokeSessionMutation.mutate,
-        revokeAllSessions: revokeAllSessionsMutation.mutate,
-        isRevoking: revokeSessionMutation.isPending,
-        isRevokingAll: revokeAllSessionsMutation.isPending,
-    };
+  return {
+    sessions,
+    meta,
+    isLoading: sessionsQuery.isLoading,
+    isError: sessionsQuery.isError,
+    error: sessionsQuery.error,
+    refetch: sessionsQuery.refetch,
+    isFetching: sessionsQuery.isFetching,
+    revokeSession: revokeSessionMutation.mutate,
+    revokeAllSessions: revokeAllSessionsMutation.mutate,
+    isRevoking: revokeSessionMutation.isPending,
+    isRevokingAll: revokeAllSessionsMutation.isPending,
+  };
 };

@@ -1,11 +1,11 @@
-import { ChevronRight, type LucideIcon } from "lucide-react"
-import { Link, useLocation } from "react-router-dom"
+import { ChevronRight, type LucideIcon } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
 
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible"
+} from "@/components/ui/collapsible";
 import {
   SidebarGroup,
   SidebarGroupLabel,
@@ -15,21 +15,21 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
-} from "@/components/ui/sidebar"
+} from "@/components/ui/sidebar";
 
 export function NavMain({
   items,
 }: {
   items: {
-    title: string
-    url: string
-    icon?: LucideIcon
-    isActive?: boolean
+    title: string;
+    url: string;
+    icon?: LucideIcon;
+    isActive?: boolean;
     items?: {
-      title: string
-      url: string
-    }[]
-  }[]
+      title: string;
+      url: string;
+    }[];
+  }[];
 }) {
   const location = useLocation();
 
@@ -39,8 +39,10 @@ export function NavMain({
       <SidebarMenu>
         {items.map((item) => {
           // Check if any sub-item is active to open the collapsible menu by default
-          const hasActiveSubItem = item.items?.some(sub => location.pathname === sub.url);
-          
+          const hasActiveSubItem = item.items?.some(
+            (sub) => location.pathname === sub.url,
+          );
+
           return (
             <Collapsible
               key={item.title}
@@ -60,7 +62,7 @@ export function NavMain({
                   <SidebarMenuSub>
                     {item.items?.map((subItem) => {
                       const isSubActive = location.pathname === subItem.url;
-                      
+
                       return (
                         <SidebarMenuSubItem key={subItem.title}>
                           <SidebarMenuSubButton asChild isActive={isSubActive}>
@@ -79,5 +81,5 @@ export function NavMain({
         })}
       </SidebarMenu>
     </SidebarGroup>
-  )
+  );
 }

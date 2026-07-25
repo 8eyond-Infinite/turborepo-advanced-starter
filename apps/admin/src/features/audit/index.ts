@@ -1,2 +1,2 @@
-export * from './components/AuditLogsManagement';
-export * from './hooks/useAuditLogs';
+export * from "./components/AuditLogsManagement";
+export * from "./hooks/useAuditLogs";

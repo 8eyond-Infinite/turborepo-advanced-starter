@@ -1,5 +1,10 @@
-import { Outlet, useLocation, Link } from 'react-router-dom'
-import { AppSidebar, ModeToggle, LanguageToggle, NotificationBell } from "@/components"
+import { Outlet, useLocation, Link } from "react-router-dom";
+import {
+  AppSidebar,
+  ModeToggle,
+  LanguageToggle,
+  NotificationBell,
+} from "@/components";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -7,26 +12,28 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
-import { TooltipProvider } from '@/components/ui/tooltip'
-import { Separator } from "@/components/ui/separator"
+} from "@/components/ui/breadcrumb";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { Separator } from "@/components/ui/separator";
 import {
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
-} from "@/components/ui/sidebar"
+} from "@/components/ui/sidebar";
 
 export const MainLayout = () => {
-  const location = useLocation()
+  const location = useLocation();
 
   const navItems = [
-    { path: '/', label: 'Tổng quan' },
-    { path: '/users', label: 'Quản lý Users' },
-    { path: '/roles', label: 'Phân quyền Roles' },
-    { path: '/sessions', label: 'Phiên đăng nhập' },
-  ]
+    { path: "/", label: "Tổng quan" },
+    { path: "/users", label: "Quản lý Users" },
+    { path: "/roles", label: "Phân quyền Roles" },
+    { path: "/sessions", label: "Phiên đăng nhập" },
+  ];
 
-  const currentLabel = navItems.find((item) => item.path === location.pathname)?.label || 'Dashboard'
+  const currentLabel =
+    navItems.find((item) => item.path === location.pathname)?.label ||
+    "Dashboard";
 
   return (
     <SidebarProvider>
@@ -44,13 +51,18 @@ export const MainLayout = () => {
               <Breadcrumb>
                 <BreadcrumbList>
                   <BreadcrumbItem className="hidden md:block">
-                    <BreadcrumbLink asChild className="text-muted-foreground hover:text-foreground">
+                    <BreadcrumbLink
+                      asChild
+                      className="text-muted-foreground hover:text-foreground"
+                    >
                       <Link to="/">Administrator</Link>
                     </BreadcrumbLink>
                   </BreadcrumbItem>
                   <BreadcrumbSeparator className="hidden md:block text-zinc-500" />
                   <BreadcrumbItem>
-                    <BreadcrumbPage className="text-foreground font-semibold">{currentLabel}</BreadcrumbPage>
+                    <BreadcrumbPage className="text-foreground font-semibold">
+                      {currentLabel}
+                    </BreadcrumbPage>
                   </BreadcrumbItem>
                 </BreadcrumbList>
               </Breadcrumb>
@@ -67,5 +79,5 @@ export const MainLayout = () => {
         </SidebarInset>
       </TooltipProvider>
     </SidebarProvider>
-  )
-}
+  );
+};

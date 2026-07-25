@@ -1,108 +1,111 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ApiClient } from '@/lib/api-client';
-import { toast } from 'sonner';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { getFriendlyErrorMessage } from "@/lib/error-handler";
+import { userApi } from "../api/user.api";
+import { userKeys } from "../api/user.keys";
+import { roleApi, roleKeys } from "@/features/roles";
 
-import type { User, PaginatedResult, Role } from '@repo/types';
+export const useUsers = (options?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+}) => {
+  const queryClient = useQueryClient();
+  const params = {
+    page: options?.page || 1,
+    limit: options?.limit || 10,
+    search: options?.search || "",
+  };
 
-export const useUsers = (options?: { page?: number; limit?: number; search?: string }) => {
-    const queryClient = useQueryClient();
-    const page = options?.page || 1;
-    const limit = options?.limit || 10;
-    const search = options?.search || '';
+  // 1. Fetch Users List
+  const usersQuery = useQuery({
+    queryKey: userKeys.list(params),
+    queryFn: () => userApi.getUsers(params),
+    staleTime: 30000,
+  });
 
-    // 1. Fetch Users List
-    const { data, isLoading: isLoadingUsers } = useQuery<PaginatedResult<User>>({
-        queryKey: ['users', page, limit, search],
-        queryFn: async () => {
-            const queryParams = new URLSearchParams();
-            queryParams.append('page', page.toString());
-            queryParams.append('limit', limit.toString());
-            if (search) {
-                queryParams.append('search', search);
-            }
-            return await ApiClient.get<PaginatedResult<User>>(`/users?${queryParams.toString()}`);
-        },
-        staleTime: 30000,
-    });
+  const users = usersQuery.data?.data || [];
+  const meta = usersQuery.data?.meta || {
+    totalItems: 0,
+    itemCount: 0,
+    itemsPerPage: params.limit,
+    totalPages: 1,
+    currentPage: params.page,
+  };
 
-    const users = data?.data || [];
-    const meta = data?.meta || { totalItems: 0, itemCount: 0, itemsPerPage: limit, totalPages: 1, currentPage: page };
+  const { data: roles = [] } = useQuery({
+    queryKey: roleKeys.list(),
+    queryFn: roleApi.getRoles,
+    staleTime: 60000,
+  });
 
-    const { data: roles = [] } = useQuery<Role[]>({
-        queryKey: ['roles'],
-        queryFn: async () => {
-            return await ApiClient.get<Role[]>('/roles');
-        },
-        staleTime: 60000,
-    });
+  const createUserMutation = useMutation({
+    mutationFn: userApi.create,
+    onSuccess: (newUser) => {
+      queryClient.invalidateQueries({ queryKey: userKeys.all });
+      toast.success(`Đã tạo tài khoản "${newUser.email}" thành công!`);
+    },
+    onError: (error: unknown) => {
+      toast.error(`Không thể tạo tài khoản: ${getFriendlyErrorMessage(error)}`);
+    },
+  });
 
-    const createUserMutation = useMutation({
-        mutationFn: async (data: { email: string; username: string; password?: string; avatar?: string | null; roles: string[] }) => {
-            return await ApiClient.post<User>('/users', data);
-        },
-        onSuccess: (newUser) => {
-            queryClient.invalidateQueries({ queryKey: ['users'] });
-            toast.success(`Đã tạo tài khoản "${newUser.email}" thành công!`);
-        },
-        onError: (err: any) => {
-            toast.error("Không thể tạo tài khoản: " + err.message);
-        }
-    });
+  // 4. Toggle User Status Mutation
+  const toggleStatusMutation = useMutation({
+    mutationFn: userApi.toggleStatus,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: userKeys.all });
+      toast.success("Thay đổi trạng thái tài khoản thành công!");
+    },
+    onError: (error: unknown) => {
+      toast.error(
+        `Không thể thay đổi trạng thái: ${getFriendlyErrorMessage(error)}`,
+      );
+    },
+  });
 
-    // 4. Toggle User Status Mutation
-    const toggleStatusMutation = useMutation({
-        mutationFn: async (userId: string) => {
-            return await ApiClient.patch(`/users/${userId}/toggle-status`);
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['users'] });
-            toast.success("Thay đổi trạng thái tài khoản thành công!");
-        },
-        onError: (err: any) => {
-            toast.error("Không thể thay đổi trạng thái: " + err.message);
-        }
-    });
+  // 5. Delete User Mutation
+  const deleteUserMutation = useMutation({
+    mutationFn: userApi.remove,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: userKeys.all });
+      toast.success("Xóa tài khoản thành công!");
+    },
+    onError: (error: unknown) => {
+      toast.error(`Không thể xóa tài khoản: ${getFriendlyErrorMessage(error)}`);
+    },
+  });
 
-    // 5. Delete User Mutation
-    const deleteUserMutation = useMutation({
-        mutationFn: async (userId: string) => {
-            await ApiClient.delete(`/users/${userId}`);
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['users'] });
-            toast.success("Xóa tài khoản thành công!");
-        },
-        onError: (err: any) => {
-            toast.error("Không thể xóa tài khoản: " + err.message);
-        }
-    });
+  // 6. Update User Mutation
+  const updateUserMutation = useMutation({
+    mutationFn: userApi.update,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: userKeys.all });
+      toast.success("Cập nhật thông tin tài khoản thành công!");
+    },
+    onError: (error: unknown) => {
+      toast.error(
+        `Không thể cập nhật tài khoản: ${getFriendlyErrorMessage(error)}`,
+      );
+    },
+  });
 
-    // 6. Update User Mutation
-    const updateUserMutation = useMutation({
-        mutationFn: async ({ id, ...data }: { id: string; email: string; username: string; avatar?: string | null; roles: string[] }) => {
-            return await ApiClient.put(`/users/${id}`, data);
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['users'] });
-            toast.success("Cập nhật thông tin tài khoản thành công!");
-        },
-        onError: (err: any) => {
-            toast.error("Không thể cập nhật tài khoản: " + err.message);
-        }
-    });
-
-    return {
-        users,
-        meta,
-        roles,
-        createUser: createUserMutation.mutateAsync,
-        updateUser: updateUserMutation.mutateAsync,
-        toggleStatus: toggleStatusMutation.mutate,
-        deleteUser: deleteUserMutation.mutate,
-        isLoading: isLoadingUsers,
-        isCreating: createUserMutation.isPending,
-        isUpdating: updateUserMutation.isPending,
-        isToggling: toggleStatusMutation.isPending,
-        isDeleting: deleteUserMutation.isPending,
-    };
+  return {
+    users,
+    meta,
+    roles,
+    createUser: createUserMutation.mutateAsync,
+    updateUser: updateUserMutation.mutateAsync,
+    toggleStatus: toggleStatusMutation.mutate,
+    deleteUser: deleteUserMutation.mutate,
+    isLoading: usersQuery.isLoading,
+    isError: usersQuery.isError,
+    error: usersQuery.error,
+    refetch: usersQuery.refetch,
+    isFetching: usersQuery.isFetching,
+    isCreating: createUserMutation.isPending,
+    isUpdating: updateUserMutation.isPending,
+    isToggling: toggleStatusMutation.isPending,
+    isDeleting: deleteUserMutation.isPending,
+  };
 };

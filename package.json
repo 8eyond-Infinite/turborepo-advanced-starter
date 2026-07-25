@@ -10,6 +10,7 @@
     "dev:server": "turbo run dev --filter=server",
     "dev:admin": "turbo run dev --filter=admin",
     "db:generate": "dotenv -e .env -- pnpm --filter=@repo/database db:generate",
+    "db:push": "dotenv -e .env -- pnpm --filter=@repo/database db:push",
     "db:migrate": "dotenv -e .env -- pnpm --filter=@repo/database db:migrate",
     "db:seed": "dotenv -e .env -- pnpm --filter=@repo/database db:seed",
     "lint": "turbo run lint",

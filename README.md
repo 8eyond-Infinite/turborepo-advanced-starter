@@ -1,126 +1,175 @@
-# 🚀 Turborepo Advanced Starter Kit Enterprise
+# Turborepo Advanced Starter
 
-Dự án này là một **Enterprise Monorepo Starter Kit** chuẩn mực và hoàn chỉnh, sử dụng **Turborepo** & **PNPM Workspace** để quản lý đa ứng dụng và đa gói dùng chung (Shared Packages). Hệ thống áp dụng các chuẩn kiến trúc hiện đại nhất hiện nay: **Clean Architecture**, **Domain-Driven Design (DDD)**, **CQRS**, **Event-Driven Architecture (EDA)**, **Hybrid JWT Auth (Stateless Access + Stateful Refresh)**.
+Đây là monorepo nền tảng gồm một NestJS API, một React Admin SPA, một Next.js client và các package dùng chung. Repository ưu tiên kiến trúc có ranh giới rõ, contract dùng chung, authentication có khả năng thu hồi phiên và tài liệu bám sát code.
 
----
+Không phải mọi phần đều có cùng mức hoàn thiện. Backend và Admin đã có kiến trúc nghiệp vụ; `apps/client` hiện vẫn là scaffold Next.js tối thiểu. Các giới hạn đang tồn tại được ghi rõ thay vì được che bằng nhãn “enterprise”.
 
-## 📌 1. Danh Mục Tài Liệu Hướng Dẫn (Navigation Hub)
+## Bản đồ tài liệu
 
-Để tiện tra cứu nhanh trên GitHub, dưới đây là bộ tài liệu hoàn chỉnh cho từng thành phần trong Monorepo:
+| Tài liệu                                                       | Đọc khi cần                                                                       |
+| -------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| [Kiến trúc hệ thống](docs/architecture.md)                     | Hiểu ranh giới app/package, backend layers, frontend layers và flow liên ứng dụng |
+| [Phát triển và triển khai](docs/development-and-deployment.md) | Cài môi trường, chạy Docker/host, migration, CI và production topology            |
+| [Backend handbook](apps/server/README.md)                      | Đọc code NestJS, request flow, CQRS, outbox, auth và testing                      |
+| [Admin handbook](apps/admin/README.md)                         | Đọc React Admin, routing, query cache, auth refresh, RBAC và realtime             |
+| [Client handbook](apps/client/README.md)                       | Trạng thái hiện tại và quy ước phát triển Next.js client                          |
+| [Auth context](apps/server/src/contexts/iam/auth/README.md)    | Login, refresh rotation, logout, session và token revocation                      |
+| [Users context](apps/server/src/contexts/iam/users/README.md)  | User aggregate, commands, repository transaction và domain events                 |
+| [Roles context](apps/server/src/contexts/iam/roles/README.md)  | Role, permission catalog và RBAC behavior                                         |
+| [Audit context](apps/server/src/contexts/audit/README.md)      | Audit port, persistence và query flow                                             |
 
-* 🎓 **[Tài liệu Giáo khoa Kiến trúc & Mẫu thiết kế (Master Architecture Guide)](docs/architecture.md)**: Giải thích chi tiết Clean Architecture, DDD, CQRS, EDA, Stateless vs Stateful Auth & Resilience Patterns.
-* 🖥️ **[Tài liệu Admin Dashboard Portal (`apps/admin`)](apps/admin/README.md)**: Cấu trúc Feature-Based, Token Refresh Interceptor, Zustand Stores & Realtime Socket.io.
-* 💻 **[Tài liệu Backend API Server (`apps/server`)](apps/server/README.md)**: Hướng dẫn cấu hình máy chủ NestJS, Swagger Docs, Caching & Background Workers.
-  * 🛡️ **[Bounded Context Auth](apps/server/src/contexts/iam/auth/README.md)**: Luồng Login, Token Rotation, Revoke Session & Redis Store.
-  * 👤 **[Bounded Context Users](apps/server/src/contexts/iam/users/README.md)**: Quản lý User Entity, Cache Invalidation & BullMQ Worker.
-  * 🔑 **[Bounded Context Roles](apps/server/src/contexts/iam/roles/README.md)**: Quản lý RBAC System & Permission Utilities.
-  * 📋 **[Bounded Context Audit Logs](apps/server/src/contexts/audit/README.md)**: Ghi log vết tuân thủ tự động toàn hệ thống.
-
----
-
-## 📐 2. Cấu Trúc Tổng Quan Monorepo (Workspace Architecture)
-
-Monorepo được phân chia làm 2 khu vực chính: **`apps/`** (các ứng dụng đầu cuối) và **`packages/`** (các thư viện/config dùng chung).
+## Thành phần trong monorepo
 
 ```text
 turborepo-advanced-starter/
 ├── apps/
-│   ├── server/                 # Backend API Server (NestJS, Clean Architecture, DDD, CQRS)
-│   ├── admin/                  # Admin Dashboard Web Portal (React 19, Vite, TailwindCSS, Shadcn UI)
-│   └── client/                 # Client Web Application (Next.js App Router)
-│
+│   ├── server/                 # NestJS API, port mặc định 3001
+│   ├── admin/                  # React + Vite Admin SPA, port 5173
+│   └── client/                 # Next.js App Router, port 3005
 ├── packages/
-│   ├── contracts/              # Shared DTOs, Permissions, API Specs & Permission Utils
-│   ├── database/               # Prisma Schema, Database Migrations, Client Export
-│   ├── types/                  # Shared TypeScript Core Type Definitions
-│   ├── eslint-config/          # Standardized Shared ESLint Rules
-│   └── typescript-config/      # Base tsconfig.json Configurations
-│
-├── docs/                       # Master Architecture & Design Patterns Guide
-├── docker-compose.yml          # Local Infrastructure (PostgreSQL 16 & Redis Stack 7)
-├── turbo.json                  # Turborepo Build & Task Pipeline Config
-├── pnpm-workspace.yaml         # PNPM Monorepo Workspace Definition
-└── README.md                   # Tài liệu hướng dẫn cấp cao Monorepo
+│   ├── contracts/              # Permission constants và contract dùng chung
+│   ├── database/               # Prisma schema, migrations và Prisma Client export
+│   ├── types/                  # TypeScript data types dùng giữa các app
+│   ├── eslint-config/          # Shared lint configuration
+│   └── typescript-config/      # Shared TypeScript configuration
+├── docs/                       # Tài liệu kiến trúc và vận hành
+├── docker-compose.yml          # Local infrastructure và API container hiện tại
+├── turbo.json                  # Task graph
+└── pnpm-workspace.yaml         # Workspace membership
 ```
 
----
+## Kiến trúc ở mức hệ thống
 
-## 🏢 3. Tổng Quan Các Gói & Ứng Dụng Trong Monorepo
-
-### 3.1. Các Ứng Dụng (`apps/`)
-- **`apps/server`**: Máy chủ NestJS Backend theo chuẩn Clean Architecture & DDD. Đảm nhận toàn bộ API, Authentication, Authorization, Database Persistence & Realtime WebSockets.
-- **`apps/admin`**: Trang quản trị Single Page Application (SPA) xây dựng bằng React 19 + Vite. Quản lý Users, Roles, Audit Logs, Active Sessions & Dashboard Stats.
-- **`apps/client`**: Trang Web Portal dành cho người dùng cuối xây dựng bằng Next.js App Router.
-
-### 3.2. Các Gói Dùng Chung (`packages/`)
-- **`@repo/contracts`**: Gói hợp đồng dùng chung giữa Frontend và Backend. Chứa danh sách `PERMISSIONS`, `PermissionType`, và các hàm utility so sánh quyền (`hasAllPermissions`, `hasPermission`).
-- **`@repo/database`**: Chứa Prisma Schema, Migrations PostgreSQL và xuất Prisma Client cho toàn bộ dự án.
-- **`@repo/types`**: Chứa các TypeScript Types & Interfaces toàn cục.
-- **`@repo/eslint-config` & `@repo/typescript-config`**: Cấu hình chuẩn hóa Linter & TypeScript compiler chung.
-
----
-
-## 🏛️ 4. Cấu Trúc Kiến Trúc Backend (`apps/server`)
-
-Nguồn mã Backend NestJS được tổ chức thành 4 lớp rõ ràng:
-
-```text
-apps/server/src/
-├── contexts/                   # 1. BOUNDED CONTEXTS (Logic nghiệp vụ miền)
-│   ├── iam/                    # Identity & Access Management (Auth, Users, Roles)
-│   ├── audit/                  # Audit Log Compliance Engine (Độc lập với IAM)
-│   ├── analytics/              # Dashboard & Business Analytics
-│   ├── storage/                # File Upload & Media Asset Management
-│   ├── menu/                   # Dynamic Navigation Management
-│   └── notifications/          # Realtime & System Notifications
-│
-├── infrastructure/             # 2. TECHNICAL INFRASTRUCTURE DRIVERS & ADAPTERS
-│   ├── database/               # PrismaModule & PrismaService Connection
-│   ├── cache/                  # RedisModule, RedisService & Cache Interceptors
-│   ├── queue/                  # QueueModule & BullMQ Job Adapters
-│   ├── realtime/               # RealtimeModule & Socket.io WebSockets Gateway
-│   └── event-bus/              # Domain Event Dispatcher & Infrastructure Bridges
-│
-├── presentation/               # 3. HTTP FRAMEWORK BUILDING BLOCKS
-│   ├── common/                 # Common DTOs (PaginationQueryDto) & Presenters
-│   ├── decorators/             # Custom Decorators (@GetUser, @ClientInfo, @AuditLog)
-│   ├── guards/                 # HTTP Guards (JwtAuthGuard, JwtRefreshAuthGuard, PermissionsGuard)
-│   ├── filters/                # DomainExceptionFilter
-│   └── interceptors/           # AuditLogInterceptor
-│
-└── shared/                     # 4. PURE SHARED KERNEL (Zero Framework Dependency)
-    ├── domain/                 # Base AggregateRoot, Result<T,E>, DomainException & Ports
-    └── constants/              # System Domain Constants
+```mermaid
+flowchart LR
+    Admin[React Admin] -->|HTTP + JWT| API[NestJS API]
+    Client[Next.js Client] -.->|chưa tích hợp| API
+    Admin <-->|Socket.IO| Realtime[Realtime Gateway]
+    API --> Postgres[(PostgreSQL)]
+    API --> Redis[(Redis)]
+    API --> Queue[BullMQ]
+    Queue --> Worker[Background processors]
+    API --> Outbox[(outbox_events)]
+    Outbox --> SideEffects[Cache / Queue / Realtime]
 ```
 
----
+Backend tổ chức theo bounded context và Ports & Adapters. Admin tổ chức theo feature, với API adapters và query-key factories ở boundary của mỗi feature. Package dùng chung chỉ chứa những contract thực sự cần chia sẻ; không đặt business implementation của một app vào package chung.
 
-## 🛠️ 5. Hướng Dẫn Khởi Chạy Nhanh (Quick Start)
+Đọc [docs/architecture.md](docs/architecture.md) để hiểu dependency direction và flow chi tiết.
 
-### 5.1. Cài đặt Phụ thuộc & Môi trường
-```bash
-# Cài đặt toàn bộ node_modules trong Monorepo
-pnpm install
+## Quick start chuẩn trên Windows
 
-# Tạo file .env từ template
-cp .env.example .env
+Workflow mặc định là chạy application trên host và chỉ chạy infrastructure bằng Docker.
+
+### 1. Yêu cầu
+
+- Node.js 20 được khuyến nghị.
+- pnpm 9, được pin bởi `packageManager`.
+- Docker Desktop.
+
+```powershell
+corepack enable
+pnpm install --frozen-lockfile
 ```
 
-### 5.2. Khởi động Infrastructure (Database & Cache)
-```bash
-# Khởi chạy Postgres (Port 5432) & Redis (Port 6380) qua Docker
-docker-compose up -d
+### 2. Environment
 
-# Sync Prisma Schema và sinh Prisma Client
+Tạo `.env` ở root cho các script Prisma và `apps/server/.env` cho API. Tham khảo `apps/server/.env.example`.
+
+Các giá trị local quan trọng:
+
+```dotenv
+DATABASE_URL=postgresql://postgres:password@localhost:5433/starter_db?schema=public
+REDIS_HOST=localhost
+REDIS_PORT=6380
+PORT=3001
+CORS_ORIGINS=http://localhost:5173,http://localhost:3005
+```
+
+### 3. Khởi động infrastructure
+
+Ghi rõ service để không khởi động API container hiện tại:
+
+```powershell
+docker compose up -d postgres redis maildev
+```
+
+Không dùng `docker compose up -d` trong workflow host-dev cho tới khi service `api` được chuyển sang profile riêng.
+
+### 4. Database
+
+```powershell
 pnpm db:generate
-pnpm db:push
+pnpm db:migrate
+pnpm db:seed
 ```
 
-### 5.3. Khởi chạy Môi trường Phát triển (Development)
-```bash
-# Run tất cả apps (Server, Client, Admin) đồng thời qua Turborepo
+`db:migrate` là workflow chuẩn khi schema cần lịch sử migration. `db:push` chỉ dành cho database tạm/prototype và không thay thế migration.
+
+### 5. Chạy application
+
+```powershell
 pnpm dev
 ```
-* **API Server**: [http://localhost:3001](http://localhost:3001) (Swagger API Docs tại [/api](http://localhost:3001/api))
-* **Admin Dashboard**: [http://localhost:3000](http://localhost:3000)
-* **Client App**: [http://localhost:3002](http://localhost:3002)
+
+| Service    | URL                         |
+| ---------- | --------------------------- |
+| API        | `http://localhost:3001`     |
+| Swagger    | `http://localhost:3001/api` |
+| Admin      | `http://localhost:5173`     |
+| Client     | `http://localhost:3005`     |
+| Maildev    | `http://localhost:1083`     |
+| PostgreSQL | `localhost:5433`            |
+| Redis      | `localhost:6380`            |
+
+Có thể chạy riêng:
+
+```powershell
+pnpm dev:server
+pnpm dev:admin
+pnpm dev:client
+```
+
+## Task graph và quality gate
+
+Turborepo chạy task theo dependency graph. Package dùng chung phải build trước app tiêu thụ nó.
+
+```powershell
+pnpm lint
+pnpm check-types
+pnpm build
+pnpm --filter=server verify
+pnpm --filter=admin verify
+```
+
+Admin `verify` chạy lint, Vitest và production build. Server `verify` chạy lint, build, typecheck và unit tests. E2E backend là task riêng vì cần test database.
+
+## Quy tắc kiến trúc
+
+1. Domain backend không phụ thuộc NestJS, Prisma, Redis hoặc HTTP.
+2. Controller chỉ chuyển transport input sang command/query và presenter output.
+3. Thay đổi aggregate cùng domain event phải được ghi atomically qua transactional outbox.
+4. Frontend component không gọi raw `fetch`; endpoint nằm trong feature API adapter.
+5. Feature frontend khác chỉ được truy cập qua public `index.ts`.
+6. Permission string lấy từ `@repo/contracts`.
+7. Server state thuộc TanStack Query; auth session thuộc Zustand; interaction ngắn hạn thuộc component.
+8. Shared package không trở thành nơi đổ code chỉ vì code được dùng ở hai chỗ.
+9. Migration đã commit là lịch sử database; không chỉnh sửa migration đã triển khai.
+10. Tài liệu phải mô tả behavior đang tồn tại và chỉ rõ technical debt.
+
+## Trạng thái và technical debt quan trọng
+
+- Docker Compose hiện vẫn chứa API development container bind-mount toàn repository. Host development phải khởi động rõ `postgres redis maildev`; xem hướng dẫn vận hành để tránh Linux symlink làm hỏng Windows `node_modules`.
+- `PrismaService` hiện truyền `pg.Pool` vào `PrismaPg`; với Prisma 7.8 cách này đã được chẩn đoán có thể gây `ECONNREFUSED`. Cần đổi sang `new PrismaPg({ connectionString })`.
+- Outbox poll interval mặc định 100 ms nhưng chưa có infrastructure-error backoff, vì vậy lỗi kết nối có thể spam log.
+- Admin refresh token vẫn nằm trong `localStorage`; mục tiêu bảo mật cao hơn là HttpOnly cookie với thay đổi contract đồng bộ.
+- Admin entry bundle vẫn lớn và cần bundle analyzer trước khi manual chunking.
+- Next.js client chưa có business feature hoặc backend integration.
+
+Danh sách này là phần của kiến trúc hiện tại, không phải ghi chú tùy chọn.
+
+## Khi bắt đầu một thay đổi
+
+Trước khi sửa code, xác định app hoặc bounded context sở hữu behavior. Đọc handbook tương ứng, tìm public boundary và test gần nhất. Sau khi sửa, cập nhật tài liệu nếu flow, contract, command, port hoặc cách vận hành thay đổi.
+
+Nếu một thay đổi chạm cả backend và frontend, contract phải được thay đổi trước hoặc trong cùng change set; không để hai bên tự suy diễn response khác nhau.

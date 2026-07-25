@@ -1,28 +1,20 @@
-import { useQuery } from '@tanstack/react-query';
-import { ApiClient } from '@/lib/api-client';
-
-export interface DashboardStats {
-    totalUsers: number;
-    activeUsers: number;
-    inactiveUsers: number;
-    activeSessionsCount: number;
-    rolesDistribution: { role: string; count: number }[];
-    userRegistrationTrend: { date: string; count: number }[];
-}
+import { useQuery } from "@tanstack/react-query";
+import { dashboardApi } from "../api/dashboard.api";
+import { dashboardKeys } from "../api/dashboard.keys";
 
 export const useDashboardStats = () => {
-    const { data, isLoading, refetch, isFetching } = useQuery<DashboardStats>({
-        queryKey: ['dashboard-stats'],
-        queryFn: async () => {
-            return await ApiClient.get<DashboardStats>('/dashboard/stats');
-        },
-        staleTime: 30000,
-    });
+  const query = useQuery({
+    queryKey: dashboardKeys.stats(),
+    queryFn: dashboardApi.getStats,
+    staleTime: 30000,
+  });
 
-    return {
-        stats: data,
-        isLoading,
-        isFetching,
-        refetch,
-    };
+  return {
+    stats: query.data,
+    isLoading: query.isLoading,
+    isError: query.isError,
+    error: query.error,
+    isFetching: query.isFetching,
+    refetch: query.refetch,
+  };
 };

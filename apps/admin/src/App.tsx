@@ -1,10 +1,11 @@
-import { useEffect } from 'react';
-import { RouterProvider } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { router } from '@/routes';
-import { useAuthStore } from '@/features/auth/store/auth.store';
+import { useEffect } from "react";
+import { RouterProvider } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { router } from "@/routes";
+import { useAuthStore } from "@/features/auth";
 import { Toaster } from "@/components/ui/sonner";
-import { ThemeProvider } from './components/theme-provider';
+import { ThemeProvider } from "./components/theme-provider";
+import { ApplicationErrorBoundary } from "@/components/application-error-boundary";
 
 // 1. Initialize TanStack Query Client
 const queryClient = new QueryClient({
@@ -24,13 +25,13 @@ function App() {
 
     const handleGlobalLogout = () => {
       clearAuth();
-      router.navigate('/login');
+      router.navigate("/login");
     };
 
-    window.addEventListener('auth:logout', handleGlobalLogout);
+    window.addEventListener("auth:logout", handleGlobalLogout);
 
     return () => {
-      window.removeEventListener('auth:logout', handleGlobalLogout);
+      window.removeEventListener("auth:logout", handleGlobalLogout);
     };
   }, [initialize, clearAuth]);
 
@@ -43,13 +44,14 @@ function App() {
   }
 
   return (
-    <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
-      <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
-        <Toaster />
-      </QueryClientProvider>
-    </ThemeProvider>
-
+    <ApplicationErrorBoundary>
+      <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+        <QueryClientProvider client={queryClient}>
+          <RouterProvider router={router} />
+          <Toaster />
+        </QueryClientProvider>
+      </ThemeProvider>
+    </ApplicationErrorBoundary>
   );
 }
 

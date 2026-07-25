@@ -1,235 +1,379 @@
-# 🏛️ Master System Architecture & Design Patterns Guide
+# Kiến trúc hệ thống
 
-Tài liệu này là **Cuốn Cẩm Nang Giáo Khoa Chi Tiết Về Kiến Trúc Hệ Thống (Master Architecture Guide)** của dự án Monorepo `turborepo-advanced-starter`. Tài liệu giải thích bản chất lý thuyết, nguyên lý thiết kế và minh họa trực tiếp bằng mã nguồn thực tế trong dự án cho người mới bắt đầu.
+Tài liệu này giải thích cấu trúc đang chạy của monorepo: ranh giới sở hữu, dependency direction, flow request, transaction, authentication, frontend state và các điểm chưa hoàn thiện. Tài liệu không dùng “Clean Architecture”, “DDD” hoặc “enterprise” như nhãn trang trí; mỗi khái niệm được gắn với file và behavior thực tế.
 
----
+## 1. System context
 
-## 📚 MỤC LỤC
-1. [Clean Architecture & Hexagonal Architecture (Ports & Adapters)](#1-clean-architecture--hexagonal-architecture-ports--adapters)
-2. [Domain-Driven Design (DDD) & Shared Kernel](#2-domain-driven-design-ddd--shared-kernel)
-3. [CQRS (Command Query Responsibility Segregation)](#3-cqrs-command-query-responsibility-segregation)
-4. [Event-Driven Architecture (EDA) & Event Bridges](#4-event-driven-architecture-eda--event-bridges)
-5. [Enterprise Security Architecture (Hybrid JWT & RBAC)](#5-enterprise-security-architecture-hybrid-jwt--rbac)
-6. [Resilience & Performance (Redis Caching & BullMQ Queues)](#6-resilience--performance-redis-caching--bullmq-queues)
+Monorepo có ba application:
 
----
+- `server` là system of record cho identity, authorization, notification, audit và analytics.
+- `admin` là SPA quản trị đã tích hợp đầy đủ với API và realtime gateway.
+- `client` là Next.js application dành cho end user nhưng hiện mới ở trạng thái scaffold.
 
-## 1. Clean Architecture & Hexagonal Architecture (Ports & Adapters)
+```mermaid
+flowchart TB
+    subgraph Browser
+      Admin[Admin SPA]
+      Client[Next.js Client]
+    end
 
-### 🧠 Lý thuyết là gì?
-**Clean Architecture** (do Robert C. Martin / Uncle Bob đề xuất) và **Hexagonal Architecture** (do Alistair Cockburn đề xuất) là các kiểu kiến trúc phần mềm chia mã nguồn thành các **lớp đồng tâm**.
+    Admin -->|REST / Bearer access token| Server[NestJS Server]
+    Admin <-->|Socket.IO| Gateway[Realtime Gateway]
+    Client -.->|future integration| Server
 
-**Quy tắc cốt lõi (The Dependency Rule)**: 
-> *Sự phụ thuộc chỉ được phép hướng từ ngoài vào trong.* Lõi nghiệp vụ (Domain) nằm ở trung tâm và **tuyệt đối không phụ thuộc** vào bất kỳ Framework (NestJS), Database (Prisma/Postgres) hay thư viện bên ngoài nào.
+    Server --> DB[(PostgreSQL)]
+    Server --> Redis[(Redis)]
+    Server --> BullMQ[BullMQ]
+    Server --> Storage[Local or S3 storage adapter]
+    BullMQ --> Workers[Processors]
+```
+
+PostgreSQL giữ durable business data và outbox. Redis giữ refresh sessions, cache và queue infrastructure. Access token là JWT ngắn hạn, nhưng khả năng revoke tức thời còn dựa vào `tokenVersion` và session behavior được mô tả trong Auth handbook.
+
+## 2. Monorepo boundary
+
+`apps` là executable/deployable unit. `packages` là compile-time dependency.
 
 ```text
- ┌───────────────────────────────────────────────────────────┐
- │ PRESENTATION LAYER (Controllers, DTOs, Guards, Filters)   │
- │   ┌───────────────────────────────────────────────────┐   │
- │   │ APPLICATION LAYER (CQRS Commands, Queries)        │   │
- │   │   ┌───────────────────────────────────────────┐   │   │
- │   │   │ DOMAIN LAYER (Entities, Ports, Rules)     │   │   │
- │   │   └───────────────────────────────────────────┘   │   │
- │   └───────────────────────────────────────────────────┘   │
- └───────────────────────────────────────────────────────────┘
-   ▲ Infrastructure Layer (Prisma, Redis, BullMQ) triển khai Ports
+apps/server  ─┬─> @repo/database
+              ├─> @repo/contracts
+              └─> @repo/types
+
+apps/admin  ──┬─> @repo/contracts
+              └─> @repo/types
+
+apps/client    # chưa dùng shared business packages
 ```
 
-### 🧩 Ports & Adapters trong dự án:
-- **Port (Cổng giao tiếp - Interface)**: Nằm ở tầng Domain (`shared/domain/ports/` hoặc `context/domain/ports/`). Nó là một hợp đồng Interface định nghĩa *hệ thống cần làm gì* (ví dụ: `ISessionStore`, `UserRepository`), nhưng **không biết** dữ liệu được lưu ở đâu.
-- **Adapter (Bộ biến đổi - Implementation)**: Nằm ở tầng Infrastructure (`infrastructure/` hoặc `context/infrastructure/`). Nó triển khai chi tiết kỹ thuật cho Port (ví dụ: `RedisSessionStore` triển khai `ISessionStore`, `PrismaUserRepository` triển khai `UserRepository`).
+### `@repo/contracts`
 
-#### 💻 Minh họa code thực tế:
-```typescript
-// 1. PORT (Domain Layer) - src/contexts/iam/auth/domain/ports/session-store.port.ts
-export const SESSION_STORE = Symbol('SESSION_STORE');
-export interface ISessionStore {
-    saveRefreshToken(userId: string, jti: string, sessionData: SessionData, ttl: number): Promise<void>;
-    isRefreshTokenValid(userId: string, jti: string): Promise<boolean>;
-    revokeRefreshToken(userId: string, jti: string): Promise<void>;
-}
+Chứa permission constants và contract ổn định cần được nhiều app hiểu giống nhau. Package này không chứa NestJS decorator, React hook hoặc persistence implementation.
 
-// 2. ADAPTER (Infrastructure Layer) - src/contexts/iam/auth/infrastructure/stores/redis-session.store.ts
-@Injectable()
-export class RedisSessionStore implements ISessionStore {
-    constructor(private readonly redisService: RedisService) {}
+### `@repo/types`
 
-    async isRefreshTokenValid(userId: string, jti: string): Promise<boolean> {
-        const data = await this.redisService.get(`refresh_token:${userId}:${jti}`);
-        return !!data;
-    }
-}
-```
+Chứa các data shape chia sẻ như `User`, `Role`, `Permission`, pagination và notification. Type chia sẻ giúp phát hiện contract drift lúc compile, nhưng không thay thế runtime validation ở API boundary.
 
----
+### `@repo/database`
 
-## 2. Domain-Driven Design (DDD) & Shared Kernel
+Sở hữu Prisma schema, migration và generated client export. Chỉ backend được phép coi Prisma model là persistence model. Frontend không phụ thuộc package database.
 
-### 🧠 Lý thuyết là gì?
-**Domain-Driven Design (DDD)** là phương pháp thiết kế phần mềm lấy **Miền nghiệp vụ (Domain)** làm trung tâm. Thay vì thiết kế cơ sở dữ liệu trước, DDD tập trung xây dựng mô hình bài toán thực tế.
+### Configuration packages
 
-### 🔑 Các khái niệm cốt lõi trong DDD:
+`@repo/eslint-config` và `@repo/typescript-config` chuẩn hóa toolchain. Chúng không phải runtime dependencies.
 
-1. **Bounded Context (Miền giới hạn)**:
-   - Là một ranh giới rõ ràng nơi một mô hình nghiệp vụ có hiệu lực.
-   - Trong dự án này, hệ thống được chia làm các Bounded Contexts độc lập tại `apps/server/src/contexts/`:
-     - `iam/auth`: Xác thực & Quản lý phiên.
-     - `iam/users`: Quản lý tài khoản & Thực thể người dùng.
-     - `iam/roles`: Quản lý vai trò & Quyền hạn RBAC.
-     - `audit`: Ghi nhật ký vết tuân thủ hệ thống (Độc lập với IAM).
-     - `analytics`: Báo cáo chỉ số kinh doanh.
+## 3. Backend: bounded contexts và layers
 
-2. **Shared Kernel (Lõi dùng chung thuần khiết - `src/shared/`)**:
-   - Khái niệm **Shared Kernel** là phần mã nguồn miền được chia sẻ giữa tất cả các Bounded Contexts.
-   - **Quy tắc vàng**: `shared/` chỉ chứa **Pure Domain Kernel** (`Result<T, E>`, `AggregateRoot`, `DomainException`, Ports) và **0% NestJS/Framework dependency**.
-   - Các thành phần liên quan đến NestJS Framework HTTP được chuyển về **`src/presentation/`**, các thành phần kĩ thuật chuyển về **`src/infrastructure/`**.
-
-3. **Aggregate Root & Entities**:
-   - **Entity**: Đơn vị nghiệp vụ có danh tính (ID) duy nhất và vòng đời.
-   - **Aggregate Root**: Là Thực thể gốc đứng đầu một cụm đối tượng, chịu trách nhiệm bảo vệ **Tính toàn vẹn nghiệp vụ (Invariants)**.
-   - Ví dụ: `UserEntity` (`apps/server/src/contexts/iam/users/domain/user.entity.ts`) kế thừa `AggregateRoot`. Khi đổi mật khẩu hoặc deactivate user, mọi thay đổi phải đi qua các hàm của `UserEntity`.
-
-#### 💻 Minh họa Result Pattern & AggregateRoot:
-```typescript
-// src/shared/domain/base/result.ts
-export class Result<T, E = Error> {
-    private constructor(
-        public readonly isSuccess: boolean,
-        private readonly _value?: T,
-        private readonly _error?: E
-    ) {}
-
-    public static ok<T, E>(value?: T): Result<T, E> {
-        return new Result<T, E>(true, value, undefined);
-    }
-
-    public static fail<T, E>(error: E): Result<T, E> {
-        return new Result<T, E>(false, undefined, error);
-    }
-
-    public unwrap(): T {
-        if (!this.isSuccess) throw this._error;
-        return this._value!;
-    }
-}
-```
-
----
-
-## 3. CQRS (Command Query Responsibility Segregation)
-
-### 🧠 Lý thuyết là gì?
-**CQRS** là mẫu kiến trúc **tách biệt hoàn toàn luồng Ghi (Command) và luồng Đọc (Query)** của ứng dụng.
+Backend nằm tại `apps/server/src`.
 
 ```text
-               ┌────────────────────────────────────────────────────────┐
-               │                    CONTROLLER                          │
-               └──────────────┬──────────────────────────┬──────────────┘
-                              │                          │
-                 (Mutation)   │                          │  (Read-only)
-                              ▼                          ▼
-               ┌────────────────────────┐      ┌────────────────────────┐
-               │    COMMAND BUS         │      │     QUERY BUS          │
-               └──────────┬─────────────┘      └─────────┬──────────────┘
-                          │                              │
-                          ▼                              ▼
-               ┌────────────────────────┐      ┌────────────────────────┐
-               │  LoginCommandHandler   │      │ GetUsersQueryHandler   │
-               └──────────┬─────────────┘      └─────────┬──────────────┘
-                          │                              │
-                          ▼ (Write/Side-effect)          ▼ (Read Cache/DB)
-                [DB / Redis Session]             [Prisma Read Only]
+src/
+├── contexts/
+│   ├── iam/
+│   │   ├── auth/
+│   │   ├── users/
+│   │   └── roles/
+│   ├── audit/
+│   ├── notifications/
+│   ├── analytics/dashboard/
+│   ├── storage/
+│   └── menu/
+├── shared/
+│   ├── domain/
+│   └── application/
+├── infrastructure/
+│   ├── database/
+│   ├── cache/
+│   ├── queue/
+│   ├── realtime/
+│   ├── event-bus/
+│   └── health/
+├── presentation/
+└── app.module.ts
 ```
 
-### 🎯 Phân biệt Command và Query trong dự án:
-- **Command (Tác vụ Ghi/Thay đổi)**: Có Side-effect (thay đổi DB, ghi Redis, gửi mail, rotate token). Trả về `Result<T, DomainException>`.
-  - Ví dụ: `RegisterCommand`, `LoginCommand` (ghi session Redis), `RefreshCommand` (rotate token), `UpdateUserCommand`.
-- **Query (Tác vụ Đọc)**: Chỉ đọc dữ liệu, tuyệt đối **không được làm thay đổi trạng thái hệ thống**.
-  - Ví dụ: `GetUsersQuery`, `GetActiveSessionsQuery`, `GetDashboardStatsQuery`.
+Không phải context nào cũng cần đủ bốn layer. CRUD/read-only context nhỏ có thể chỉ có application và presentation. Layer được tạo khi có trách nhiệm thật, không để thỏa mãn cây thư mục.
 
-#### 💻 Minh họa Controller gọi CQRS CommandBus:
-```typescript
-// src/contexts/iam/auth/presentation/controllers/auth.controller.ts
-@Post('login')
-@HttpCode(HttpStatus.OK)
-async login(@Body() dto: LoginDto, @ClientInfo() client: ClientInfo) {
-    // Controller gửi Command qua CommandBus, không xử lý logic trực tiếp
-    const result = await this.commandBus.execute(
-        new LoginCommand(dto.email, dto.password, client.ip, client.userAgent)
-    );
-    return result.unwrap();
-}
+### Domain
+
+Domain chứa entity, value object, domain event, exception và port cần cho invariant. Domain không import NestJS, Prisma hay Redis.
+
+Ví dụ Users aggregate quyết định trạng thái active, profile và domain facts. Nó không gửi WebSocket hay enqueue email.
+
+### Application
+
+Application chứa command/query, handler và application port. Handler điều phối:
+
+```text
+load state
+→ gọi domain behavior
+→ persistence qua port
+→ trả result
 ```
 
----
+Command được dùng cho flow thay đổi state. Query được dùng cho read flow. Repository hoặc application service có thể được inject qua token/port để handler không phụ thuộc implementation.
 
-## 4. Event-Driven Architecture (EDA) & Event Bridges
+### Infrastructure
 
-### 🧠 Lý thuyết là gì?
-**Event-Driven Architecture (EDA)** là kiến trúc dựa trên sự kiện. Khi một hành động nghiệp vụ xảy ra ở một nơi, hệ thống sẽ phát ra một **Domain Event**. Các thành phần khác lắng nghe event này và xử lý độc lập mà không bị ràng buộc trực tiếp (**Decoupling**).
+Infrastructure triển khai port bằng Prisma, Redis, BullMQ, Socket.IO hoặc storage SDK. Đây cũng là nơi đặt outbox publisher và event router.
 
-### 🌉 Architecture Bridges (`src/infrastructure/event-bus/bridges/`):
-Để giữ cho Domain Kernel thuần khiết, dự án triển khai các **Event Bridges** ở tầng Infrastructure:
-- **`cache.bridge.ts`**: Lắng nghe `CacheInvalidationEvent` ➔ Gọi `RedisService` xóa cache.
-- **`queue.bridge.ts`**: Lắng nghe `QueueEvent` ➔ Đẩy công việc vào BullMQ Worker.
-- **`realtime.bridge.ts`**: Lắng nghe `RealtimeEvent` ➔ Phát thông báo WebSocket qua Socket.io Gateway.
+### Presentation
+
+Presentation chuyển HTTP/WebSocket transport sang application input:
+
+```text
+HTTP request
+→ validation pipe
+→ guard
+→ controller
+→ command/query bus
+→ presenter/response
+```
+
+Controller không sở hữu invariant và không tự điều khiển transaction nghiệp vụ.
+
+## 4. Dependency direction
+
+Dependency mong muốn:
+
+```text
+Presentation ──> Application ──> Domain
+Infrastructure ────────────────> Domain/Application ports
+```
+
+Composition module biết cả abstraction lẫn implementation để bind dependency. Domain không biết composition root.
+
+Shared domain chỉ chứa primitive thực sự dùng qua nhiều context. Một entity của Users không được chuyển vào shared chỉ vì Roles cần đọc user ID; hai context nên giao tiếp qua contract hoặc application port phù hợp.
+
+## 5. CQRS trong dự án
+
+CQRS ở đây là tách command/query handler trong application layer, không phải hai database hoặc event-sourced system.
+
+```mermaid
+flowchart LR
+    Controller --> CommandBus
+    Controller --> QueryBus
+    CommandBus --> CommandHandler
+    QueryBus --> QueryHandler
+    CommandHandler --> Domain
+    CommandHandler --> WritePort
+    QueryHandler --> ReadAdapter
+```
+
+Command có thể trả representation cần thiết, nhưng mục đích chính là thay đổi state. Query không được tạo side effect nghiệp vụ.
+
+Không phải mọi endpoint đều buộc dùng CQRS nếu context rất nhỏ; quyết định phải nhất quán trong context và được ghi trong handbook của context đó.
+
+## 6. Transactional outbox
+
+Domain event không được publish trực tiếp trong database transaction. Repository serialize event và ghi cùng aggregate trong một Prisma transaction.
 
 ```mermaid
 sequenceDiagram
-    autonumber
-    participant Hdl as UpdateUserCommandHandler
-    participant Ent as UserEntity (AggregateRoot)
-    participant Disp as DomainEventDispatcher (@infrastructure)
-    participant Bus as EventBus (@nestjs/cqrs)
-    participant Bridge as CacheEventBridge (@infrastructure/event-bus)
+    participant Handler
+    participant Aggregate
+    participant Repository
+    participant DB
+    participant Publisher
+    participant Router
 
-    Hdl->>Ent: user.updateProfile(data)
-    Ent->>Ent: addDomainEvent(new UserUpdatedEvent(userId))
-    Hdl->>Disp: dispatch(user)
-    Disp->>Bus: publish(UserUpdatedEvent)
-    Bus->>Bridge: handle(event)
-    Bridge->>Bridge: Redis.deletePattern('users:*')
+    Handler->>Aggregate: execute behavior
+    Aggregate-->>Handler: domain events
+    Handler->>Repository: save aggregate
+    Repository->>DB: transaction: aggregate + outbox_events
+    DB-->>Repository: commit
+    Publisher->>DB: claim PENDING event
+    Publisher->>Router: dispatch rehydrated event
+    Router->>Router: cache / queue / realtime side effects
+    Publisher->>DB: mark PUBLISHED
 ```
 
----
+Semantics là at-least-once. Consumer phải idempotent hoặc dùng deterministic identity. Publisher claim event bằng status transition, tăng attempts, retry với delay và chuyển sang `FAILED` khi vượt giới hạn.
 
-## 5. Enterprise Security Architecture (Hybrid JWT & RBAC)
+`recoverStaleClaims` đưa event `PROCESSING` bị worker bỏ lại về `PENDING`. Infrastructure failure của polling hiện chưa có backoff đủ tốt; đây là technical debt đã biết.
 
-### 🧠 Mô hình Auth Hybrid (Stateless Access + Stateful Refresh)
-Dự án áp dụng mô hình bảo mật kết hợp tối ưu giữa **Hiệu năng (Performance)** và **Khả năng Kiểm soát (Control)**:
+## 7. Authentication và authorization
 
-1. **Access Token (Short-lived 15m) ➔ Pure Stateless Validation**:
-   - Token chứa `sub`, `email`, `roles`, `permissions`.
-   - `JwtStrategy` (`src/infrastructure/strategies/jwt.strategy.ts`) kiểm tra chữ ký token bằng JWT Secret và nhả trực tiếp payload (**0 DB Query**).
-   - Kiểm tra quyền truy cập API tính bằng Microsecond.
+### Token model
 
-2. **Refresh Token (Long-lived 7d) ➔ Stateful Session Storage**:
-   - Mỗi lần Đăng nhập tạo ra 1 `jti` (JWT ID) duy nhất.
-   - Lưu trữ thông tin Session (`jti`, `ip`, `userAgent`, `createdAt`) trong Redis qua `ISessionStore`.
-   - Cho phép Đăng xuất (Revoke JTI), Đăng xuất khỏi mọi thiết bị (`revokeAllUserSessions`), Quản lý danh sách phiên đang hoạt động.
+- Access token ngắn hạn được gửi qua `Authorization: Bearer`.
+- Refresh token đại diện cho session có state trong Redis.
+- Refresh rotation phát token pair mới và thu hồi session token cũ.
+- User có `tokenVersion` để vô hiệu hóa access token đã phát khi security state thay đổi.
 
-### 🛡️ RBAC (Role-Based Access Control) Với Contracts:
-- Danh sách quyền hạn (`PermissionType`) được định nghĩa tập trung tại gói dùng chung `@repo/contracts`.
-- Các hàm tiện ích so sánh quyền (`hasAllPermissions`, `hasAnyPermission`, `hasPermission`) nằm tại `@repo/contracts/auth/permission-utils.ts`.
-- `PermissionsGuard` (`src/presentation/guards/permissions.guard.ts`) lấy `permissions` từ JWT Payload và kiểm tra quyền tức thì không cần query DB.
+Flow login:
 
----
+```mermaid
+sequenceDiagram
+    participant UI
+    participant Auth
+    participant DB
+    participant Redis
 
-## 6. Resilience & Performance (Redis Caching & BullMQ Queues)
+    UI->>Auth: POST /auth/login
+    Auth->>DB: load user and authorization data
+    Auth->>Auth: verify password and active state
+    Auth->>Redis: store refresh session by jti
+    Auth-->>UI: access token + refresh token
+    UI->>Auth: GET /users/me
+    Auth-->>UI: current user and permissions
+```
 
-### 🚀 Automatic Cache Invalidation
-- Các truy vấn GET được cache tự động bằng `@CacheKey('users:list')`.
-- Các tác vụ ghi (PUT/POST/DELETE) được gắn Decorator `@InvalidateCache('users:*')`.
-- `CacheInvalidationInterceptor` (`src/infrastructure/cache/interceptors/cache-invalidation.interceptor.ts`) sẽ tự động xóa tất cả cache pattern tương ứng khi Mutation thành công.
+Route guard xác thực identity; permission guard kiểm tra capability. Frontend permission guard chỉ cải thiện UX, không phải security boundary.
 
-### 📦 Async Background Jobs (BullMQ)
-- Các tác vụ tốn thời gian (gửi Mail chào mừng, xử lý hình ảnh, tính toán số liệu) được đẩy vào BullMQ Queue (`QueueModule` & `BullmqQueueAdapter`).
-- Worker Processors (`user-queue.processor.ts`) chạy ngầm ở Background, giúp HTTP Request trả về ngay lập tức cho Client mà không bị treo connection.
+Admin hiện giữ access token trong memory và refresh token trong `localStorage`. API client gom concurrent 401 về một refresh promise, retry request đúng một lần và phát global logout nếu refresh thất bại.
 
----
+## 8. Audit
 
-## 🏁 Lời Kết
-Kiến trúc này đảm bảo 3 tiêu chí vàng của phần mềm Enterprise:
-1. **Maintainability (Dễ bảo trì)**: Code chia theo Bounded Context & Layers rõ ràng.
-2. **Testability (Dễ kiểm thử)**: Có thể viết Unit Test cho Domain & CQRS Handlers mà không cần bật Database hay Redis.
-3. **Scalability (Dễ mở rộng)**: Dễ dàng tách bất kỳ Bounded Context nào thành Microservice độc lập trong tương lai.
+Audit là bounded context/application capability riêng, không phải `console.log`. Application gọi audit port; adapter Prisma ghi durable record với actor, action, target, IP, user agent và details phù hợp.
+
+Audit failure policy phải rõ theo use case: best-effort hay fail business operation. Không mặc định nuốt lỗi nếu audit là yêu cầu compliance.
+
+## 9. Admin frontend architecture
+
+Admin dùng feature-based modular architecture:
+
+```text
+features/users/
+├── api/
+│   ├── user.api.ts
+│   └── user.keys.ts
+├── components/
+├── hooks/
+└── index.ts                 # khi feature cần public API
+```
+
+Flow dữ liệu:
+
+```text
+Component
+→ feature hook
+→ TanStack Query
+→ feature API adapter
+→ shared ApiClient
+→ backend
+```
+
+### State ownership
+
+| State                                | Owner           |
+| ------------------------------------ | --------------- |
+| API/server data                      | TanStack Query  |
+| Authenticated user/session state     | Zustand         |
+| Route/navigation                     | React Router    |
+| Modal, filter input, local selection | React component |
+| Theme                                | Theme provider  |
+
+Query-key factory định nghĩa cache identity. Mutation invalidate root key của feature. Screen phân biệt loading, retryable error, empty và success.
+
+### Module boundary
+
+Feature khác chỉ import public `index.ts`, không deep-import implementation. ESLint ngăn deep import giữa feature và ngăn `components/ui` phụ thuộc business feature.
+
+### Runtime composition
+
+`main.tsx` render `App`. `App` bootstrap auth, tạo QueryClient, theme, router, toaster và application error boundary. Route registry lazy-load page. `ProtectedRoute` giữ authentication boundary và WebSocket lifecycle. `PermissionGuard` bảo vệ route/action.
+
+Chi tiết đầy đủ nằm trong [Admin handbook](../apps/admin/README.md).
+
+## 10. Next.js client architecture
+
+Client dùng Next.js App Router và React Server Components mặc định. Hiện chỉ có root layout và homepage scaffold; chưa có feature, authentication hoặc API adapter.
+
+Khi phát triển, định hướng là:
+
+```text
+app/                       # route composition, layouts, loading/error
+features/                  # business UI/use cases
+shared/api/                # server/client-safe API clients
+shared/ui/                 # reusable presentation
+shared/config/             # validated environment
+```
+
+Không sao chép Admin SPA architecture một cách máy móc. Next.js có server/client boundary, caching và rendering model khác; quyết định fetch phải dựa trên nơi dữ liệu được dùng và security requirement.
+
+## 11. Database và migration
+
+Prisma schema là declarative current model; migrations là lịch sử thay đổi.
+
+```text
+schema change
+→ prisma migrate dev
+→ review migration.sql
+→ commit schema + migration
+→ CI/test database applies migrations
+→ deployment runs migrate deploy
+```
+
+`prisma generate` chỉ tạo client. `db push` không tạo migration history và không phải production deployment mechanism.
+
+Database local hiện từng được tạo bằng `db push` và có thể không có `_prisma_migrations`. Cần recreate hoặc baseline có chủ đích trước khi dùng migration governance nghiêm túc.
+
+## 12. Runtime topology
+
+Local mặc định:
+
+```text
+Host: pnpm dev → server + admin + client
+Docker: PostgreSQL + Redis + Maildev
+```
+
+Production mục tiêu:
+
+```text
+immutable API image
+immutable Next.js image
+static Admin assets/CDN
+managed PostgreSQL
+managed Redis
+object storage
+external mail provider
+```
+
+Development container không phải production image. Production container không bind source, không chạy watch mode và không cài dependency lúc start.
+
+## 13. Failure handling và observability
+
+Hệ thống đã có:
+
+- correlation ID cho HTTP flow;
+- structured domain/API error mapping;
+- health checks;
+- durable audit;
+- outbox attempts và last error;
+- frontend query retry UI và application/route error boundary.
+
+Hệ thống còn cần:
+
+- centralized structured logger;
+- metrics cho API latency, queue và outbox lag;
+- tracing qua HTTP → command → outbox → worker;
+- rate-limited/backoff infrastructure error logs;
+- frontend error reporting adapter thay cho chỉ `console.error`.
+
+## 14. Kiểm thử
+
+Backend test pyramid:
+
+```text
+domain unit
+→ handler/service unit
+→ adapter integration
+→ HTTP E2E với database/Redis test
+```
+
+Admin hiện có unit regression cho API refresh, permission evaluator và query keys. Cần tiếp tục bằng route guard, component interaction, feature mutation và browser E2E.
+
+Client chưa có business tests vì chưa có business behavior.
+
+## 15. Cách đánh giá một thay đổi kiến trúc
+
+Một abstraction chỉ nên được thêm khi nó:
+
+1. tạo boundary có ý nghĩa;
+2. loại bỏ coupling hoặc ambiguity;
+3. có tên theo ngôn ngữ hệ thống;
+4. giữ dependency direction;
+5. có thể được kiểm thử;
+6. được dùng bởi flow thực tế.
+
+Không tạo interface cho mọi class, mapper cho mọi object hoặc layer rỗng chỉ để cây thư mục trông “chuẩn”. Enterprise architecture là khả năng kiểm soát thay đổi và failure, không phải số lượng pattern.

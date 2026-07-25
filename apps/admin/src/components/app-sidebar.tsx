@@ -1,11 +1,11 @@
-import * as React from "react"
-import * as Icons from "lucide-react"
-import { useQuery } from "@tanstack/react-query"
-import { ApiClient } from "@/lib/api-client"
-import { NavMain } from "@/components/nav-main"
-import { NavUser } from "@/components/nav-user"
-import { useAuthStore } from "@/features/auth/store/auth.store"
-import { usePermission } from "@/hooks/usePermission"
+import * as React from "react";
+import { HelpCircle, Settings2, Shield, type LucideIcon } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { ApiClient } from "@/lib/api-client";
+import { NavMain } from "@/components/nav-main";
+import { NavUser } from "@/components/nav-user";
+import { useAuthStore } from "@/features/auth";
+import { usePermission } from "@/hooks/usePermission";
 import {
   Sidebar,
   SidebarContent,
@@ -15,57 +15,83 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-} from "@/components/ui/sidebar"
+} from "@/components/ui/sidebar";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { user: authUser } = useAuthStore()
-  const { can } = usePermission()
+  const { user: authUser } = useAuthStore();
+  const { can } = usePermission();
 
-  const { data: rawMenuData } = useQuery({
+  interface MenuItem {
+    title: string;
+    url: string;
+    permission?: string;
+  }
+
+  interface MenuGroup {
+    title: string;
+    url: string;
+    icon?: string;
+    items?: MenuItem[];
+  }
+
+  interface NavigationGroup extends Omit<MenuGroup, "icon"> {
+    icon: LucideIcon;
+  }
+
+  const iconRegistry: Record<string, LucideIcon> = {
+    HelpCircle,
+    Settings2,
+    Shield,
+  };
+
+  const { data: rawMenuData } = useQuery<NavigationGroup[]>({
     queryKey: ["sidebar-menus"],
     queryFn: async () => {
-      const response = await ApiClient.get<any[]>("/menus")
-      return response.map((group: any) => ({
+      const response = await ApiClient.get<MenuGroup[]>("/menus");
+      return response.map((group) => ({
         ...group,
-        icon: (Icons as any)[group.icon] || Icons.Shield,
+        icon: group.icon ? iconRegistry[group.icon] || Shield : Shield,
         items: group.items,
-      }))
+      }));
     },
-  })
+  });
 
   const filteredMenuData = React.useMemo(() => {
     if (!rawMenuData) return [];
     return rawMenuData
-      .map((group: any) => {
-        const filteredItems = (group.items || []).filter((item: any) =>
-          can(item.permission)
+      .map((group) => {
+        const filteredItems = (group.items || []).filter((item) =>
+          can(item.permission),
         );
         return {
           ...group,
           items: filteredItems,
         };
       })
-      .filter((group: any) => (group.items || []).length > 0);
+      .filter((group) => (group.items || []).length > 0);
   }, [rawMenuData, can]);
 
   const user = authUser
     ? {
-      name: authUser.email.split("@")[0],
-      email: authUser.email,
-      avatar: "",
-    }
+        name: authUser.email.split("@")[0],
+        email: authUser.email,
+        avatar: "",
+      }
     : {
-      name: "Guest",
-      email: "",
-      avatar: "",
-    }
+        name: "Guest",
+        email: "",
+        avatar: "",
+      };
 
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader className="h-16 flex flex-row items-center px-4 gap-2">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" className="hover:bg-transparent cursor-default active:translate-y-0">
+            <SidebarMenuButton
+              size="lg"
+              className="hover:bg-transparent cursor-default active:translate-y-0"
+            >
               <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
                 <span className="truncate font-bold tracking-wider uppercase">
                   Administrator
@@ -87,5 +113,5 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
       <SidebarRail />
     </Sidebar>
-  )
+  );
 }

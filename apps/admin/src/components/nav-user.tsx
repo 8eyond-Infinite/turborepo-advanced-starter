@@ -1,13 +1,6 @@
-import {
-  ChevronsUpDown,
-  LogOut,
-} from "lucide-react"
+import { ChevronsUpDown, LogOut } from "lucide-react";
 
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,39 +8,39 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
-} from "@/components/ui/sidebar"
+} from "@/components/ui/sidebar";
 
-import { useNavigate } from "react-router-dom"
-import { useAuthStore } from "@/features/auth/store/auth.store"
+import { useNavigate } from "react-router-dom";
+import { useAuthStore } from "@/features/auth";
 
 export function NavUser({
   user,
 }: {
   user: {
-    name: string
-    email: string
-    avatar: string
-  }
+    name: string;
+    email: string;
+    avatar: string;
+  };
 }) {
-  const { isMobile } = useSidebar()
-  const { logout, logoutGlobal } = useAuthStore()
-  const navigate = useNavigate()
+  const { isMobile } = useSidebar();
+  const { logout, logoutGlobal } = useAuthStore();
+  const navigate = useNavigate();
 
   const handleLogout = async () => {
-    await logout()
-    navigate('/login')
-  }
+    await logout();
+    navigate("/login");
+  };
 
   const handleGlobalLogout = async () => {
-    await logoutGlobal()
-    navigate('/login')
-  }
+    await logoutGlobal();
+    navigate("/login");
+  };
 
   return (
     <SidebarMenu>
@@ -92,7 +85,10 @@ export function NavUser({
               <LogOut />
               Log out
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleGlobalLogout} className="cursor-pointer text-red-400 hover:text-red-300">
+            <DropdownMenuItem
+              onClick={handleGlobalLogout}
+              className="cursor-pointer text-red-400 hover:text-red-300"
+            >
               <LogOut className="text-red-500" />
               Log out globally
             </DropdownMenuItem>
@@ -100,5 +96,5 @@ export function NavUser({
         </DropdownMenu>
       </SidebarMenuItem>
     </SidebarMenu>
-  )
+  );
 }

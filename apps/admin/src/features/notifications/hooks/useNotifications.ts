@@ -1,64 +1,60 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ApiClient } from '@/lib/api-client';
-import { toast } from 'sonner';
-import type { Notification } from '@repo/types';
-
-interface GetNotificationsResponse {
-    items: Notification[];
-    total: number;
-    page: number;
-    limit: number;
-}
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { getFriendlyErrorMessage } from "@/lib/error-handler";
+import { notificationApi } from "../api/notification.api";
+import { notificationKeys } from "../api/notification.keys";
 
 export const useNotifications = () => {
-    const queryClient = useQueryClient();
+  const queryClient = useQueryClient();
 
-    // Fetch user's notifications
-    const { data, isLoading } = useQuery<GetNotificationsResponse>({
-        queryKey: ['notifications'],
-        queryFn: async () => {
-            return await ApiClient.get<GetNotificationsResponse>('/notifications?page=1&limit=50');
-        },
-        staleTime: 30000,
-    });
+  // Fetch user's notifications
+  const notificationsQuery = useQuery({
+    queryKey: notificationKeys.list(1, 50),
+    queryFn: () => notificationApi.getNotifications(1, 50),
+    staleTime: 30000,
+  });
 
-    const notifications = data?.items || [];
-    const total = data?.total || 0;
-    const unreadCount = notifications.filter(n => !n.isRead).length;
+  const notifications = notificationsQuery.data?.items || [];
+  const total = notificationsQuery.data?.total || 0;
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
 
-    // Mutation to mark a notification as read
-    const markAsReadMutation = useMutation({
-        mutationFn: async (id: string) => {
-            return await ApiClient.patch(`/notifications/${id}/read`, {});
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['notifications'] });
-        },
-        onError: (err: any) => {
-            toast.error(`Không thể cập nhật trạng thái thông báo: ${err.message}`);
-        }
-    });
+  // Mutation to mark a notification as read
+  const markAsReadMutation = useMutation({
+    mutationFn: notificationApi.markAsRead,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: notificationKeys.all });
+    },
+    onError: (error: unknown) => {
+      toast.error(
+        `Không thể cập nhật trạng thái thông báo: ${getFriendlyErrorMessage(error)}`,
+      );
+    },
+  });
 
-    // Mutation to mark all as read
-    const markAllAsReadMutation = useMutation({
-        mutationFn: async () => {
-            return await ApiClient.post('/notifications/read-all', {});
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['notifications'] });
-            toast.success('Đã đánh dấu đọc tất cả thông báo!');
-        },
-        onError: (err: any) => {
-            toast.error(`Không thể cập nhật thông báo: ${err.message}`);
-        }
-    });
+  // Mutation to mark all as read
+  const markAllAsReadMutation = useMutation({
+    mutationFn: notificationApi.markAllAsRead,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: notificationKeys.all });
+      toast.success("Đã đánh dấu đọc tất cả thông báo!");
+    },
+    onError: (error: unknown) => {
+      toast.error(
+        `Không thể cập nhật thông báo: ${getFriendlyErrorMessage(error)}`,
+      );
+    },
+  });
 
-    return {
-        notifications,
-        total,
-        unreadCount,
-        isLoading,
-        markAsRead: markAsReadMutation.mutate,
-        markAllAsRead: markAllAsReadMutation.mutate,
-    };
+  return {
+    notifications,
+    total,
+    unreadCount,
+    isLoading: notificationsQuery.isLoading,
+    isError: notificationsQuery.isError,
+    error: notificationsQuery.error,
+    isFetching: notificationsQuery.isFetching,
+    refetch: notificationsQuery.refetch,
+    markAsRead: markAsReadMutation.mutate,
+    markAllAsRead: markAllAsReadMutation.mutate,
+  };
 };
