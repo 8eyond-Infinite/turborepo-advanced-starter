@@ -39,7 +39,6 @@ const parseUserAgent = (uaString?: string) => {
     isMobile = true;
   }
 
-  // Detect Browser
   if (ua.includes("chrome") || ua.includes("crios")) browser = "Google Chrome";
   else if (ua.includes("firefox") || ua.includes("fxios"))
     browser = "Mozilla Firefox";
@@ -68,7 +67,6 @@ export const SessionsManagement = () => {
     isRevokingAll,
   } = useSessions({ page: currentPage, limit: pageSize });
 
-  // Business capability access map
   const access = usePermissions({
     canRevokeSessions: PERMISSIONS.SESSION.DELETE,
   });

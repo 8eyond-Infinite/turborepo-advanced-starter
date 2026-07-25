@@ -11,7 +11,7 @@ import { ICachePort } from '@shared/application/ports/cache.port';
 @Injectable()
 export class RedisService implements OnModuleInit, OnModuleDestroy, ICachePort {
   private readonly logger = new Logger(RedisService.name);
-  private client: Redis;
+  private client!: Redis;
 
   constructor(private readonly configService: ConfigService) {}
 

@@ -26,7 +26,6 @@ export const useRoles = () => {
   const roles = rolesQuery.data || [];
   const systemPermissions = permissionsQuery.data || [];
 
-  // 3. Create Role Mutation
   const createRoleMutation = useMutation({
     mutationFn: roleApi.create,
     onSuccess: (newRole) => {
@@ -49,7 +48,6 @@ export const useRoles = () => {
     });
   };
 
-  // 4. Delete Role Mutation
   const deleteRoleMutation = useMutation({
     mutationFn: roleApi.remove,
     onSuccess: () => {
@@ -71,7 +69,6 @@ export const useRoles = () => {
     deleteRoleMutation.mutate(roleId);
   };
 
-  // 5. Update Permissions Mutation
   const updatePermissionsMutation = useMutation({
     mutationFn: roleApi.updatePermissions,
     onSuccess: () => {

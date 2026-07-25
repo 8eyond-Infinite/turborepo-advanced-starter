@@ -22,6 +22,12 @@ import {
 import { StoragePort } from '../../domain/ports/storage.port';
 import { JwtAuthGuard } from '@presentation/guards';
 
+interface UploadedFilePayload {
+  originalname: string;
+  mimetype: string;
+  buffer: Buffer;
+}
+
 @ApiTags('Storage')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
@@ -56,7 +62,7 @@ export class StorageController {
         ],
       }),
     )
-    file: Express.Multer.File,
+    file: UploadedFilePayload,
   ) {
     const url = await this.storagePort.upload(
       {
