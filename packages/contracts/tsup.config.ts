@@ -3,7 +3,7 @@ import ts from 'typescript';
 
 const ignoreDeprecations = Number.parseInt(ts.versionMajorMinor, 10) >= 6 ? '6.0' : '5.0';
 
-export default defineConfig({
+export default defineConfig((options) => ({
   entry: ['src/index.ts'],
   format: ['cjs', 'esm'],
   dts: {
@@ -11,8 +11,8 @@ export default defineConfig({
       ignoreDeprecations,
     },
   },
-  clean: true,
+  clean: !options.watch,
   minify: false,
   sourcemap: true,
   target: 'node20',
-});
+}));
