@@ -6,6 +6,7 @@
     "esModuleInterop": true,
     "incremental": false,
     "isolatedModules": true,
+    "ignoreDeprecations": "6.0",
     "lib": [
       "es2022"
     ],
