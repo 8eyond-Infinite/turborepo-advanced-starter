@@ -336,6 +336,8 @@ Development container không phải production image. Production container khôn
 Hệ thống đã có:
 
 - correlation ID cho HTTP flow;
+- structured logging tập trung qua `nestjs-pino`: JSON ở production/test, pino-pretty ở development, redact `authorization`/`cookie` header, mọi `Logger` của Nest đi qua cùng pipeline (`app.useLogger` + `bufferLogs`);
+- Prometheus endpoint `GET /metrics` (`src/infrastructure/metrics/`): default process metrics, histogram `http_request_duration_seconds` gắn nhãn theo route template (không phải raw URL, tránh nổ cardinality), gauge `outbox_events{status}` và `outbox_oldest_pending_age_seconds` tính lúc scrape — hai tín hiệu cảnh báo outbox mà tài liệu vận hành yêu cầu;
 - structured domain/API error mapping;
 - health checks;
 - durable audit;
@@ -344,9 +346,7 @@ Hệ thống đã có:
 
 Hệ thống còn cần:
 
-- centralized structured logger;
-- metrics cho API latency, queue và outbox lag;
-- tracing qua HTTP → command → outbox → worker;
+- tracing qua HTTP → command → outbox → worker (correlation ID hiện dừng ở HTTP, chưa truyền vào BullMQ job và outbox dispatch);
 - rate-limited/backoff infrastructure error logs;
 - frontend error reporting adapter thay cho chỉ `console.error`.
 

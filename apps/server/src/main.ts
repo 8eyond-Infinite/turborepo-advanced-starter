@@ -6,6 +6,7 @@ import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import { Logger } from 'nestjs-pino';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { DomainExceptionFilter } from '@presentation/filters/domain-exception.filter';
 import { NestExpressApplication } from '@nestjs/platform-express';
@@ -15,7 +16,10 @@ import { ConfigService } from '@nestjs/config';
 import { parseCorsOrigins } from './config/environment';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bufferLogs: true,
+  });
+  app.useLogger(app.get(Logger));
   const configService = app.get(ConfigService);
   app.enableShutdownHooks();
 
