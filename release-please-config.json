@@ -1,0 +1,18 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "node",
+  "include-component-in-tag": false,
+  "changelog-sections": [
+    { "type": "feat", "section": "Tính năng mới" },
+    { "type": "fix", "section": "Sửa lỗi" },
+    { "type": "perf", "section": "Hiệu năng" },
+    { "type": "refactor", "section": "Tái cấu trúc" },
+    { "type": "docs", "section": "Tài liệu" },
+    { "type": "test", "section": "Kiểm thử", "hidden": true },
+    { "type": "ci", "section": "CI", "hidden": true },
+    { "type": "chore", "section": "Việc lặt vặt", "hidden": true }
+  ],
+  "packages": {
+    ".": {}
+  }
+}

@@ -1,0 +1,78 @@
+# Quy trình phát hành
+
+Tài liệu này trả lời ba câu hỏi: phiên bản của repo được đánh số thế nào, một bản phát hành ra đời qua những bước nào, và khi cần quay lui thì bám vào đâu.
+
+> Gặp từ lạ? Tra [Bảng thuật ngữ](glossary.md).
+
+## 1. Đánh số phiên bản: semver
+
+Repo dùng **semver** (semantic versioning) — số phiên bản gồm ba phần `MAJOR.MINOR.PATCH`, ví dụ `1.4.2`:
+
+| Phần      | Tăng khi nào                               | Ví dụ đời thường                           |
+| --------- | ------------------------------------------ | ------------------------------------------ |
+| **PATCH** | Sửa lỗi, không đổi cách dùng               | Vá ổ gà trên đường — đi lại như cũ         |
+| **MINOR** | Thêm tính năng, cái cũ vẫn chạy y nguyên   | Mở thêm làn đường mới — làn cũ vẫn đó      |
+| **MAJOR** | Thay đổi phá vỡ: cái đang chạy có thể hỏng | Đổi chiều lưu thông — ai cũng phải học lại |
+
+Không ai phải tự quyết định con số. Nó được **tính tự động từ lịch sử commit** — đây là lý do repo ép kiểu commit conventional ngay từ hook `commit-msg`:
+
+| Commit bắt đầu bằng                        | Phiên bản tăng |
+| ------------------------------------------ | -------------- |
+| `fix:`                                     | PATCH          |
+| `feat:`                                    | MINOR          |
+| `feat!:` hoặc footer `BREAKING CHANGE:`    | MAJOR          |
+| `docs:` `test:` `ci:` `chore:` `refactor:` | Không tăng     |
+
+## 2. Một bản phát hành ra đời thế nào
+
+Công cụ đứng giữa là **release-please** (chạy trong [`.github/workflows/release.yml`](../.github/workflows/release.yml)). Nó không phát hành ngay mỗi lần merge — nó **gom** các thay đổi lại thành một PR đặc biệt, và con người quyết định thời điểm bấm nút.
+
+```mermaid
+flowchart TD
+    A[Commit lên main] --> B[release-please tính phiên bản kế tiếp]
+    B --> C[Mở hoặc cập nhật release PR]
+    C -->|main có thêm commit| C
+    C -->|con người merge release PR| D[Tag vX.Y.Z + GitHub Release + CHANGELOG]
+    D --> E[Image trên GHCR được gắn tag phiên bản]
+```
+
+Diễn giải từng bước:
+
+1. **Làm việc bình thường.** Mọi người cứ merge commit `feat:`/`fix:` vào `main` như trước, không thêm thao tác gì.
+2. **Release PR tự xuất hiện.** Sau commit đầu tiên đáng phát hành, một PR tên kiểu `chore(main): release 1.1.0` được bot mở ra. Nội dung PR chính là bản nháp CHANGELOG — mỗi commit `feat:`/`fix:` thành một dòng. `main` có thêm commit thì PR tự cập nhật, con số phiên bản tự nhích theo.
+3. **Phát hành = merge release PR.** Đây là hành động có chủ đích duy nhất trong cả quy trình. Merge xong, bot tạo tag `vX.Y.Z`, tạo GitHub Release kèm ghi chú, và ghi vào `CHANGELOG.md`.
+4. **Image nhận tag phiên bản.** Job `tag-image` chờ CI push image theo SHA của commit phát hành rồi gắn thêm tag phiên bản — không build lại, vì image đó đã qua đủ lint, test, e2e và quét lỗ hổng ở CI.
+
+Muốn ép một con số cụ thể (ví dụ phát hành `2.0.0` dù chưa có commit `feat!:`), thêm footer vào commit message:
+
+```text
+feat: chuyển sang API v2
+
+Release-As: 2.0.0
+```
+
+## 3. Ý nghĩa các tag của image trên GHCR
+
+Cùng một image có thể mang nhiều tag, mỗi tag một vai trò:
+
+| Tag            | Ví dụ        | Dùng để làm gì                                                                              |
+| -------------- | ------------ | ------------------------------------------------------------------------------------------- |
+| SHA của commit | `abc1234...` | Bất biến, truy vết chính xác — image này build từ đúng commit nào                           |
+| Phiên bản      | `1.1.0`      | Thứ con người đọc và deploy: "production đang chạy 1.1.0"                                   |
+| `latest`       | `latest`     | Bản mới nhất của `main` — tiện cho môi trường thử, **không** deploy production bằng tag này |
+
+**Quay lui (rollback)** vì vậy chỉ là deploy lại tag phiên bản trước đó — ví dụ đang chạy `1.1.0` gặp sự cố thì trỏ về `1.0.0`. Các bước xử lý sự cố cụ thể nằm ở [Sổ tay vận hành](operations-runbook.md).
+
+## 4. Thiết lập một lần trên GitHub
+
+release-please dùng `GITHUB_TOKEN` để mở PR, mà mặc định GitHub **không cho** Actions tạo PR. Bật một lần tại: **Settings → Actions → General → Workflow permissions → tick "Allow GitHub Actions to create and approve pull requests"**. Repo nằm trong organization thì phải bật ở cả cấp organization (cùng đường dẫn Settings của org) — cấp org tắt thì cấp repo có tick cũng vô hiệu.
+
+Chưa bật mà workflow chạy sẽ lỗi `GitHub Actions is not permitted to create or approve pull requests` — gặp đúng dòng đó thì quay lại đây.
+
+## 5. Vì sao làm theo cách này
+
+- **Không thêm việc cho người viết code.** Kỷ luật duy nhất là conventional commit — thứ hook `commit-msg` đã ép sẵn. Không phải viết file changeset, không phải tự sửa số phiên bản.
+- **Phát hành có chủ đích nhưng không thủ công.** Gom nhiều thay đổi vào một bản phát hành hay phát hành ngay một hotfix đều chỉ là chuyện merge release PR sớm hay muộn.
+- **Không build lại khi phát hành.** Image được gắn tag phiên bản chính là image đã qua kiểm tra ở CI, loại trừ khả năng "bản test một đằng, bản phát hành một nẻo".
+
+Một điều tinh tế đáng biết: tag do `GITHUB_TOKEN` tạo ra **không kích hoạt workflow khác** (GitHub chặn để tránh bot gọi bot vòng lặp vô hạn). Vì vậy đừng viết workflow mới kiểu `on: push: tags: [v*]` và mong nó chạy khi release-please tạo tag — nó sẽ im lặng không chạy. Việc gì cần làm lúc phát hành thì đặt vào job sau `release-please` trong chính `release.yml`, như job `tag-image` hiện tại.

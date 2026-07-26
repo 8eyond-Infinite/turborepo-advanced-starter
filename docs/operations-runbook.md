@@ -129,11 +129,14 @@ Job nền hoặc script chạy ngoài request HTTP sẽ có `correlation_id` r�
 
 ## 4. Quy trình phát hành
 
+Cách phiên bản được đánh số, release PR là gì và image nhận tag `1.x.y` lúc nào — xem [Quy trình phát hành](release-process.md). Phần dưới đây là góc nhìn vận hành: đưa một bản đã phát hành lên môi trường chạy thật.
+
 ### 4.1 Phát hành bình thường
 
 ```text
 merge vào main
 → CI chạy quality + e2e, build image, quét trivy, đẩy image gắn tag SHA lên GHCR
+→ merge release PR khi muốn phát hành → tag vX.Y.Z, image có thêm tag phiên bản
 → chạy job migration (prisma migrate deploy) — MỘT lần, không phải mỗi replica
 → triển khai image mới cho API
 → triển khai cùng image đó cho worker (entry: node dist/worker.js)
@@ -147,7 +150,10 @@ Thứ tự quan trọng: **migration chạy trước** và phải tương thích
 ### 4.2 Quay lui (rollback)
 
 ```bash
-# Image gắn tag theo SHA nên quay lui chỉ là triển khai lại tag trước đó
+# Quay lui = triển khai lại tag phiên bản trước đó (ví dụ đang 1.1.0 → về 1.0.0)
+docker pull ghcr.io/<org>/<repo>/server:1.0.0
+
+# Cần chính xác từng commit thì dùng tag SHA — bất biến, truy vết tuyệt đối
 docker pull ghcr.io/<org>/<repo>/server:<sha-trước-đó>
 ```
 

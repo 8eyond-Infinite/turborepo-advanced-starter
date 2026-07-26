@@ -1,0 +1,65 @@
+name: Release
+
+# Quy trình phát hành tự động — xem docs/release-process.md để hiểu toàn bộ.
+# Tóm tắt: mỗi lần main có commit mới, release-please tính phiên bản tiếp theo
+# từ lịch sử conventional commit và mở/cập nhật một "release PR" chứa CHANGELOG.
+# Merge PR đó = phát hành: tag vX.Y.Z + GitHub Release được tạo, và image trên
+# GHCR được gắn thêm tag phiên bản.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    name: Mở hoặc cập nhật release PR
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  # Tag do GITHUB_TOKEN tạo ra KHÔNG kích hoạt workflow khác (GitHub chặn để
+  # tránh vòng lặp), nên không thể dùng `on: push: tags` để publish image theo
+  # phiên bản — bước đó phải nằm ngay tại đây. Không build lại: CI đã build,
+  # scan và push image theo SHA của đúng commit này; việc còn lại chỉ là gắn
+  # thêm tag phiên bản cho image đó trên registry.
+  tag-image:
+    name: Gắn tag phiên bản cho image trên GHCR
+    runs-on: ubuntu-latest
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    permissions:
+      packages: write
+    steps:
+      - name: Resolve image name
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}/server" >> "$GITHUB_ENV"
+
+      - name: Login GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      # CI (job image) chạy song song với workflow này trên cùng commit, nên
+      # image theo SHA có thể chưa được push xong — chờ tối đa 20 phút.
+      - name: Chờ CI push image theo SHA rồi gắn tag phiên bản
+        run: |
+          VERSION="${{ needs.release-please.outputs.version }}"
+          for i in $(seq 1 40); do
+            if docker manifest inspect "$IMAGE:${{ github.sha }}" >/dev/null 2>&1; then
+              docker buildx imagetools create "$IMAGE:${{ github.sha }}" -t "$IMAGE:$VERSION"
+              echo "Đã gắn tag $VERSION cho image $IMAGE:${{ github.sha }}"
+              exit 0
+            fi
+            echo "Image chưa có trên GHCR, đợi 30 giây... ($i/40)"
+            sleep 30
+          done
+          echo "CI chưa push image sau 20 phút — kiểm tra job image của workflow CI." >&2
+          exit 1

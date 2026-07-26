@@ -1,5 +1,6 @@
 {
   "name": "turborepo-advanced-starter",
+  "version": "0.1.0",
   "private": true,
   "scripts": {
     "prebuild": "pnpm db:generate",

@@ -16,6 +16,7 @@ Người mới vào repo: bắt đầu từ [Lộ trình học từ đầu](docs
 | [Kiến trúc hệ thống](docs/architecture.md)                     | Hiểu ranh giới app/package, backend layers, frontend layers và flow liên ứng dụng   |
 | [Phát triển và triển khai](docs/development-and-deployment.md) | Cài môi trường, chạy Docker/host, migration, CI và production topology              |
 | [Sổ tay vận hành](docs/operations-runbook.md)                  | Đang có sự cố thì làm gì: triage, ngưỡng cảnh báo, phát hành, rollback, xoay secret |
+| [Quy trình phát hành](docs/release-process.md)                 | Phiên bản tính thế nào, release PR là gì, tag image trên GHCR và cách quay lui      |
 | [Backend handbook](apps/server/README.md)                      | Đọc code NestJS, request flow, CQRS, outbox, auth và testing                        |
 | [Admin handbook](apps/admin/README.md)                         | Đọc React Admin, routing, query cache, auth refresh, RBAC và realtime               |
 | [Client handbook](apps/client/README.md)                       | Trạng thái hiện tại và quy ước phát triển Next.js client                            |
