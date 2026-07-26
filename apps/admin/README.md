@@ -392,9 +392,9 @@ Dev server mặc định chạy ở `http://localhost:5173`. Backend URL lấy t
 
 ## 13. Những điểm cần tiếp tục cải thiện
 
-Dashboard đã lấy trạng thái hạ tầng thật từ `/health/ready` (làm mới mỗi 30 giây) và hiển thị audit trail thật thay cho dữ liệu trưng bày. Điểm còn lại: thư viện chart (recharts) vẫn nằm trong chunk của route dashboard — nên tách phần chart thành component con được nạp trễ (lazy) để giảm JavaScript tải khi mở trang.
+Dashboard lấy trạng thái hạ tầng thật từ `/health/ready` (làm mới mỗi 30 giây), hiển thị audit trail thật, và biểu đồ (recharts, ~378 kB) đã được tách sang `DashboardCharts` nạp trễ — mở trang thấy ngay số liệu và nhật ký, biểu đồ tới sau.
 
-Phần bundle dùng chung vẫn còn lớn. Việc tách code theo từng route đã giảm đáng kể lượng JavaScript tải lần đầu, nhưng cần đo bằng bundle analyzer trước khi tự tay chia vendor chunk, để chiến lược cache dựa trên số liệu thay vì phỏng đoán.
+Vendor đã được tách theo nhịp thay đổi (`react-vendor`, `data-vendor`, `i18n-vendor`, `realtime-vendor`) để deploy code ứng dụng không làm hỏng cache của thư viện. Muốn đo lại trước khi chỉnh tiếp: `ANALYZE=1 pnpm --filter=admin build` rồi mở `dist/stats.html`. Ngưỡng cảnh báo kích thước chunk đặt ở 350 kB để chunk phình lên là biết ngay.
 
 Authentication nên được nâng cấp sang HttpOnly refresh cookie như đã nêu. Khi thực hiện, cần viết migration note và test cả CSRF/CORS/cookie behavior.
 
