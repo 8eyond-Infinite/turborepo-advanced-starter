@@ -79,8 +79,11 @@ API_URL=http://localhost:3001
 Biến này **không có tiền tố `NEXT_PUBLIC_`** — chỉ server đọc được. Trình duyệt không bao giờ biết địa chỉ API.
 
 ```powershell
-pnpm dev:client   # http://localhost:3005
+pnpm dev:client            # http://localhost:3005
+pnpm --filter=client test  # test cho middleware, session, api (vitest)
 ```
+
+Phần được test kỹ nhất chính là phần dễ sai nhất: [`middleware.test.ts`](middleware.test.ts) dựng request giả với token sắp hết hạn để kiểm tra đủ nhánh làm mới (thành công, API từ chối, API sập), còn [`lib/session.test.ts`](lib/session.test.ts) ném dữ liệu rác vào `decodeSession` để chắc chắn cookie bị sửa tay không làm crash trang.
 
 Kiểm chứng nhanh rằng mô hình đang hoạt động đúng:
 
