@@ -34,6 +34,9 @@ COPY --from=builder /app/package.json ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/packages ./packages
 COPY --from=builder /app/apps/server/package.json ./apps/server/
+# Với node-linker=hoisted, các link @repo/* nằm trong node_modules CỦA app
+# (trỏ về ../../packages) chứ không nằm ở node_modules gốc.
+COPY --from=builder /app/apps/server/node_modules ./apps/server/node_modules
 COPY --from=builder /app/apps/server/dist ./apps/server/dist
 COPY --from=builder /app/apps/server/public ./apps/server/public
 

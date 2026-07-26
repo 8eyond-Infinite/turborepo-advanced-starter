@@ -1,4 +1,8 @@
 import { useDashboardStats } from "../hooks/useDashboardStats";
+import { useSystemHealth } from "../hooks/useSystemHealth";
+import { useAuditLogs } from "@/features/audit";
+import { formatDistanceToNow } from "date-fns";
+import { vi } from "date-fns/locale";
 import {
   Card,
   CardHeader,
@@ -12,6 +16,7 @@ import {
   Database,
   Cpu,
   CheckCircle2,
+  XCircle,
   RefreshCw,
   Loader2,
 } from "lucide-react";
@@ -34,9 +39,43 @@ import {
 
 const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
 
+// undefined = đang kiểm tra, true = up, false = down
+const InfraBadge = ({ up }: { up?: boolean }) => {
+  if (up === undefined) {
+    return (
+      <Badge variant="secondary" className="text-xs">
+        Đang kiểm tra…
+      </Badge>
+    );
+  }
+  return up ? (
+    <Badge
+      variant="outline"
+      className="flex items-center gap-1 border-emerald-500/20 bg-emerald-500/10 text-emerald-500 dark:text-emerald-400"
+    >
+      <CheckCircle2 className="h-3 w-3" /> Healthy
+    </Badge>
+  ) : (
+    <Badge
+      variant="outline"
+      className="flex items-center gap-1 border-destructive/20 bg-destructive/10 text-destructive"
+    >
+      <XCircle className="h-3 w-3" /> Down
+    </Badge>
+  );
+};
+
 export const DashboardOverview = () => {
   const { stats, isLoading, isError, error, refetch, isFetching } =
     useDashboardStats();
+  const { health } = useSystemHealth();
+  const { logs: auditLogs, isLoading: isAuditLoading } = useAuditLogs({
+    page: 1,
+    limit: 5,
+  });
+
+  const databaseUp = health ? health.checks.database === "up" : undefined;
+  const redisUp = health ? health.checks.redis === "up" : undefined;
 
   if (isLoading) {
     return (
@@ -74,50 +113,15 @@ export const DashboardOverview = () => {
     },
     {
       title: "Cơ sở dữ liệu (PostgreSQL)",
-      value: "Online",
-      description: "Kết nối qua Prisma ORM",
+      value: databaseUp === undefined ? "…" : databaseUp ? "Online" : "Offline",
+      description: "Đo trực tiếp từ /health/ready, làm mới mỗi 30 giây",
       icon: Database,
     },
     {
       title: "Hạ tầng Redis Cache",
-      value: "Connected",
-      description: "Trạng thái in-memory: Tốt",
+      value: redisUp === undefined ? "…" : redisUp ? "Connected" : "Down",
+      description: "Đo trực tiếp từ /health/ready, làm mới mỗi 30 giây",
       icon: Cpu,
-    },
-  ];
-
-  const logs = [
-    {
-      id: 1,
-      action: "Hủy kích hoạt user",
-      details: "Khóa tài khoản test.b@example.com",
-      target: "Caches evicted: users:all",
-      time: "1 phút trước",
-      status: "Success",
-    },
-    {
-      id: 2,
-      action: "Đăng nhập Admin",
-      details: "Xác thực tài khoản admin@example.com",
-      target: "IP: 127.0.0.1",
-      time: "5 phút trước",
-      status: "Success",
-    },
-    {
-      id: 3,
-      action: "Làm mới Token",
-      details: "Silent token refresh thành công",
-      target: "Access token rotated",
-      time: "10 phút trước",
-      status: "Success",
-    },
-    {
-      id: 4,
-      action: "Đăng xuất toàn cầu",
-      details: "Hủy toàn bộ phiên hoạt động của user test.c",
-      target: "Redis tokens flushed",
-      time: "2 giờ trước",
-      status: "Success",
     },
   ];
 
@@ -336,12 +340,7 @@ export const DashboardOverview = () => {
                   </p>
                 </div>
               </div>
-              <Badge
-                variant="outline"
-                className="flex items-center gap-1 border-emerald-500/20 bg-emerald-500/10 text-emerald-500 dark:text-emerald-400"
-              >
-                <CheckCircle2 className="h-3 w-3" /> Healthy
-              </Badge>
+              <InfraBadge up={databaseUp} />
             </div>
 
             <div className="flex items-center justify-between p-4 rounded-xl border border-border bg-muted/10">
@@ -356,58 +355,60 @@ export const DashboardOverview = () => {
                   </p>
                 </div>
               </div>
-              <Badge
-                variant="outline"
-                className="flex items-center gap-1 border-emerald-500/20 bg-emerald-500/10 text-emerald-500 dark:text-emerald-400"
-              >
-                <CheckCircle2 className="h-3 w-3" /> Active
-              </Badge>
+              <InfraBadge up={redisUp} />
             </div>
           </CardContent>
         </Card>
 
-        {/* Audit Simulation Logs */}
+        {/* Nhật ký audit thật — cùng nguồn với trang /audit-logs */}
         <Card className="border-border bg-card">
           <CardHeader>
             <CardTitle className="text-base font-bold text-foreground">
               Nhật ký hệ thống gần đây
             </CardTitle>
             <CardDescription className="text-xs text-muted-foreground">
-              Hoạt động an ninh và thay đổi trạng thái
+              5 hành động quản trị mới nhất từ audit trail
             </CardDescription>
           </CardHeader>
           <CardContent className="max-h-72 overflow-y-auto space-y-4">
-            {logs.map((log, index) => (
-              <div
-                key={log.id}
-                className={`flex items-start justify-between gap-4 pb-3 ${index !== logs.length - 1 ? "border-b border-border" : ""}`}
-              >
-                <div>
-                  <p className="text-sm font-semibold text-foreground">
-                    {log.action}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {log.details}
-                  </p>
-                  <span className="inline-block font-mono text-[9px] text-muted-foreground px-1.5 py-0.5 rounded mt-1 bg-muted border border-border">
-                    {log.target}
-                  </span>
-                </div>
-                <div className="text-right shrink-0">
-                  <span className="text-[10px] text-muted-foreground">
-                    {log.time}
-                  </span>
-                  <div className="mt-1">
-                    <Badge
-                      variant="secondary"
-                      className="text-[9px] uppercase tracking-wider"
-                    >
-                      {log.status}
-                    </Badge>
+            {isAuditLoading ? (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Đang tải nhật ký…
+              </div>
+            ) : auditLogs.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                Chưa có hoạt động quản trị nào được ghi nhận.
+              </p>
+            ) : (
+              auditLogs.map((log, index) => (
+                <div
+                  key={log.id}
+                  className={`flex items-start justify-between gap-4 pb-3 ${index !== auditLogs.length - 1 ? "border-b border-border" : ""}`}
+                >
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">
+                      {log.action}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {log.details}
+                    </p>
+                    <span className="inline-block font-mono text-[9px] text-muted-foreground px-1.5 py-0.5 rounded mt-1 bg-muted border border-border">
+                      {log.userEmail ?? "hệ thống"}
+                      {log.ip ? ` · ${log.ip}` : ""}
+                    </span>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span className="text-[10px] text-muted-foreground">
+                      {formatDistanceToNow(new Date(log.createdAt), {
+                        addSuffix: true,
+                        locale: vi,
+                      })}
+                    </span>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </CardContent>
         </Card>
       </div>

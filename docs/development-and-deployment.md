@@ -364,7 +364,9 @@ CI chạy trên GitHub Actions với hai workflow đã triển khai:
 
 Node được pin qua `.nvmrc`, pnpm qua trường `packageManager`. Dependabot cập nhật npm dependencies và GitHub Actions hàng tuần (`.github/dependabot.yml`). Local có husky pre-commit (lint-staged + prettier) và commit-msg (commitlint, conventional commits).
 
-Các bước chưa triển khai và vẫn là mục tiêu: build container image trong CI, quét lỗ hổng và lập danh mục thành phần (SBOM) cho image, phát hành image bất biến. Database dùng cho test phải có tên/phạm vi riêng; backend E2E đã có chốt chặn từ chối reset bất kỳ database nào không có hậu tố `_test`.
+Job `image` hoàn tất chuỗi cung ứng: build Docker image của server từ `apps/server/Dockerfile`, sinh danh mục thành phần (SBOM — bản kê mọi package có trong image, định dạng SPDX, đính kèm như artifact của run), quét lỗ hổng image bằng trivy (fail ở mức HIGH/CRITICAL, bỏ qua lỗ hổng chưa có bản vá), và chỉ khi merge vào `main` mới đẩy image bất biến lên GitHub Container Registry với hai tag: SHA của commit và `latest`. Job này khai báo `needs` cả quality lẫn e2e — image không bao giờ được phát hành từ code chưa qua gate. Chạy worker từ cùng image bằng lệnh `node dist/worker.js`.
+
+Database dùng cho test phải có tên/phạm vi riêng; backend E2E đã có chốt chặn từ chối reset bất kỳ database nào không có hậu tố `_test`.
 
 ## 14. Release flow
 
