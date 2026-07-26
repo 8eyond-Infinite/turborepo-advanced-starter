@@ -1,6 +1,10 @@
 # Baseline các finding lịch sử đã được review — KHÔNG thêm fingerprint mới
 # nếu chưa xác nhận đó là false positive.
 
-# Ví dụ minh họa "?token=abc123def456" trong README cũ (commit đầu tiên),
-# không phải secret thật.
+# Chuỗi token ví dụ trong docs API cũ (commit khởi tạo repo) — không phải secret thật.
 9dfed2f169bc21579a2cf021b7140382baefe3b9:apps/server/README.md:generic-api-key:5
+
+# Phiên bản đầu của chính file này từng trích nguyên văn chuỗi ví dụ trên trong
+# comment nên bị scanner flag chính nó; chuỗi đã được xóa, fingerprint dưới đây
+# baseline commit lịch sử đó.
+886f25a56a0aab9f7e0911e2540111ff57458081:.gitleaksignore:generic-api-key:4
