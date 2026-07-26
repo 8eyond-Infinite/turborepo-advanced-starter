@@ -1,11 +1,9 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:16-alpine
     container_name: starter-postgres
     ports:
-      - "5433:5432"
+      - '5433:5432'
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
@@ -13,7 +11,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
       interval: 5s
       timeout: 5s
       retries: 5
@@ -22,16 +20,17 @@ services:
     image: redis:7-alpine
     container_name: starter-redis
     ports:
-      - "6380:6379"
+      - '6380:6379'
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
       timeout: 5s
       retries: 5
 
   api:
+    profiles: ['container-dev']
     image: node:20-alpine
     container_name: starter-api-dev
     working_dir: /app
@@ -46,7 +45,7 @@ services:
       - /app/packages/typescript-config/node_modules
     command: sh -c "corepack enable pnpm && pnpm install && npx prisma generate --schema=packages/database/prisma/schema.prisma && cd apps/server && pnpm run dev"
     ports:
-      - "3002:3002"
+      - '3002:3002'
     env_file:
       - ./apps/server/.env
     environment:
@@ -63,8 +62,8 @@ services:
     image: maildev/maildev:2.1.0
     container_name: starter-maildev
     ports:
-      - "1083:1080"
-      - "1025:1025"
+      - '1083:1080'
+      - '1025:1025'
 
 volumes:
   postgres_data:

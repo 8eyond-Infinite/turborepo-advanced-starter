@@ -9,10 +9,15 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Logger } from '@nestjs/common';
 import type { JwtPayload } from '@repo/contracts';
+import { parseCorsOrigins } from '../../config/environment';
 
+// Decorator options are evaluated at import time; main.ts loads dotenv first
+// so CORS_ORIGINS is available here. Same allowlist as the HTTP layer —
+// '*' would bypass the app's CORS policy entirely.
 @WebSocketGateway({
   cors: {
-    origin: '*',
+    origin: parseCorsOrigins(process.env.CORS_ORIGINS ?? ''),
+    credentials: true,
   },
 })
 export class RealtimeGateway

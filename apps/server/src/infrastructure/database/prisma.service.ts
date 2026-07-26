@@ -1,7 +1,6 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@repo/database';
-import { Pool } from 'pg';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
@@ -9,14 +8,12 @@ export class PrismaService
   extends PrismaClient
   implements OnModuleInit, OnModuleDestroy
 {
-  private pool: Pool;
-
   constructor(configService: ConfigService) {
     const connectionString = configService.getOrThrow<string>('DATABASE_URL');
-    const pool = new Pool({ connectionString });
-    const adapter = new PrismaPg(pool);
-    super({ adapter });
-    this.pool = pool;
+    // Let the adapter own the pg pool lifecycle; passing an external Pool is
+    // the misconfiguration diagnosed as ECONNREFUSED on Prisma 7.8
+    // (docs/development-and-deployment.md §8).
+    super({ adapter: new PrismaPg({ connectionString }) });
   }
 
   async onModuleInit() {
@@ -25,6 +22,5 @@ export class PrismaService
 
   async onModuleDestroy() {
     await this.$disconnect();
-    await this.pool.end();
   }
 }

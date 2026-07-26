@@ -1,0 +1,15 @@
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+.git
+.github
+.husky
+.vscode
+.pnpm-store
+docs
+coverage
+**/.env
+**/.env.*
+!**/.env.example
+*.md

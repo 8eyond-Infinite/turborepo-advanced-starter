@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from '@infrastructure/database/prisma.module';
@@ -14,7 +15,7 @@ import { RealtimeModule } from '@infrastructure/realtime/realtime.module';
 import { NotificationModule } from './contexts/notifications/notification.module';
 import { AuditLogModule } from './contexts/audit/audit-log.module';
 
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { AuditLogInterceptor } from '@presentation/interceptors/audit-log.interceptor';
 import { RequestContextInterceptor } from '@presentation/interceptors/request-context.interceptor';
 import { validateEnvironment } from './config/environment';
@@ -27,6 +28,11 @@ import { HealthModule } from '@infrastructure/health/health.module';
       envFilePath: '.env',
       cache: true,
       validate: validateEnvironment,
+    }),
+    ThrottlerModule.forRoot({
+      throttlers: [{ ttl: 60_000, limit: 100 }],
+      // Rate limits protect real traffic; E2E drives auth endpoints hard on purpose.
+      skipIf: () => process.env.NODE_ENV === 'test',
     }),
     PrismaModule,
     RedisModule,
@@ -44,6 +50,10 @@ import { HealthModule } from '@infrastructure/health/health.module';
   controllers: [AppController],
   providers: [
     AppService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
     {
       provide: APP_INTERCEPTOR,
       useClass: RequestContextInterceptor,

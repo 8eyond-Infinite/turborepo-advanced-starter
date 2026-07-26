@@ -88,13 +88,11 @@ CORS_ORIGINS=http://localhost:5173,http://localhost:3005
 
 ### 3. Khởi động infrastructure
 
-Ghi rõ service để không khởi động API container hiện tại:
+API container nằm sau profile `container-dev`, nên lệnh mặc định chỉ khởi động infrastructure:
 
 ```powershell
-docker compose up -d postgres redis maildev
+docker compose up -d
 ```
-
-Không dùng `docker compose up -d` trong workflow host-dev cho tới khi service `api` được chuyển sang profile riêng.
 
 ### 4. Database
 
@@ -161,8 +159,7 @@ Admin `verify` chạy lint, Vitest và production build. Server `verify` chạy 
 
 ## Trạng thái và technical debt quan trọng
 
-- Docker Compose hiện vẫn chứa API development container bind-mount toàn repository. Host development phải khởi động rõ `postgres redis maildev`; xem hướng dẫn vận hành để tránh Linux symlink làm hỏng Windows `node_modules`.
-- `PrismaService` hiện truyền `pg.Pool` vào `PrismaPg`; với Prisma 7.8 cách này đã được chẩn đoán có thể gây `ECONNREFUSED`. Cần đổi sang `new PrismaPg({ connectionString })`.
+- API development container trong Docker Compose đã nằm sau profile `container-dev`; `docker compose up -d` mặc định chỉ khởi động infrastructure. Container này vẫn bind-mount toàn repository — xem hướng dẫn vận hành để tránh Linux symlink làm hỏng Windows `node_modules` nếu dùng nó.
 - Outbox poll interval mặc định 100 ms nhưng chưa có infrastructure-error backoff, vì vậy lỗi kết nối có thể spam log.
 - Admin refresh token vẫn nằm trong `localStorage`; mục tiêu bảo mật cao hơn là HttpOnly cookie với thay đổi contract đồng bộ.
 - Admin entry bundle vẫn lớn và cần bundle analyzer trước khi manual chunking.

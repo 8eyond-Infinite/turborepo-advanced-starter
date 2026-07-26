@@ -160,6 +160,13 @@ export class UserEntity extends AggregateRoot {
     this.trackUpdate(updatedBy);
   }
 
+  // Global logout: invalidates every already-issued access token immediately,
+  // in addition to the refresh sessions revoked in the session store.
+  public logoutEverywhere(): void {
+    this.revokeAccessTokens();
+    this.trackUpdate();
+  }
+
   private trackUpdate(updatedBy?: string): void {
     if (updatedBy) this.props.updatedBy = updatedBy;
     this.props.updatedAt = new Date();

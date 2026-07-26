@@ -49,10 +49,10 @@ pnpm được pin ở root `package.json`. Không tự ý nâng major pnpm trong
 
 ### Khởi động infrastructure
 
-Compose hiện còn service `api` không có profile. Vì vậy phải chỉ định service:
+Service `api` nằm sau profile `container-dev`, nên khởi động mặc định chỉ chạy infrastructure:
 
 ```powershell
-docker compose up -d postgres redis maildev
+docker compose up -d
 ```
 
 Kiểm tra:
@@ -262,26 +262,9 @@ Khi dùng bind mount, khai báo named volume cho mọi workspace `node_modules`,
 
 Nếu team muốn full-container development thường xuyên trên Windows, đặt repository trong WSL2 filesystem thay vì ổ `D:` bind mount sang Linux.
 
-## 8. Prisma adapter hiện tại
+## 8. Prisma adapter
 
-`PrismaService` đang tạo `pg.Pool` rồi truyền Pool vào `PrismaPg`. Với Prisma 7.8, bản tái hiện trong chính container trả:
-
-```text
-PrismaClientKnownRequestError
-code: ECONNREFUSED
-modelName: OutboxEvent
-```
-
-Cách khởi tạo mục tiêu:
-
-```ts
-const adapter = new PrismaPg({ connectionString });
-super({ adapter });
-```
-
-Sau đó `$disconnect()` quản lý adapter lifecycle; không tạo một external pool không cần thiết.
-
-Lỗi này giải thích outbox polling failure nhưng độc lập với migration và Windows `node_modules`.
+`PrismaService` và seed script khởi tạo adapter bằng `new PrismaPg({ connectionString })` và để `$disconnect()` quản lý pool lifecycle. Không truyền external `pg.Pool` vào `PrismaPg` — cách đó từng được chẩn đoán gây `PrismaClientKnownRequestError / ECONNREFUSED` trên Prisma 7.8.
 
 ## 9. Outbox operation
 
