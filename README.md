@@ -12,6 +12,7 @@ Người mới vào repo: bắt đầu từ [Lộ trình học từ đầu](docs
 | -------------------------------------------------------------- | --------------------------------------------------------------------------------- |
 | [Lộ trình học từ đầu](docs/getting-started-path.md)            | Mới vào repo, muốn học có thứ tự với bài tập thực hành và câu hỏi tự kiểm tra     |
 | [Bảng thuật ngữ](docs/glossary.md)                             | Tra nghĩa mọi thuật ngữ trong docs, mỗi khái niệm kèm ví dụ trong chính repo      |
+| [Thư viện dùng để làm gì](docs/tech-stack.md)                  | Mỗi dependency giải quyết việc gì, vì sao chọn, và nằm ở đâu trong code           |
 | [Kiến trúc hệ thống](docs/architecture.md)                     | Hiểu ranh giới app/package, backend layers, frontend layers và flow liên ứng dụng |
 | [Phát triển và triển khai](docs/development-and-deployment.md) | Cài môi trường, chạy Docker/host, migration, CI và production topology            |
 | [Backend handbook](apps/server/README.md)                      | Đọc code NestJS, request flow, CQRS, outbox, auth và testing                      |

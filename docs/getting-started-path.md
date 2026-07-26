@@ -2,7 +2,7 @@
 
 Tài liệu này dành cho người **mới vào repo, chưa biết gì về hệ thống**. Đi theo đúng thứ tự — mỗi bước có mục tiêu, phần cần đọc, việc cần tự tay làm, và câu hỏi tự kiểm tra. Trả lời được câu hỏi thì mới sang bước kế tiếp; chưa trả lời được thì đọc lại, đừng đi tiếp.
 
-Chuẩn bị trước: mở sẵn [Bảng thuật ngữ](glossary.md) ở tab bên cạnh để tra từ lạ.
+Chuẩn bị trước: mở sẵn [Bảng thuật ngữ](glossary.md) ở tab bên cạnh để tra từ lạ, và [Thư viện dùng để làm gì](tech-stack.md) khi muốn biết một dependency có mặt trong repo để giải quyết chuyện gì.
 
 Tổng thời gian tham khảo: 1–2 ngày làm việc nếu đã biết TypeScript.
 
