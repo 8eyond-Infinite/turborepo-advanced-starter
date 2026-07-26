@@ -1,0 +1,122 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TURBO_TELEMETRY_DISABLED: '1'
+
+jobs:
+  quality:
+    name: Lint, typecheck, unit tests, build
+    runs-on: ubuntu-latest
+    env:
+      # prisma generate chỉ cần URL đúng định dạng, không cần DB sống
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ci_placeholder?schema=public
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter=@repo/database db:generate
+
+      - name: Lint
+        run: pnpm turbo run lint
+
+      - name: Typecheck
+        run: pnpm turbo run check-types
+
+      - name: Unit tests
+        run: pnpm turbo run test
+
+      - name: Build
+        run: pnpm turbo run build
+
+  e2e:
+    name: Backend E2E
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: starter_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      maildev:
+        image: maildev/maildev:2.1.0
+        ports:
+          - 1025:1025
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/starter_test?schema=public
+
+      - name: Generate Prisma client
+        run: pnpm --filter=@repo/database db:generate
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/starter_test?schema=public
+
+      - name: Build workspace dependencies of server
+        run: pnpm turbo run build --filter=server^...
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/starter_test?schema=public
+
+      - name: Create server .env.test
+        run: |
+          cat > apps/server/.env.test <<'EOF'
+          NODE_ENV=test
+          PORT=3001
+          JWT_ACCESS_SECRET=ci-only-access-secret-0123456789abcdef0123456789abcdef
+          JWT_REFRESH_SECRET=ci-only-refresh-secret-0123456789abcdef0123456789abcdef
+          CORS_ORIGINS=http://localhost:5173
+          REDIS_HOST=localhost
+          REDIS_PORT=6379
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/starter_test?schema=public
+          MAIL_HOST=localhost
+          MAIL_PORT=1025
+          MAIL_FROM=ci@example.com
+          EOF
+
+      - name: Run backend E2E
+        run: pnpm --filter=server test:e2e

@@ -106,6 +106,8 @@ pnpm db:seed
 
 `db:migrate` là workflow chuẩn khi schema cần lịch sử migration. `db:push` chỉ dành cho database tạm/prototype và không thay thế migration.
 
+Seed yêu cầu `SEED_ADMIN_PASSWORD` (tối thiểu 12 ký tự) trong `.env` root để tạo tài khoản admin lần đầu; nếu thiếu, seed vẫn chạy nhưng bỏ qua bước tạo admin. Re-seed không bao giờ reset mật khẩu admin đang tồn tại, và menu chỉ được seed khi bảng `menus` rỗng.
+
 ### 5. Chạy application
 
 ```powershell

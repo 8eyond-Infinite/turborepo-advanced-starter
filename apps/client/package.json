@@ -6,7 +6,8 @@
     "dev": "next dev --port 3005",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint . --max-warnings=0",
+    "check-types": "tsc --noEmit"
   },
   "dependencies": {
     "next": "16.2.10",

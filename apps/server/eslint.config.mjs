@@ -47,6 +47,9 @@ export default tseslint.config(
   {
     files: ['**/*.spec.ts', 'test/**/*.ts'],
     rules: {
+      // expect(mock.method) trips unbound-method on jest mocks; not a real
+      // `this` hazard in assertions.
+      '@typescript-eslint/unbound-method': 'off',
       '@typescript-eslint/no-unsafe-argument': 'off',
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/no-unsafe-call': 'off',

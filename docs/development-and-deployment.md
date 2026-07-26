@@ -239,7 +239,7 @@ services:
     image: maildev/maildev:2.1.0
 
   api:
-    profiles: ["container-dev"]
+    profiles: ['container-dev']
     build:
       context: .
       dockerfile: apps/server/Dockerfile.dev
@@ -367,26 +367,14 @@ Admin Vite build là static assets và có thể phục vụ qua CDN/static host
 
 ## 13. CI pipeline
 
-Pipeline đề xuất:
+CI chạy trên GitHub Actions với hai workflow đã triển khai:
 
-```text
-checkout
-→ setup pinned Node + pnpm
-→ pnpm install --frozen-lockfile
-→ prisma generate
-→ lint
-→ typecheck
-→ unit tests
-→ start PostgreSQL/Redis service containers
-→ apply migrations to test database
-→ backend E2E
-→ production builds
-→ build container images
-→ vulnerability/SBOM scan
-→ publish immutable images
-```
+- `.github/workflows/ci.yml` — job `quality` (install frozen → prisma generate → lint với `--max-warnings=0` → check-types → unit tests → build) và job `e2e` (PostgreSQL/Redis/Maildev service containers, sinh `apps/server/.env.test` với database `starter_test`, chạy `pnpm --filter=server test:e2e`).
+- `.github/workflows/security.yml` — gitleaks secret scan (full history) và `pnpm audit --prod --audit-level=high`, chạy trên push/PR và theo lịch hàng tuần.
 
-Test database phải có tên/scope riêng. Backend E2E đã có guard từ chối reset database không có hậu tố `_test`.
+Node được pin qua `.nvmrc`, pnpm qua trường `packageManager`. Dependabot cập nhật npm dependencies và GitHub Actions hàng tuần (`.github/dependabot.yml`). Local có husky pre-commit (lint-staged + prettier) và commit-msg (commitlint, conventional commits).
+
+Các bước chưa triển khai và vẫn là mục tiêu: build container image, vulnerability/SBOM scan cho image, publish immutable images. Test database phải có tên/scope riêng; backend E2E đã có guard từ chối reset database không có hậu tố `_test`.
 
 ## 14. Release flow
 

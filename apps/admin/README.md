@@ -261,7 +261,7 @@ Chạy từ thư mục gốc monorepo:
 ```bash
 pnpm --filter=admin dev
 pnpm --filter=admin lint
-pnpm --filter=admin check:types
+pnpm --filter=admin check-types
 pnpm --filter=admin test
 pnpm --filter=admin build
 pnpm --filter=admin verify

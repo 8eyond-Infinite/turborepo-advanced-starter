@@ -1,12 +1,27 @@
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { Pool } from 'pg';
+import * as bcrypt from 'bcrypt';
 import { PERMISSIONS } from '@repo/contracts';
 
 const connectionString = process.env.DATABASE_URL;
-const pool = new Pool({ connectionString });
-const adapter = new PrismaPg(pool);
+if (!connectionString) {
+  console.error('DATABASE_URL is required to run the seed.');
+  process.exit(1);
+}
+
+const adapter = new PrismaPg({ connectionString });
 const prisma = new PrismaClient({ adapter });
+
+// Seeding a production database must be an explicit, deliberate action.
+if (
+  process.env.NODE_ENV === 'production' &&
+  process.env.ALLOW_PRODUCTION_SEED !== 'true'
+) {
+  console.error(
+    'Refusing to seed with NODE_ENV=production. Set ALLOW_PRODUCTION_SEED=true if this is intentional.',
+  );
+  process.exit(1);
+}
 
 async function main() {
   console.log('Starting seeding...');
@@ -17,25 +32,29 @@ async function main() {
     {
       name: PERMISSIONS.USER.CREATE,
       displayName: 'Thêm mới tài khoản',
-      description: 'Cho phép đăng ký và tạo tài khoản người dùng mới trên hệ thống.',
+      description:
+        'Cho phép đăng ký và tạo tài khoản người dùng mới trên hệ thống.',
       module: 'Quản lý Người Dùng',
     },
     {
       name: PERMISSIONS.USER.READ,
       displayName: 'Xem hồ sơ & Danh sách User',
-      description: 'Cho phép xem danh sách và thông tin hồ sơ chi tiết của thành viên.',
+      description:
+        'Cho phép xem danh sách và thông tin hồ sơ chi tiết của thành viên.',
       module: 'Quản lý Người Dùng',
     },
     {
       name: PERMISSIONS.USER.UPDATE,
       displayName: 'Cập nhật & Đổi trạng thái User',
-      description: 'Cho phép thay đổi thông tin người dùng, trạng thái hoạt động.',
+      description:
+        'Cho phép thay đổi thông tin người dùng, trạng thái hoạt động.',
       module: 'Quản lý Người Dùng',
     },
     {
       name: PERMISSIONS.USER.DELETE,
       displayName: 'Khóa / Xóa tài khoản User',
-      description: 'Cho phép tạm khóa hoạt động hoặc xóa tài khoản người dùng ra khỏi hệ thống.',
+      description:
+        'Cho phép tạm khóa hoạt động hoặc xóa tài khoản người dùng ra khỏi hệ thống.',
       module: 'Quản lý Người Dùng',
     },
 
@@ -69,7 +88,8 @@ async function main() {
     {
       name: PERMISSIONS.SESSION.READ,
       displayName: 'Xem danh sách Phiên làm việc',
-      description: 'Cho phép kiểm tra danh sách phiên đăng nhập của người dùng.',
+      description:
+        'Cho phép kiểm tra danh sách phiên đăng nhập của người dùng.',
       module: 'Quản lý Phiên Đăng Nhập',
     },
     {
@@ -83,7 +103,8 @@ async function main() {
     {
       name: PERMISSIONS.AUDIT.READ,
       displayName: 'Xem nhật ký hoạt động',
-      description: 'Cho phép theo dõi lịch sử và nhật ký thao tác của người dùng.',
+      description:
+        'Cho phép theo dõi lịch sử và nhật ký thao tác của người dùng.',
       module: 'Nhật Ký Hoạt Động',
     },
   ];
@@ -125,7 +146,7 @@ async function main() {
 
   // 3. Bind Permissions to Roles (RolePermission)
   console.log('Binding permissions to roles...');
-  
+
   // Admin gets ALL permissions
   for (const perm of seededPermissions) {
     await prisma.rolePermission.upsert({
@@ -144,7 +165,9 @@ async function main() {
   }
 
   // Regular user gets only read permission for users
-  const readPerm = seededPermissions.find(p => p.name === PERMISSIONS.USER.READ);
+  const readPerm = seededPermissions.find(
+    (p) => p.name === PERMISSIONS.USER.READ,
+  );
   if (readPerm) {
     await prisma.rolePermission.upsert({
       where: {
@@ -161,121 +184,150 @@ async function main() {
     });
   }
 
-  // 4. Seed Default Admin User
-  console.log('Seeding default Admin user...');
-  const adminUser = await prisma.user.upsert({
-    where: { email: 'admin@example.com' },
-    update: {
-      username: 'admin',
-      password: '$2b$10$Rs1AH6fuW9tkRFJDDPPsGenvCZow3771N7x4/x34O.yNxUfhilmcG',
-    },
-    create: {
-      email: 'admin@example.com',
-      username: 'admin',
-      password: '$2b$10$Rs1AH6fuW9tkRFJDDPPsGenvCZow3771N7x4/x34O.yNxUfhilmcG', // adminpassword
-      isActive: true,
-      isDeleted: false,
-    },
+  // 4. Seed Default Admin User.
+  // Password only comes from the environment and is only set on first creation;
+  // re-running the seed never resets an existing admin's password.
+  const adminEmail = process.env.SEED_ADMIN_EMAIL ?? 'admin@example.com';
+  const existingAdmin = await prisma.user.findUnique({
+    where: { email: adminEmail },
   });
+
+  let adminUserId: string | undefined;
+  if (existingAdmin) {
+    console.log(
+      `Admin user ${adminEmail} already exists, leaving credentials untouched.`,
+    );
+    adminUserId = existingAdmin.id;
+  } else {
+    const adminPassword = process.env.SEED_ADMIN_PASSWORD;
+    if (!adminPassword || adminPassword.length < 12) {
+      console.warn(
+        'WARNING: SEED_ADMIN_PASSWORD (min 12 characters) is not set — skipping initial admin user creation. ' +
+          'Set it in the root .env and re-run `pnpm db:seed` to create the admin account.',
+      );
+    } else {
+      console.log('Seeding default Admin user...');
+      const adminUser = await prisma.user.create({
+        data: {
+          email: adminEmail,
+          username: 'admin',
+          password: await bcrypt.hash(adminPassword, 10),
+          isActive: true,
+          isDeleted: false,
+        },
+      });
+      adminUserId = adminUser.id;
+    }
+  }
 
   // Assign ADMIN role to adminUser
-  await prisma.userRole.upsert({
-    where: {
-      userId_roleId: {
-        userId: adminUser.id,
+  if (adminUserId) {
+    await prisma.userRole.upsert({
+      where: {
+        userId_roleId: {
+          userId: adminUserId,
+          roleId: adminRole.id,
+        },
+      },
+      update: {},
+      create: {
+        userId: adminUserId,
         roleId: adminRole.id,
       },
-    },
-    update: {},
-    create: {
-      userId: adminUser.id,
-      roleId: adminRole.id,
-    },
-  });
+    });
+  }
 
-  // 5. Seed Dynamic Menus with matching PERMISSIONS
-  console.log('Seeding menus...');
-  await prisma.menu.deleteMany();
+  // 5. Seed Dynamic Menus with matching PERMISSIONS.
+  // Menus have no natural unique key, so only seed into an empty table —
+  // never wipe menus that an environment may have customized.
+  const menuCount = await prisma.menu.count();
+  if (menuCount > 0) {
+    console.log(
+      `Menus already present (${menuCount} rows), skipping menu seed.`,
+    );
+  } else {
+    console.log('Seeding menus...');
 
-  const sysAdminMenu = await prisma.menu.create({
-    data: {
-      title: 'Quản trị hệ thống',
-      url: '#',
-      icon: 'Shield',
-      order: 0,
-    },
-  });
-
-  await prisma.menu.createMany({
-    data: [
-      {
-        parentId: sysAdminMenu.id,
-        title: 'Tổng quan',
-        url: '/',
+    const sysAdminMenu = await prisma.menu.create({
+      data: {
+        title: 'Quản trị hệ thống',
+        url: '#',
+        icon: 'Shield',
         order: 0,
       },
-      {
-        parentId: sysAdminMenu.id,
-        title: 'Quản lý Users',
-        url: '/users',
-        order: 1,
-        permission: PERMISSIONS.USER.READ,
-      },
-      {
-        parentId: sysAdminMenu.id,
-        title: 'Phân quyền Roles',
-        url: '/roles',
-        order: 2,
-        permission: PERMISSIONS.ROLE.READ,
-      },
-      {
-        parentId: sysAdminMenu.id,
-        title: 'Phiên đăng nhập',
-        url: '/sessions',
-        order: 3,
-        permission: PERMISSIONS.SESSION.READ,
-      },
-      {
-        parentId: sysAdminMenu.id,
-        title: 'Nhật ký hoạt động',
-        url: '/audit-logs',
-        order: 4,
-        permission: PERMISSIONS.AUDIT.READ,
-      },
-    ],
-  });
+    });
 
-  const infraMenu = await prisma.menu.create({
-    data: {
-      title: 'Cấu hình hạ tầng',
-      url: '#',
-      icon: 'Settings2',
-      order: 1,
-    },
-  });
+    await prisma.menu.createMany({
+      data: [
+        {
+          parentId: sysAdminMenu.id,
+          title: 'Tổng quan',
+          url: '/',
+          order: 0,
+        },
+        {
+          parentId: sysAdminMenu.id,
+          title: 'Quản lý Users',
+          url: '/users',
+          order: 1,
+          permission: PERMISSIONS.USER.READ,
+        },
+        {
+          parentId: sysAdminMenu.id,
+          title: 'Phân quyền Roles',
+          url: '/roles',
+          order: 2,
+          permission: PERMISSIONS.ROLE.READ,
+        },
+        {
+          parentId: sysAdminMenu.id,
+          title: 'Phiên đăng nhập',
+          url: '/sessions',
+          order: 3,
+          permission: PERMISSIONS.SESSION.READ,
+        },
+        {
+          parentId: sysAdminMenu.id,
+          title: 'Nhật ký hoạt động',
+          url: '/audit-logs',
+          order: 4,
+          permission: PERMISSIONS.AUDIT.READ,
+        },
+      ],
+    });
 
-  await prisma.menu.createMany({
-    data: [
-      {
-        parentId: infraMenu.id,
-        title: 'Redis Cache',
+    const infraMenu = await prisma.menu.create({
+      data: {
+        title: 'Cấu hình hạ tầng',
         url: '#',
-        order: 0,
-      },
-      {
-        parentId: infraMenu.id,
-        title: 'Database PostgreSQL',
-        url: '#',
+        icon: 'Settings2',
         order: 1,
       },
-      {
-        parentId: infraMenu.id,
-        title: 'System Logs',
-        url: '#',
-        order: 2,
-      },
-    ],
-  });
+    });
+
+    await prisma.menu.createMany({
+      data: [
+        {
+          parentId: infraMenu.id,
+          title: 'Redis Cache',
+          url: '#',
+          order: 0,
+        },
+        {
+          parentId: infraMenu.id,
+          title: 'Database PostgreSQL',
+          url: '#',
+          order: 1,
+        },
+        {
+          parentId: infraMenu.id,
+          title: 'System Logs',
+          url: '#',
+          order: 2,
+        },
+      ],
+    });
+  }
 
   console.log('Seeding finished successfully!');
 }
@@ -287,5 +339,4 @@ main()
   })
   .finally(async () => {
     await prisma.$disconnect();
-    await pool.end();
   });

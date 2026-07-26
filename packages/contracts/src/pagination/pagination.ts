@@ -1,7 +1,7 @@
-export interface PaginatedResult<T = any> {
-    items: T[];
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
+export interface PaginatedResult<T = unknown> {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
 }
