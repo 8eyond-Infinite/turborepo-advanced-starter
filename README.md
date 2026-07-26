@@ -1,8 +1,8 @@
 # Turborepo Advanced Starter
 
-Đây là monorepo nền tảng gồm một NestJS API, một React Admin SPA, một Next.js client và các package dùng chung. Repository ưu tiên kiến trúc có ranh giới rõ, contract dùng chung, authentication có khả năng thu hồi phiên và tài liệu bám sát code.
+Đây là monorepo nền tảng gồm một NestJS API, một React Admin SPA, một Next.js client và các package dùng chung. Repository ưu tiên bốn thứ: kiến trúc có ranh giới rõ ràng giữa các phần, contract dùng chung để các app hiểu dữ liệu giống nhau, cơ chế đăng nhập có khả năng thu hồi phiên, và tài liệu bám sát code thật.
 
-Không phải mọi phần đều có cùng mức hoàn thiện. Backend và Admin đã có kiến trúc nghiệp vụ; `apps/client` hiện vẫn là scaffold Next.js tối thiểu. Các giới hạn đang tồn tại được ghi rõ thay vì được che bằng nhãn “enterprise”.
+Không phải mọi phần đều có cùng mức hoàn thiện. Backend và Admin đã có kiến trúc nghiệp vụ; `apps/client` hiện vẫn chỉ là bộ khung Next.js tối thiểu (scaffold), chưa có tính năng thật. Các giới hạn đang tồn tại được ghi rõ thay vì được che bằng nhãn “enterprise”.
 
 ## Bản đồ tài liệu
 
@@ -57,7 +57,7 @@ flowchart LR
     Outbox --> SideEffects[Cache / Queue / Realtime]
 ```
 
-Backend tổ chức theo bounded context và Ports & Adapters. Admin tổ chức theo feature, với API adapters và query-key factories ở boundary của mỗi feature. Package dùng chung chỉ chứa những contract thực sự cần chia sẻ; không đặt business implementation của một app vào package chung.
+Backend chia theo bounded context (mỗi mảng nghiệp vụ là một khu riêng) và theo kiểu Ports & Adapters (phần nghiệp vụ nói chuyện với thế giới bên ngoài qua các cổng trừu tượng). Admin chia theo feature; mỗi feature tự giữ API adapter và query-key factory ở ranh giới của mình. Package dùng chung chỉ chứa những contract thực sự cần chia sẻ; không đặt code nghiệp vụ của riêng một app vào package chung.
 
 Đọc [docs/architecture.md](docs/architecture.md) để hiểu dependency direction và flow chi tiết.
 
@@ -136,7 +136,7 @@ pnpm dev:client
 
 ## Task graph và quality gate
 
-Turborepo chạy task theo dependency graph. Package dùng chung phải build trước app tiêu thụ nó.
+Turborepo chạy task theo đồ thị phụ thuộc: package dùng chung phải được build xong trước, rồi app dùng nó mới được build.
 
 ```powershell
 pnpm lint
@@ -151,28 +151,28 @@ Admin `verify` chạy lint, Vitest và production build. Server `verify` chạy 
 ## Quy tắc kiến trúc
 
 1. Domain backend không phụ thuộc NestJS, Prisma, Redis hoặc HTTP.
-2. Controller chỉ chuyển transport input sang command/query và presenter output.
-3. Thay đổi aggregate cùng domain event phải được ghi atomically qua transactional outbox.
+2. Controller chỉ làm việc chuyển đổi: nhận input từ HTTP/WebSocket, đổi thành command/query, rồi đổi kết quả thành response trả về.
+3. Thay đổi trên aggregate và domain event kèm theo phải được ghi trong cùng một transaction (atomic) thông qua transactional outbox — hoặc cả hai cùng được lưu, hoặc không gì cả.
 4. Frontend component không gọi raw `fetch`; endpoint nằm trong feature API adapter.
 5. Feature frontend khác chỉ được truy cập qua public `index.ts`.
 6. Permission string lấy từ `@repo/contracts`.
-7. Server state thuộc TanStack Query; auth session thuộc Zustand; interaction ngắn hạn thuộc component.
-8. Shared package không trở thành nơi đổ code chỉ vì code được dùng ở hai chỗ.
-9. Migration đã commit là lịch sử database; không chỉnh sửa migration đã triển khai.
-10. Tài liệu phải mô tả behavior đang tồn tại và chỉ rõ technical debt.
+7. Dữ liệu lấy từ server do TanStack Query quản; phiên đăng nhập do Zustand quản; trạng thái tương tác ngắn hạn nằm ngay trong component.
+8. Package dùng chung không trở thành nơi đổ code chỉ vì một đoạn code được dùng ở hai chỗ.
+9. Migration đã commit là lịch sử của database; không chỉnh sửa migration đã được môi trường khác chạy.
+10. Tài liệu phải mô tả hành vi đang thực sự tồn tại và chỉ rõ nợ kỹ thuật (technical debt).
 
 ## Trạng thái và technical debt quan trọng
 
-- API development container trong Docker Compose đã nằm sau profile `container-dev`; `docker compose up -d` mặc định chỉ khởi động infrastructure. Container này vẫn bind-mount toàn repository — xem hướng dẫn vận hành để tránh Linux symlink làm hỏng Windows `node_modules` nếu dùng nó.
-- Outbox poll interval mặc định 100 ms nhưng chưa có infrastructure-error backoff, vì vậy lỗi kết nối có thể spam log.
-- Admin refresh token vẫn nằm trong `localStorage`; mục tiêu bảo mật cao hơn là HttpOnly cookie với thay đổi contract đồng bộ.
-- Admin entry bundle vẫn lớn và cần bundle analyzer trước khi manual chunking.
+- API development container trong Docker Compose đã nằm sau profile `container-dev`; `docker compose up -d` mặc định chỉ khởi động infrastructure. Container này vẫn mount toàn bộ repository từ máy ngoài vào (bind mount) — nếu dùng nó, xem hướng dẫn vận hành để tránh việc symlink kiểu Linux làm hỏng `node_modules` trên Windows.
+- Outbox được quét (poll) mỗi 100 ms theo mặc định, nhưng khi hạ tầng lỗi thì chưa biết giãn dần thời gian chờ (backoff), vì vậy lỗi kết nối có thể spam log.
+- Refresh token của Admin vẫn nằm trong `localStorage`; mục tiêu an toàn hơn là chuyển sang cookie HttpOnly, kèm thay đổi contract đồng bộ ở cả hai phía.
+- Bundle khởi động của Admin vẫn lớn; cần đo bằng bundle analyzer trước khi tự tay chia nhỏ (manual chunking).
 - Next.js client chưa có business feature hoặc backend integration.
 
 Danh sách này là phần của kiến trúc hiện tại, không phải ghi chú tùy chọn.
 
 ## Khi bắt đầu một thay đổi
 
-Trước khi sửa code, xác định app hoặc bounded context sở hữu behavior. Đọc handbook tương ứng, tìm public boundary và test gần nhất. Sau khi sửa, cập nhật tài liệu nếu flow, contract, command, port hoặc cách vận hành thay đổi.
+Trước khi sửa code, xác định hành vi cần sửa thuộc về app hoặc bounded context nào. Đọc handbook tương ứng, tìm ranh giới công khai (public boundary) và bài test gần nhất với chỗ định sửa. Sau khi sửa, cập nhật tài liệu nếu flow, contract, command, port hoặc cách vận hành thay đổi.
 
-Nếu một thay đổi chạm cả backend và frontend, contract phải được thay đổi trước hoặc trong cùng change set; không để hai bên tự suy diễn response khác nhau.
+Nếu một thay đổi chạm cả backend và frontend, contract phải được sửa trước hoặc trong cùng một đợt thay đổi; không để mỗi bên tự đoán response theo một kiểu.

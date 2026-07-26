@@ -1,12 +1,12 @@
 # Roles Bounded Context
 
-Roles sở hữu mô hình RBAC: role, permission catalog và quan hệ role-permission. Context này trả lời “một role đại diện cho tập quyền nào?”. Việc một HTTP request có tập quyền cần thiết được thực hiện ở presentation guard.
+Roles sở hữu mô hình RBAC: role, danh mục permission và quan hệ role-permission. Context này trả lời “một role đại diện cho tập quyền nào?”. Còn việc kiểm tra một HTTP request có đủ quyền hay không diễn ra ở guard thuộc tầng presentation.
 
 > Gặp từ lạ (RBAC, guard, aggregate, tokenVersion…)? Tra [Bảng thuật ngữ](../../../../../../docs/glossary.md).
 
 ## 1. Khái niệm nghiệp vụ
 
-Permission là capability nhỏ, ổn định và dùng chung qua `@repo/contracts`, ví dụ quyền đọc hoặc cập nhật user. Role là nhóm permission có tên và mô tả. User nhận permission thông qua role assignments.
+Permission là một quyền nhỏ, ổn định, dùng chung qua `@repo/contracts` — ví dụ quyền đọc user hoặc quyền cập nhật user. Role là một nhóm permission có tên và mô tả. User nhận permission bằng cách được gán role.
 
 Luồng khái niệm:
 
@@ -16,19 +16,19 @@ User ──has──> Role ──contains──> Permission
 JWT access token <──── resolved permissions
 ```
 
-Frontend và backend dùng chung permission identifiers để tránh drift. Tuy nhiên backend luôn là nơi enforcement cuối cùng.
+Frontend và backend dùng chung một bộ tên permission để hai bên không lệch nhau. Tuy nhiên chặn hay cho qua một request luôn do backend quyết định cuối cùng.
 
 ## 2. Ranh giới và ownership
 
 Roles sở hữu:
 
 - Role aggregate;
-- role repository port;
-- create/delete/update-permission use cases;
-- query role list và permission catalog;
-- Prisma mapping Role/Permission/RolePermission.
+- port repository của role;
+- các use case tạo role, xóa role và cập nhật tập permission của role;
+- query đọc danh sách role và danh mục permission;
+- phần ánh xạ Prisma cho các bảng Role/Permission/RolePermission.
 
-Roles không sở hữu UserRole mutation của User aggregate. Khi admin cập nhật role assignments của một user, Users context chịu trách nhiệm và tăng tokenVersion.
+Roles không sở hữu việc gán/bỏ role cho user (bảng UserRole) — phần đó thuộc User aggregate. Khi admin đổi role của một user, Users context xử lý và tăng tokenVersion.
 
 ## 3. Cấu trúc code
 
@@ -72,9 +72,9 @@ sequenceDiagram
     end
 ```
 
-Permission check dùng claim trong token sau khi strategy đã xác nhận token vẫn thuộc revision hiện tại của User. Vì đổi role assignment tăng tokenVersion, token chứa permission cũ sẽ bị từ chối.
+Bước kiểm tra permission chỉ đọc danh sách quyền ghi sẵn trong token — tin được, vì strategy vừa xác nhận ngay trước đó rằng token vẫn thuộc phiên bản quyền hiện tại của user. Vì đổi role của user làm tokenVersion tăng, token còn mang permission cũ sẽ bị loại từ bước xác thực.
 
-Authentication failure trả 401; principal hợp lệ nhưng thiếu permission trả 403. Hai trường hợp không được trộn.
+Không xác định được người gọi là ai thì trả 401; biết là ai nhưng thiếu quyền thì trả 403. Hai trường hợp không được trộn lẫn.
 
 ### Thử bằng tay: phân biệt 401 và 403
 
@@ -109,17 +109,17 @@ curl -s http://localhost:3001/roles -H "Authorization: Bearer <admin token>"
 6. Repository lưu role và mapping cần thiết.
 7. Audit interceptor ghi actor/action sau thành công.
 
-Role trùng tên trả domain error có mã rõ ràng, không để Prisma unique error rò thẳng ra HTTP.
+Tạo role trùng tên phải trả về domain error có mã lỗi rõ ràng, không để lỗi unique constraint của Prisma văng thẳng ra HTTP.
 
 ## 6. Update permissions flow
 
-`PUT /roles/:id/permissions` nhận một mảng string. Handler tải aggregate, áp dụng tập quyền mới rồi repository đồng bộ join table.
+`PUT /roles/:id/permissions` nhận một mảng string. Handler tải aggregate, gán tập quyền mới cho nó, rồi repository cập nhật bảng nối RolePermission cho khớp.
 
-Tập permissions được hiểu là desired state, không phải danh sách patch ngầm. Repository chỉ lấy những permission thực sự tồn tại trong database; identifier không tồn tại hiện bị bỏ qua. Đây là behavior hiện tại, nhưng chưa phải contract lý tưởng vì client không nhận được lỗi khi gõ sai permission.
+Mảng permission gửi lên được hiểu là trạng thái đích (“role này từ giờ có đúng những quyền này”), không phải danh sách thêm/bớt từng phần. Repository chỉ lấy những permission thực sự tồn tại trong database; tên không tồn tại hiện bị lặng lẽ bỏ qua. Đây là hành vi hiện tại, chưa lý tưởng, vì client gõ sai tên permission sẽ không nhận được lỗi nào.
 
-Hướng chuẩn hóa tiếp theo là validate toàn bộ identifier trước khi thay mapping và trả domain error nếu có giá trị không tồn tại. Cho tới khi phần đó được triển khai, tài liệu và API không được tuyên bố input đã được allowlist hoàn toàn.
+Hướng sửa tiếp theo: kiểm tra toàn bộ danh sách tên trước khi thay bảng nối, và trả domain error nếu có tên không tồn tại. Chừng nào chưa làm phần đó, tài liệu và API không được tuyên bố rằng input đã được kiểm tra chặt.
 
-Khi role definition đổi, access token đã cấp có thể vẫn chứa permissions cũ cho tới khi tokenVersion của các user liên quan thay đổi. Hiện tại tokenVersion tăng khi role assignments của User đổi, không tự động fan-out khi nội dung Role đổi. Nếu sản phẩm yêu cầu revoke ngay cho mọi user thuộc role vừa sửa, cần bổ sung một use case/outbox flow rõ ràng; không nên ngầm tuyên bố behavior chưa tồn tại.
+Khi nội dung một role thay đổi, các access token đã cấp có thể vẫn mang danh sách permission cũ, cho tới khi tokenVersion của từng user liên quan tăng. Hiện tại tokenVersion chỉ tăng khi role của chính user đó bị gán lại, chứ không tự lan ra mọi user đang mang role vừa sửa. Nếu sản phẩm yêu cầu thu hồi token ngay cho tất cả user thuộc role đó, cần viết thêm một use case/outbox flow rõ ràng; đừng ngầm coi như tính năng này đã có.
 
 > **Tóm lại (hai giới hạn thật cần nhớ):**
 >
@@ -128,14 +128,14 @@ Khi role definition đổi, access token đã cấp có thể vẫn chứa permi
 
 ## 7. Delete semantics
 
-Delete role hiện là business operation qua command/repository và dùng soft-delete state. Trước khi mở rộng production policy, cần quyết định rõ:
+Xóa role hiện đi qua command/repository như một thao tác nghiệp vụ, và chỉ đánh dấu xóa mềm (soft-delete) chứ không xóa hẳn khỏi database. Trước khi siết chính sách cho production, cần quyết định rõ:
 
 - role hệ thống nào không được xóa;
 - role đang gắn cho user có được xóa không;
-- user mất role sẽ nhận fallback gì;
-- token của user liên quan được revoke ra sao.
+- user mất role sẽ được thay bằng role nào;
+- token của các user liên quan bị thu hồi bằng cách nào.
 
-Các policy này phải nằm trong domain/application, không chôn trong Prisma adapter.
+Các chính sách này phải nằm trong tầng domain/application, không chôn trong Prisma adapter.
 
 ## 8. API surface
 
@@ -149,48 +149,48 @@ Các policy này phải nằm trong domain/application, không chôn trong Prism
 
 ## 9. Ý nghĩa từng nhóm file
 
-`role.entity.ts` giữ role state và hành vi. Exceptions chuyển failure có ý nghĩa thành domain error. `role.repository.ts` là contract persistence và DI token.
+`role.entity.ts` giữ dữ liệu và hành vi của role. Thư mục exceptions đặt tên cho từng kiểu thất bại (“role trùng tên”, “role không tồn tại”) dưới dạng domain error. `role.repository.ts` là interface lưu/đọc role, đồng thời là token để NestJS biết tiêm implementation nào vào.
 
-Command/query files mô tả use case; handlers orchestration entity/repository. `prisma-role.repository.ts` map aggregate với Role, Permission và RolePermission records.
+Các file command/query mô tả use case; handler làm việc thật: tải entity qua repository, gọi hành vi của entity, lưu kết quả. `prisma-role.repository.ts` dịch qua lại giữa aggregate và ba bảng Role, Permission, RolePermission.
 
-DTO xác nhận input runtime; controller chỉ làm HTTP mapping, guard, audit và CQRS dispatch.
+DTO kiểm tra input lúc chạy; controller chỉ nhận request, gắn guard/audit, gửi command/query vào bus rồi trả response.
 
 ## 10. Shared permission contracts
 
-Permission constants và helpers như `hasAllPermissions` nằm trong `@repo/contracts` vì nhiều application cùng cần một ngôn ngữ authorization.
+Các hằng số permission và hàm hỗ trợ như `hasAllPermissions` nằm trong `@repo/contracts`, vì nhiều ứng dụng (server, web) cần nói cùng một ngôn ngữ về quyền.
 
 Khi thêm permission:
 
-1. khai báo identifier trong contracts;
-2. cập nhật seed/catalog database;
+1. khai báo tên permission trong contracts;
+2. cập nhật dữ liệu seed và danh mục trong database;
 3. gắn permission vào role phù hợp;
-4. dùng constant trong decorator, không hard-code string;
+4. dùng hằng số trong decorator, không viết chuỗi tay;
 5. cập nhật admin UI nếu cần;
-6. test cả allow và deny.
+6. test cả trường hợp được phép lẫn bị từ chối.
 
 ## 11. Invariant và policy
 
-- Role name phải unique theo policy repository/domain.
-- Permission chỉ được persistence khi tồn tại trong catalog; unknown identifier hiện bị bỏ qua và là điểm cần harden.
-- Controller không được tự thao tác join table.
-- Role/permission identifiers không hard-code rải rác.
-- Backend không tin UI đã ẩn nút; guard luôn enforcement server-side.
-- Thay đổi ảnh hưởng user token phải có revoke policy rõ.
+- Tên role không được trùng; quy tắc này do domain/repository giữ.
+- Chỉ permission có trong danh mục mới được lưu; tên lạ hiện bị bỏ qua trong im lặng — đây là điểm cần siết lại.
+- Controller không được tự sửa bảng nối RolePermission.
+- Không viết chuỗi tên role/permission rải rác trong code; luôn dùng hằng số từ contracts.
+- Backend không tin việc UI đã ẩn nút; guard luôn chặn ở phía server.
+- Thay đổi nào ảnh hưởng token của user phải nói rõ token bị thu hồi khi nào, bằng cách nào.
 
 ## 12. Anti-pattern
 
-- Dùng role name trực tiếp để authorize endpoint.
-- Query database permission trong từng controller.
-- Chấp nhận permission string tùy ý rồi âm thầm bỏ qua giá trị sai.
-- Sửa join table ngoài repository.
-- Xóa role hệ thống mà không có invariant.
-- Cho rằng sửa Role tự động revoke token dù chưa có implementation.
+- Kiểm tra quyền bằng tên role (“nếu là ADMIN thì cho qua”) thay vì bằng permission.
+- Tự query bảng permission trong từng controller.
+- Chấp nhận chuỗi permission tùy ý rồi âm thầm bỏ qua giá trị sai.
+- Sửa bảng nối RolePermission ở nơi khác ngoài repository.
+- Xóa role hệ thống mà không có quy tắc chặn.
+- Cho rằng sửa nội dung Role tự động thu hồi token trong khi tính năng đó chưa tồn tại.
 
 ## 13. Checklist review Roles
 
-- Permission mới đã có contract và seed chưa?
-- Endpoint dùng permission constant đúng không?
-- 401/403 semantics đúng không?
-- Mutation role có policy cho user/token liên quan không?
-- Repository có đồng bộ desired state nhất quán không?
-- Có test allow, deny, duplicate và missing role không?
+- Permission mới đã được khai báo trong contracts và seed chưa?
+- Endpoint có dùng đúng hằng số permission không?
+- Lỗi 401 và 403 có được trả đúng trường hợp không?
+- Thay đổi role có kèm chính sách xử lý user/token liên quan không?
+- Repository có cập nhật bảng nối đúng theo trạng thái đích không?
+- Có test các ca cho phép, từ chối, trùng tên và role không tồn tại không?

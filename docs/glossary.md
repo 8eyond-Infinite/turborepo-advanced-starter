@@ -4,6 +4,15 @@ Tài liệu này định nghĩa mọi thuật ngữ được dùng trong repo b�
 
 Mẹo ghi chép: cột "Hiểu đơn giản là" chính là phần đáng chép vào sổ tay nhất.
 
+## Quy ước viết tài liệu của repo
+
+Áp dụng cho mọi tài liệu tiếng Việt trong repo, để người mới không bị chặn bởi thuật ngữ:
+
+1. Thuật ngữ tiếng Anh đã thành chuẩn ngành (token, transaction, commit, cache, queue…) được giữ nguyên — nhưng câu chứa nó phải mô tả hành động cụ thể. Phép thử: che thuật ngữ đi, câu vẫn phải cho biết "ai làm gì với cái gì".
+2. Không dùng chuỗi danh từ tiếng Anh làm vị ngữ ("chuyển hành vi session thành cache operations"). Viết hành động thật: "đọc/ghi các key Redis lưu phiên đăng nhập".
+3. Thuật ngữ khó xuất hiện lần đầu trong một file phải kèm giải thích ngắn trong ngoặc, hoặc có mặt trong bảng dưới đây.
+4. Một câu chỉ nén một ý; câu dài quá thì tách đôi.
+
 ## A. Monorepo và tooling
 
 | Thuật ngữ                   | Hiểu đơn giản là                                                                                             | Trong repo này                                                                                                      |

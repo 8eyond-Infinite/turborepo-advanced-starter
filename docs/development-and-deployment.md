@@ -1,10 +1,10 @@
 # Phát triển, Docker và triển khai
 
-Tài liệu này quy định cách chạy monorepo trong local, CI và production. Mục tiêu là tránh trộn host development với container development, tránh hai package manager cùng sở hữu `node_modules` và giữ migration/database lifecycle có thể kiểm soát.
+Tài liệu này quy định cách chạy monorepo trong local, CI và production. Mục tiêu là tránh trộn lẫn hai kiểu phát triển (chạy trên máy host và chạy trong container), tránh để hai phía cùng cài đặt và ghi vào chung một `node_modules`, và giữ cho vòng đời của migration/database luôn kiểm soát được.
 
 ## 1. Nguyên tắc nền tảng
 
-Một môi trường phải có đúng một bên sở hữu dependency tree:
+Trong một môi trường, phải có đúng một bên chịu trách nhiệm cài và sở hữu toàn bộ cây dependency:
 
 ```text
 Host development
@@ -17,7 +17,7 @@ Production image
   → dependency được cài lúc image build
 ```
 
-Không cho Linux container ghi symlink vào Windows workspace rồi dùng cùng workspace bằng pnpm trên Windows.
+Không để container Linux ghi symlink vào workspace trên Windows, rồi lại chạy pnpm của Windows trên chính workspace đó — hai bên sẽ phá cấu trúc thư mục của nhau.
 
 ## 2. Workflow local được khuyến nghị
 
@@ -36,7 +36,7 @@ Docker Desktop
 └── Maildev
 ```
 
-Workflow này phù hợp nhất cho repository đặt trên `D:\...` vì file watching, IDE resolution và debugging đều dùng filesystem Windows.
+Workflow này phù hợp nhất cho repository đặt trên `D:\...` vì việc theo dõi thay đổi file (file watching), việc IDE tìm và phân giải module, và việc debug đều chạy trực tiếp trên filesystem Windows.
 
 ### Khởi tạo
 
@@ -85,7 +85,7 @@ pnpm dev:client
 docker compose stop postgres redis maildev
 ```
 
-`docker compose down` xóa container/network nhưng giữ named volume. `docker compose down --volumes` xóa dữ liệu PostgreSQL/Redis và là thao tác destructive.
+`docker compose down` xóa container/network nhưng giữ lại named volume (nơi dữ liệu nằm). `docker compose down --volumes` xóa luôn dữ liệu PostgreSQL/Redis — thao tác này phá hủy dữ liệu, không lấy lại được.
 
 ## 3. Port map local
 
@@ -99,7 +99,7 @@ docker compose stop postgres redis maildev
 | Maildev UI |             1083 |                         1080 |
 | SMTP       |             1025 |                         1025 |
 
-`docker-compose.yml` hiện map API container `3002:3002`, nhưng server `.env.example` mặc định `PORT=3001`. Đây là configuration drift và là lý do không dùng API container hiện tại làm workflow chuẩn.
+`docker-compose.yml` hiện map API container `3002:3002`, nhưng server `.env.example` mặc định `PORT=3001`. Hai nơi cấu hình đang lệch nhau (configuration drift) — đây là lý do không dùng API container hiện tại làm workflow chuẩn.
 
 ## 4. Environment files
 
@@ -126,7 +126,7 @@ REDIS_PORT=6379
 
 Không dùng `localhost` từ bên trong API container để gọi PostgreSQL container.
 
-Secret thật không commit. `.env.example` chỉ chứa placeholder an toàn và phải được cập nhật khi thêm required variable.
+Secret thật không bao giờ được commit. `.env.example` chỉ chứa giá trị giữ chỗ an toàn (placeholder) và phải được cập nhật mỗi khi thêm biến bắt buộc mới.
 
 ## 5. Prisma workflow
 
@@ -162,11 +162,11 @@ Không sửa migration đã được dùng bởi môi trường khác.
 pnpm db:seed
 ```
 
-Seed cần idempotent hoặc chỉ dùng database đã reset rõ ràng.
+Script seed phải idempotent (chạy lại nhiều lần không làm hỏng dữ liệu), hoặc chỉ được chạy trên database vừa reset một cách rõ ràng.
 
 ### `db push`
 
-`pnpm db:push` đồng bộ schema không có migration history. Chỉ dùng cho disposable prototype/test database. Không dùng cho staging/production.
+`pnpm db:push` ép database khớp schema hiện tại mà không ghi lại lịch sử migration. Chỉ dùng cho database prototype/test kiểu dùng xong bỏ. Không dùng cho staging/production.
 
 Migration chain đã được đối chiếu với schema bằng `prisma migrate diff --from-migrations` và tái tạo đầy đủ schema trên database sạch (migration `20260726073000_add_user_profile_menus_and_notifications` đóng phần drift từng tồn tại: `users.username`, `users.avatar`, bảng `menus` và `notifications`). Database dev local đã được baseline bằng `prisma migrate resolve --applied` cho toàn bộ chain; `prisma migrate status` phải trả "up to date".
 
@@ -182,7 +182,7 @@ Production/staging dùng:
 prisma migrate deploy
 ```
 
-Nên chạy như release job trước rollout application. Không để mọi API replica tự tạo migration khi boot.
+Nên chạy lệnh này như một bước riêng trong đợt phát hành (release job), trước khi triển khai bản ứng dụng mới. Không để mọi bản sao API (replica) tự chạy migration lúc khởi động — nhiều bản cùng chạy sẽ giẫm lên nhau.
 
 ## 6. Vấn đề Docker Compose hiện tại
 
@@ -202,7 +202,7 @@ packages/types/node_modules
 packages/contracts/node_modules
 ```
 
-Sau đó host `pnpm install` gặp `EACCES`, package build không resolve được `@repo/typescript-config/base.json`, và Turbo terminate toàn bộ task graph.
+Sau đó `pnpm install` trên host gặp lỗi `EACCES`, bước build của package không tìm được `@repo/typescript-config/base.json`, và Turbo hủy toàn bộ chuỗi task đang chạy.
 
 ### Khôi phục workspace bị lỗi
 
@@ -257,28 +257,28 @@ Container-dev workflow:
 docker compose --profile container-dev up api
 ```
 
-Khi dùng bind mount, khai báo named volume cho mọi workspace `node_modules`, bao gồm `contracts` và `types`. Không dùng cùng workspace bằng host pnpm trong lúc container-dev đang sở hữu dependency tree.
+Khi dùng bind mount, khai báo named volume cho mọi thư mục `node_modules` trong workspace, bao gồm cả `contracts` và `types`. Trong lúc container-dev đang là bên sở hữu cây dependency, không chạy pnpm trên host vào cùng workspace đó.
 
 Nếu team muốn full-container development thường xuyên trên Windows, đặt repository trong WSL2 filesystem thay vì ổ `D:` bind mount sang Linux.
 
 ## 8. Prisma adapter
 
-`PrismaService` và seed script khởi tạo adapter bằng `new PrismaPg({ connectionString })` và để `$disconnect()` quản lý pool lifecycle. Không truyền external `pg.Pool` vào `PrismaPg` — cách đó từng được chẩn đoán gây `PrismaClientKnownRequestError / ECONNREFUSED` trên Prisma 7.8.
+`PrismaService` và seed script khởi tạo adapter bằng `new PrismaPg({ connectionString })` và để `$disconnect()` tự quản lý vòng đời của pool kết nối. Không truyền external `pg.Pool` vào `PrismaPg` — cách đó từng được chẩn đoán gây `PrismaClientKnownRequestError / ECONNREFUSED` trên Prisma 7.8.
 
 ## 9. Outbox operation
 
-Outbox poll mặc định 100 ms. Khi database/adapter lỗi, publisher hiện log mỗi poll nên có thể tạo khoảng 10 error/giây.
+Publisher quét bảng outbox (poll) mỗi 100 ms theo mặc định. Khi database hoặc adapter lỗi, mỗi lần quét đều ghi một dòng log lỗi, nên có thể sinh ra khoảng 10 error/giây.
 
-Production-ready behavior cần:
+Để sẵn sàng cho production, hệ thống cần:
 
-- exponential backoff cho infrastructure error;
-- reset delay sau lần poll thành công;
-- log `name`, `code`, `message`, `meta`;
-- metric pending/processing/failed count;
-- metric oldest pending age;
-- alert khi `FAILED` hoặc lag vượt threshold.
+- khi hạ tầng lỗi, giãn dần thời gian giữa các lần thử (exponential backoff);
+- sau lần quét thành công, đưa thời gian chờ về mức bình thường;
+- log đủ `name`, `code`, `message`, `meta` của lỗi;
+- số liệu theo dõi (metric) đếm event đang chờ/đang xử lý/thất bại;
+- số liệu về tuổi của event chờ lâu nhất;
+- cảnh báo khi có event `FAILED` hoặc độ trễ vượt ngưỡng.
 
-Backoff không thay thế sửa kết nối; nó bảo vệ log và database trong thời gian failure.
+Backoff không thay cho việc sửa nguyên nhân mất kết nối; nó chỉ giúp log và database không bị dội liên tục trong lúc sự cố còn diễn ra.
 
 ## 10. Container development
 
@@ -291,18 +291,18 @@ RUN corepack enable
 CMD ["pnpm", "--filter=server", "dev"]
 ```
 
-Dependency initialization không nên ẩn trong command start. Nếu cần bootstrap:
+Việc cài dependency ban đầu không nên giấu bên trong lệnh khởi động container. Nếu cần chuẩn bị lần đầu:
 
 ```bash
 pnpm install --frozen-lockfile
 pnpm db:generate
 ```
 
-Container dev có thể bind source và chạy watch. Nó không được dùng làm production image.
+Container dev có thể mount source từ máy ngoài vào (bind mount) và chạy chế độ theo dõi file (watch). Nhưng không được lấy nó làm image cho production.
 
 ## 11. Production image
 
-Production image là immutable artifact:
+Production image là một sản phẩm build bất biến (immutable) — build xong là đóng băng, lúc chạy không sửa gì thêm:
 
 ```text
 copy manifests
@@ -316,14 +316,14 @@ copy manifests
 
 Nó không:
 
-- bind mount source;
-- chạy `pnpm install` lúc start;
+- mount source từ máy ngoài vào (bind mount);
+- chạy `pnpm install` lúc khởi động;
 - chạy `nest start --watch`;
 - chứa Maildev;
-- chứa development database password;
+- chứa password database của môi trường development;
 - chạy schema push.
 
-Nên dùng multi-stage Dockerfile và non-root runtime user.
+Nên build bằng Dockerfile nhiều giai đoạn (multi-stage) và chạy container bằng user không có quyền root.
 
 ## 12. Production topology
 
@@ -343,9 +343,9 @@ flowchart LR
     API2 --> Storage
 ```
 
-Không đặt PostgreSQL production cùng lifecycle với API container nếu dữ liệu quan trọng. Dùng managed service hoặc hạ tầng có backup, replication và monitoring rõ.
+Nếu dữ liệu quan trọng, đừng để PostgreSQL production sống chết cùng vòng đời của container API — container bị xóa là mất luôn dữ liệu. Dùng dịch vụ do nhà cung cấp quản lý (managed service) hoặc hạ tầng có sao lưu, nhân bản (replication) và giám sát rõ ràng.
 
-Admin Vite build là static assets và có thể phục vụ qua CDN/static host. Next.js cần Node runtime nếu dùng dynamic rendering; có thể static export chỉ khi product behavior cho phép.
+Bản build Vite của Admin chỉ là các file tĩnh, có thể phục vụ qua CDN hoặc static host. Next.js cần một tiến trình Node đang chạy nếu dùng render động (dynamic rendering); chỉ xuất ra file tĩnh (static export) được khi hành vi của sản phẩm cho phép.
 
 ## 13. CI pipeline
 
@@ -356,7 +356,7 @@ CI chạy trên GitHub Actions với hai workflow đã triển khai:
 
 Node được pin qua `.nvmrc`, pnpm qua trường `packageManager`. Dependabot cập nhật npm dependencies và GitHub Actions hàng tuần (`.github/dependabot.yml`). Local có husky pre-commit (lint-staged + prettier) và commit-msg (commitlint, conventional commits).
 
-Các bước chưa triển khai và vẫn là mục tiêu: build container image, vulnerability/SBOM scan cho image, publish immutable images. Test database phải có tên/scope riêng; backend E2E đã có guard từ chối reset database không có hậu tố `_test`.
+Các bước chưa triển khai và vẫn là mục tiêu: build container image trong CI, quét lỗ hổng và lập danh mục thành phần (SBOM) cho image, phát hành image bất biến. Database dùng cho test phải có tên/phạm vi riêng; backend E2E đã có chốt chặn từ chối reset bất kỳ database nào không có hậu tố `_test`.
 
 ## 14. Release flow
 
@@ -370,29 +370,29 @@ merge reviewed change
 → monitor errors, outbox lag, queue and latency
 ```
 
-Rollback application dùng image version trước. Rollback database không mặc định chạy down migration; schema change phải backward-compatible qua expand/contract khi cần zero downtime.
+Muốn quay lui (rollback) ứng dụng thì triển khai lại image của phiên bản trước. Với database thì không mặc định chạy migration lùi (down migration); thay vào đó, khi cần triển khai không gián đoạn (zero downtime), thay đổi schema phải tương thích ngược theo kiểu expand/contract — thêm cái mới trước, chuyển dần, rồi mới bỏ cái cũ.
 
 ## 15. Health và shutdown
 
-API bật Nest shutdown hooks. Adapter, queue, Redis và outbox poller phải dừng nhận việc mới, chờ active work trong giới hạn và đóng connection.
+API bật Nest shutdown hooks. Khi được lệnh tắt, adapter, queue, Redis và outbox poller phải ngừng nhận việc mới, chờ các việc đang làm dở trong một giới hạn thời gian, rồi đóng kết nối.
 
 Health endpoint nên phân biệt:
 
-- liveness: process còn sống;
-- readiness: instance sẵn sàng nhận traffic;
-- dependency detail: database/Redis status cho vận hành nhưng không lộ secret.
+- liveness: process còn sống hay không;
+- readiness: instance đã sẵn sàng nhận traffic hay chưa;
+- dependency detail: trạng thái database/Redis cho người vận hành xem, nhưng không để lộ secret.
 
 ## 16. Backup và dữ liệu
 
-Named volume local không phải backup. Production PostgreSQL cần:
+Named volume trên máy local không phải là bản sao lưu. PostgreSQL production cần:
 
-- automated backup;
-- point-in-time recovery nếu yêu cầu;
-- restore drill;
-- retention policy;
-- encryption và access control.
+- sao lưu tự động;
+- khôi phục về đúng một thời điểm (point-in-time recovery) nếu có yêu cầu;
+- diễn tập khôi phục (restore drill) để chắc rằng bản sao lưu dùng được thật;
+- chính sách thời gian lưu giữ bản sao lưu (retention);
+- mã hóa và kiểm soát truy cập.
 
-Redis session/cache có thể tái tạo một phần, nhưng queue durability và session impact khi mất Redis phải được hiểu rõ.
+Session/cache trong Redis có thể dựng lại được một phần, nhưng phải hiểu rõ hai điều khi mất Redis: queue còn giữ được việc đang chờ hay không, và các phiên đăng nhập bị ảnh hưởng thế nào.
 
 ## 17. Checklist hằng ngày
 

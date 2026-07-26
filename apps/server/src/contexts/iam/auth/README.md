@@ -1,6 +1,6 @@
 # Auth Bounded Context
 
-Auth chịu trách nhiệm xác minh danh tính, cấp token và quản lý vòng đời refresh session. Context này trả lời câu hỏi “request đến từ ai?”; việc principal có được thực hiện một hành động hay không thuộc authorization/Roles.
+Auth chịu trách nhiệm xác minh danh tính, cấp token và quản lý vòng đời của phiên refresh (refresh session — bản ghi cho phép một thiết bị xin token mới). Context này trả lời câu hỏi “request đến từ ai?”; còn câu hỏi “người này có được phép làm hành động đó không?” thuộc về phần phân quyền trong Roles.
 
 Đọc [Backend Architecture Handbook](../../../../README.md) trước nếu chưa quen với dependency direction, CQRS và port/adapter.
 
@@ -8,13 +8,13 @@ Auth chịu trách nhiệm xác minh danh tính, cấp token và quản lý vòn
 
 Auth sở hữu:
 
-- register/login/refresh/logout use cases;
-- access token và refresh token lifecycle;
-- refresh session trong Redis;
-- Passport JWT strategies;
-- contract `ISessionStore`.
+- các use case đăng ký, đăng nhập, refresh và đăng xuất;
+- vòng đời của access token và refresh token (cấp mới, hết hạn, thu hồi);
+- refresh session lưu trong Redis;
+- các strategy xác thực JWT của Passport;
+- interface `ISessionStore`.
 
-Auth không sở hữu User state hoặc role model. Nó dùng `UserRepository` và `PasswordHasher` do Users định nghĩa để xác thực, nhưng không tự cập nhật trực tiếp bảng User. Permission được tải từ IAM data và đưa vào token; định nghĩa permission thuộc shared contracts/Roles.
+Auth không sở hữu dữ liệu User hay mô hình role. Nó dùng `UserRepository` và `PasswordHasher` do Users định nghĩa để kiểm tra email/mật khẩu, nhưng không tự sửa trực tiếp bảng User. Khi cấp token, Auth đọc danh sách permission của user từ database rồi nhét vào token; còn permission gồm những quyền gì thì do `@repo/contracts` và Roles định nghĩa.
 
 ## 2. Cấu trúc code
 
@@ -40,11 +40,11 @@ auth/
 └── auth.module.ts
 ```
 
-`auth.module.ts` là composition root cục bộ. Nó đăng ký CQRS handlers, strategies và bind `ISessionStore` với Redis adapter.
+`auth.module.ts` là nơi lắp ráp mọi mảnh của context này (composition root). Nó đăng ký các handler CQRS, các strategy xác thực, và khai báo rằng interface `ISessionStore` sẽ do Redis adapter đảm nhiệm.
 
 ## 3. Token và session model
 
-Access token đại diện cho một principal đã xác thực. Payload chứa:
+Access token đại diện cho một người dùng đã đăng nhập thành công (tài liệu gọi là principal). Payload chứa:
 
 - `sub`: user id chuẩn JWT;
 - `email`;
@@ -58,7 +58,7 @@ Refresh token cũng có JTI. JTI chỉ hợp lệ khi Redis còn session tại:
 refresh_token:{userId}:{jti}
 ```
 
-Session value là `SessionData`, gồm JTI, IP, user-agent và thời điểm tạo. Redis không phải nguồn sự thật của User; nó chỉ là registry cho refresh session có thể thu hồi.
+Giá trị lưu tại key đó là `SessionData`, gồm JTI, IP, user-agent và thời điểm tạo. Redis không phải nguồn sự thật về User; nó chỉ là cuốn sổ ghi những phiên refresh đang còn hiệu lực, để khi cần có thể xóa từng phiên (tức thu hồi refresh token đó).
 
 ## 4. Login flow
 
@@ -88,11 +88,11 @@ sequenceDiagram
 
 ### Failure path
 
-Email không tồn tại và password sai đều phải dẫn đến lỗi credential có kiểm soát; API không nên tiết lộ account nào tồn tại. User inactive/deleted không được nhận token mới. Nếu ghi session thất bại, login không được coi là hoàn tất vì refresh token vừa cấp sẽ không có registry hợp lệ.
+Email không tồn tại và password sai đều phải trả về cùng một lỗi chung kiểu “sai thông tin đăng nhập”; API không được để lộ email nào có tài khoản, email nào không. User đã bị khóa hoặc đã xóa không được nhận token mới. Nếu ghi session vào Redis thất bại, login không được coi là hoàn tất, vì refresh token vừa cấp sẽ không có bản ghi trong Redis để đối chiếu khi dùng.
 
 ## 5. Access request validation
 
-`JwtStrategy` chủ động đánh đổi một database read để có revoke semantics mạnh:
+`JwtStrategy` chấp nhận tốn thêm một lần đọc database ở mỗi request để đổi lấy khả năng thu hồi token có hiệu lực ngay lập tức:
 
 1. verify chữ ký bằng `JWT_ACCESS_SECRET`;
 2. tải User hiện tại bằng `sub`;
@@ -100,7 +100,7 @@ Email không tồn tại và password sai đều phải dẫn đến lỗi crede
 4. so sánh `payload.tokenVersion` với `user.tokenVersion`;
 5. tạo `AuthenticatedPrincipal` có kiểu và gắn vào request.
 
-Token có chữ ký đúng vẫn có thể bị từ chối. Chữ ký chứng minh token do server cấp; database state chứng minh token vẫn còn hiệu lực.
+Token có chữ ký đúng vẫn có thể bị từ chối. Chữ ký chỉ chứng minh token do server cấp; còn trạng thái user trong database mới chứng minh token vẫn còn hiệu lực.
 
 Khi profile, role hoặc trạng thái truy cập thay đổi, Users aggregate tăng tokenVersion. Tất cả access token cũ lập tức không còn khớp.
 
@@ -127,17 +127,17 @@ sequenceDiagram
     Handler-->>Client: New access + refresh tokens
 ```
 
-Rotation làm giảm khả năng replay refresh token cũ. Refresh handler phải dùng user state và tokenVersion hiện tại, không sao chép mù payload cũ.
+Xoay vòng token như vậy (rotation) khiến refresh token cũ khó bị đem dùng lại lần nữa (replay). Khi cấp cặp token mới, handler phải đọc lại trạng thái user và tokenVersion hiện tại từ database, không được sao chép mù quáng payload của token cũ.
 
-Implementation hiện ghi session mới rồi revoke session cũ bằng hai Redis operation tuần tự, chưa phải một atomic Redis transaction/script. Nếu bước revoke thất bại sau khi save thành công, cả JTI cũ và mới có thể cùng tồn tại đến khi hết TTL hoặc được cleanup. Đây là failure window cần được harden nếu hệ thống yêu cầu single-use refresh token nghiêm ngặt.
+Code hiện tại ghi session mới xong mới xóa session cũ — hai lệnh Redis chạy nối tiếp, chưa gói thành một transaction/script atomic (hoặc cả hai cùng chạy trọn vẹn, hoặc không lệnh nào chạy). Nếu bước xóa thất bại sau khi bước ghi đã thành công, cả JTI cũ và mới cùng tồn tại cho đến khi hết TTL hoặc được dọn dẹp. Đây là khoảng hở cần bịt lại nếu hệ thống yêu cầu nghiêm ngặt mỗi refresh token chỉ được dùng đúng một lần.
 
 ## 7. Logout và session management
 
 `LogoutCommand` thu hồi JTI hiện tại. `LogoutAllCommand` xóa mọi key của user. `RevokeSessionCommand` cho phép người dùng thu hồi một thiết bị cụ thể. `GetActiveSessionsQuery` trả danh sách session có phân trang.
 
-Pattern lookup dùng Redis `SCAN`, không dùng `KEYS`. `KEYS` có thể block Redis khi keyspace lớn và không phù hợp cho nền tảng production.
+Khi cần tìm các key theo mẫu tên, code dùng lệnh Redis `SCAN` (duyệt dần từng nhóm key), không dùng `KEYS`. `KEYS` quét toàn bộ key trong một lần nên có thể làm Redis đứng hình khi số key lớn — không chấp nhận được cho production.
 
-Logout chỉ đảm bảo refresh token không thể dùng tiếp. Access token được xử lý bằng expiry và tokenVersion. Global logout hiện thu hồi refresh sessions; nếu sản phẩm yêu cầu vô hiệu access token ngay khi global logout, use case phải tăng tokenVersion qua Users aggregate.
+Logout chỉ đảm bảo refresh token không dùng tiếp được. Access token thì hết tác dụng theo hai đường: tự hết hạn, hoặc bị loại vì tokenVersion trong database đã tăng. Global logout hiện chỉ xóa các phiên refresh; nếu sản phẩm yêu cầu access token mất hiệu lực ngay khi global logout, use case đó phải tăng tokenVersion thông qua Users aggregate.
 
 ## 8. API surface
 
@@ -151,56 +151,56 @@ Logout chỉ đảm bảo refresh token không thể dùng tiếp. Access token 
 | `GET /auth/sessions`         | Access JWT  | Liệt kê active sessions     |
 | `DELETE /auth/sessions/:jti` | Access JWT  | Revoke một session          |
 
-DTO chịu trách nhiệm runtime validation. Controller chỉ thu input/client info, dispatch CQRS message và unwrap result.
+DTO chịu trách nhiệm kiểm tra dữ liệu vào lúc chạy (runtime validation). Controller chỉ làm ba việc: gom input cùng thông tin client (IP, user-agent), gửi command/query vào CQRS bus, rồi mở kết quả ra để trả về HTTP.
 
 ## 9. Ý nghĩa từng nhóm file
 
-`session-store.port.ts` giữ contract để application không biết Redis key format. `redis-session.store.ts` là nơi duy nhất chuyển hành vi session thành cache operations.
+`session-store.port.ts` khai báo interface: tầng application chỉ biết “lưu phiên, tìm phiên, xóa phiên”, không biết dữ liệu nằm ở Redis hay key đặt tên thế nào. `redis-session.store.ts` là nơi duy nhất biết chuyện đó: nó đọc/ghi các key Redis dạng `refresh_token:{userId}:{jti}`.
 
-Các command file là immutable request model của write use case. Handler chứa orchestration, không chứa HTTP decorator. Query/handler của active sessions là read path.
+Mỗi command file là một gói dữ liệu bất biến mô tả yêu cầu ghi (“hãy đăng nhập với email này, password này”). Handler là nơi làm việc thật: gọi repository, so mật khẩu, ký token, lưu phiên — nhưng không chứa decorator HTTP nào. Query/handler của active sessions là đường đọc, không thay đổi dữ liệu.
 
-Hai strategy là authentication adapter của Passport. Strategy không thực hiện business mutation.
+Hai strategy là chỗ Passport cắm vào để kiểm tra token cho từng request. Strategy chỉ xác minh token rồi trả về principal, không sửa dữ liệu nghiệp vụ nào.
 
-`auth.controller.ts` là HTTP adapter; `login.dto.ts` và `register.dto.ts` bảo vệ boundary.
+`auth.controller.ts` là lớp tiếp nhận HTTP: nhận request, gọi use case, trả response. `login.dto.ts` và `register.dto.ts` đứng gác ở cửa vào: request thiếu trường hay sai định dạng bị chặn ngay tại đây.
 
 ## 10. Invariant và security rules
 
 - Không có default/fallback JWT secret trong code.
-- Production secret phải vượt validation độ dài.
-- Không log password, access token, refresh token hoặc Redis session value.
-- Refresh token bắt buộc có JTI hợp lệ trong store.
-- Access principal bắt buộc khớp User state và tokenVersion hiện tại.
-- Error không được tiết lộ account enumeration.
-- Client IP/user-agent là audit metadata, không phải bằng chứng authentication.
+- Secret dùng cho production phải qua được bước kiểm tra độ dài tối thiểu.
+- Không log password, access token, refresh token hoặc giá trị session trong Redis.
+- Refresh token chỉ được chấp nhận khi JTI của nó vẫn còn nằm trong store.
+- Người mang access token phải khớp trạng thái User và tokenVersion hiện tại trong database.
+- Thông báo lỗi không được giúp kẻ tấn công dò ra email nào có tài khoản (account enumeration).
+- IP và user-agent của client chỉ là thông tin ghi kèm để truy vết, không phải bằng chứng xác thực.
 
 ## 11. Cách mở rộng
 
-Khi thêm MFA hoặc password reset, trước tiên xác định flow đó thuộc Auth hay Users. Token/challenge lifecycle thuộc Auth; thay đổi password hash và tokenVersion thuộc Users. Hai context nên giao tiếp qua use case/port rõ ràng, không để Auth gọi trực tiếp Prisma User.
+Khi thêm MFA hoặc chức năng đặt lại mật khẩu, trước tiên xác định flow đó thuộc Auth hay Users. Việc tạo, kiểm tra và cho hết hạn các token/mã xác nhận thuộc Auth; việc đổi password hash và tăng tokenVersion thuộc Users. Hai context nên nói chuyện với nhau qua use case/port rõ ràng, không để Auth gọi thẳng vào bảng User qua Prisma.
 
 Use case mới cần:
 
 1. command/query contract;
 2. handler có kiểu kết quả rõ ràng;
-3. port nếu có external capability;
-4. adapter implementation;
-5. controller DTO/guard;
-6. unit test failure/success;
-7. E2E chứng minh revoke và security behavior.
+3. port nếu cần gọi ra hệ thống bên ngoài (Redis, mail...);
+4. adapter hiện thực port đó;
+5. DTO và guard cho controller;
+6. unit test cho cả ca thành công lẫn thất bại;
+7. test E2E chứng minh việc thu hồi token và các hành vi bảo mật chạy đúng.
 
 ## 12. Anti-pattern
 
-- Chỉ verify JWT signature rồi tin mọi claim.
-- Lưu refresh token mà không có JTI/rotation.
-- Gọi `RedisService` trực tiếp trong handler thay vì `ISessionStore`.
-- Trả cùng lúc domain User object có password ra controller.
-- Dùng `process.env` hoặc secret fallback rải rác.
-- Dùng logout như bằng chứng access token đã bị revoke ngay.
+- Chỉ kiểm tra chữ ký JWT rồi tin toàn bộ nội dung bên trong, bỏ qua trạng thái user trong database.
+- Lưu refresh token mà không gắn JTI và không xoay vòng khi refresh.
+- Gọi `RedisService` trực tiếp trong handler thay vì đi qua `ISessionStore`.
+- Trả nguyên object User của domain (còn chứa password hash) ra controller.
+- Đọc `process.env` hoặc đặt secret dự phòng rải rác trong code.
+- Coi logout là bằng chứng access token đã chết ngay lập tức (thực tế logout chỉ vô hiệu refresh token).
 
 ## 13. Checklist review Auth
 
-- Token có đúng type, expiry, secret và tokenVersion không?
-- Failure window giữa save JTI mới và revoke JTI cũ đã được chấp nhận hoặc xử lý chưa?
-- User inactive/deleted có bị chặn ở cả login và access request không?
-- Flow có làm lộ credential/account existence không?
-- Có log secret/token không?
-- Test có bao phủ replay, revoke và token cũ không?
+- Token có đúng type, thời hạn, secret và tokenVersion không?
+- Khoảng hở giữa lúc lưu JTI mới và lúc xóa JTI cũ đã được chấp nhận hoặc xử lý chưa?
+- User bị khóa/đã xóa có bị chặn ở cả bước login lẫn từng request sau đó không?
+- Flow có để lộ mật khẩu, hoặc để lộ tài khoản nào tồn tại không?
+- Có chỗ nào log secret/token không?
+- Test có bao phủ các ca dùng lại token cũ (replay), thu hồi token và token hết hiệu lực không?

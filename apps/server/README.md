@@ -50,7 +50,7 @@ Ví dụ, vô hiệu hóa user không phải là câu lệnh Prisma `isActive = 
 
 ### 2.2 Clean/Hexagonal Architecture
 
-Lõi hệ thống định nghĩa các port như `UserRepository`, `PasswordHasher`, `ISessionStore`, `ICachePort` hoặc `AuditWriter`. Adapter kỹ thuật hiện thực các port này bằng Prisma, bcrypt hoặc Redis.
+Lõi hệ thống định nghĩa các port (interface mô tả việc lõi cần làm, chưa nói làm bằng công nghệ gì) như `UserRepository`, `PasswordHasher`, `ISessionStore`, `ICachePort` hoặc `AuditWriter`. Adapter kỹ thuật hiện thực các port này bằng Prisma, bcrypt hoặc Redis.
 
 Hướng phụ thuộc là điểm quan trọng nhất:
 
@@ -70,12 +70,12 @@ CQRS ở đây không đồng nghĩa với hai database riêng. Mục tiêu hi�
 
 - Command diễn tả một thay đổi trạng thái, chẳng hạn `DeactivateUserCommand`.
 - Query diễn tả nhu cầu đọc, chẳng hạn `GetUsersQuery`.
-- Handler là nơi orchestration use case.
-- Entity là nơi giữ invariant và state transition.
+- Handler là nơi điều phối các bước của use case: tải dữ liệu, gọi hành vi domain, lưu kết quả.
+- Entity là nơi giữ invariant (luật nghiệp vụ luôn phải đúng) và quyết định các bước chuyển trạng thái hợp lệ.
 
 ### 2.4 Transactional Outbox
 
-Domain event không được phát thẳng ra Redis, queue hoặc WebSocket trong transaction nghiệp vụ. Repository ghi thay đổi aggregate và bản ghi outbox trong cùng một database transaction. Một publisher độc lập xử lý delivery sau đó.
+Domain event không được phát thẳng ra Redis, queue hoặc WebSocket trong transaction nghiệp vụ. Repository ghi thay đổi aggregate và bản ghi outbox trong cùng một database transaction. Một publisher độc lập sẽ đọc bảng outbox và gửi event đi sau đó.
 
 Thiết kế này giải quyết “dual-write problem”: nếu user đã được lưu nhưng process chết trước khi enqueue email hoặc force logout, outbox vẫn còn và có thể retry.
 
@@ -106,7 +106,7 @@ apps/server/
 └── test/                          # E2E tests và test DB setup
 ```
 
-`app.module.ts` là **composition root**. Đây là nơi module, port và adapter được ghép lại. File này được phép biết nhiều thành phần; business logic không được đặt tại đây.
+`app.module.ts` là **composition root** (nơi duy nhất lắp ráp toàn bộ ứng dụng). Mọi module, port và adapter được ghép nối với nhau tại đây. File này được phép biết nhiều thành phần; business logic không được đặt tại đây.
 
 ## 4. Bounded context và quyền sở hữu
 
@@ -114,9 +114,9 @@ apps/server/
 
 IAM là nhóm context về identity và access:
 
-- Auth sở hữu token lifecycle và refresh sessions.
+- Auth sở hữu vòng đời của token (cấp, làm mới, thu hồi) và các refresh session.
 - Users sở hữu User aggregate và trạng thái tài khoản.
-- Roles sở hữu role/permission mapping.
+- Roles sở hữu việc gán permission cho từng role.
 
 Ba context liên quan chặt chẽ nhưng không nên gộp thành một folder phẳng. Auth có thể dùng `UserRepository` để xác thực, nhưng luật thay đổi User vẫn thuộc Users.
 
@@ -180,7 +180,7 @@ Validation pipe chỉ kiểm tra dữ liệu tại HTTP boundary. Nó không tha
 
 Controller chuyển HTTP input thành Command/Query và format output. Controller không chứa transaction, Prisma query hoặc business decision.
 
-Handler orchestration các bước của use case. Handler có thể tải aggregate, gọi hành vi domain và lưu qua repository.
+Handler điều phối các bước của use case. Handler có thể tải aggregate, gọi hành vi domain và lưu qua repository.
 
 ## 6. Một read flow hoàn chỉnh
 
@@ -277,7 +277,7 @@ sequenceDiagram
     Handler-->>Controller: Result.ok()
 ```
 
-Transaction boundary nằm trong repository vì repository biết cách persistence aggregate và outbox atomically. Domain không biết transaction; controller cũng không điều khiển transaction.
+Ranh giới transaction nằm trong repository, vì chỉ repository biết cách lưu aggregate và bản ghi outbox sao cho hoặc thành công cả hai, hoặc không ghi gì cả. Domain không biết transaction; controller cũng không điều khiển transaction.
 
 ### Thử bằng tay
 
@@ -310,23 +310,23 @@ Mở Maildev (`http://localhost:1083`) sẽ thấy mail chào mừng — bằng 
 
 ## 8. Domain event và outbox delivery
 
-Sau write transaction, `OutboxPublisherService` poll các event đủ điều kiện. Publisher claim event bằng optimistic update từ `PENDING` sang `PROCESSING`, tăng số lần thử và đặt `lockedAt`.
+Sau khi write transaction hoàn tất, `OutboxPublisherService` định kỳ quét (poll) các event đủ điều kiện gửi đi. Để nhận xử lý một event, publisher update trạng thái từ `PENDING` sang `PROCESSING` theo kiểu optimistic (update chỉ thành công nếu chưa ai nhận trước), tăng số lần thử và đặt `lockedAt`.
 
-`OutboxEventRouter` rehydrate event rồi route theo type:
+`OutboxEventRouter` dựng lại object event từ dữ liệu đã lưu (rehydrate), rồi chuyển đến nơi xử lý tương ứng theo type:
 
 - `UserRegisteredEvent`: enqueue welcome email và tạo notification.
 - `UserDeactivatedEvent`: revoke Redis sessions, enqueue email, tạo notification và force logout qua realtime.
 - `NotificationCreatedEvent`: push notification qua Socket.IO.
 
-Nếu delivery thành công, event chuyển sang `PUBLISHED`. Nếu thất bại, event trở lại `PENDING` với exponential backoff. Sau ngưỡng tối đa, event chuyển `FAILED` để operator xử lý như dead letter.
+Nếu gửi thành công, event chuyển sang `PUBLISHED`. Nếu thất bại, event quay về `PENDING` và lần thử lại tiếp theo bị lùi xa dần (exponential backoff). Quá số lần thử tối đa, event chuyển sang `FAILED` và nằm lại đó như một dead letter chờ người vận hành xử lý tay.
 
-Publisher phục hồi claim bị treo. Khi application shutdown, timer dừng và poll đang chạy được chờ hoàn tất trước khi Prisma pool đóng.
+Publisher cũng tự giải cứu những event đã được nhận xử lý nhưng treo giữa chừng (claim quá hạn). Khi application tắt, timer dừng lại và lượt poll đang chạy được chờ xong trước khi pool kết nối của Prisma đóng.
 
-At-least-once delivery có nghĩa consumer có thể nhận lại event. Vì vậy:
+Giao kiểu at-least-once (ít nhất một lần) nghĩa là consumer có thể nhận cùng một event nhiều lần. Vì vậy:
 
 - BullMQ dùng `eventId` làm `jobId`.
 - Notification do event tạo dùng deterministic id.
-- Side effect mới phải được thiết kế idempotent.
+- Side effect mới phải được thiết kế idempotent: chạy lại lần nữa vẫn cho kết quả như chạy một lần.
 
 > **Tóm lại:**
 >
@@ -338,12 +338,12 @@ At-least-once delivery có nghĩa consumer có thể nhận lại event. Vì v�
 
 `shared/domain` chỉ chứa khái niệm domain thực sự dùng chung:
 
-- `AggregateRoot`: quản lý domain event trong vòng đời aggregate.
+- `AggregateRoot`: gom và quản lý các domain event mà aggregate ghi nhận trong quá trình xử lý.
 - `DomainEvent`: cung cấp `eventId` và `occurredOn`.
-- `Result<T, E>`: biểu diễn success/failure của use case.
+- `Result<T, E>`: cho biết use case thành công hay thất bại, kèm dữ liệu hoặc lỗi tương ứng.
 - `DomainException`: base error có mã nghiệp vụ.
 
-`shared/application/ports` chứa abstraction kỹ thuật dùng cho orchestration ở nhiều context:
+`shared/application/ports` chứa các interface kỹ thuật mà use case ở nhiều context cùng cần gọi tới:
 
 - cache;
 - job queue;
@@ -364,7 +364,7 @@ Access token chứa subject, email, permissions và `tokenVersion`. `JwtStrategy
 
 Các mutation làm thay đổi quyền truy cập như update role/profile, deactivate, activate, delete hoặc restore đều tăng `tokenVersion`. Global logout cũng tăng `tokenVersion`. Do đó access token cũ mất hiệu lực ngay.
 
-Refresh token có JTI và phải có session tương ứng trong Redis. Session key có dạng `refresh_token:{userId}:{jti}`. Refresh thực hiện rotation; logout xóa một session; global logout xóa toàn bộ session của user bằng cursor-based `SCAN` đồng thời bump `tokenVersion` để access token đang lưu hành chết ngay thay vì sống nốt TTL.
+Refresh token có JTI và phải có session tương ứng trong Redis. Session key có dạng `refresh_token:{userId}:{jti}`. Mỗi lần refresh, hệ thống cấp cặp token mới và vô hiệu token cũ (rotation); logout xóa một session; global logout duyệt và xóa toàn bộ session của user bằng lệnh `SCAN` theo cursor, đồng thời tăng `tokenVersion` để access token đang lưu hành chết ngay thay vì sống nốt TTL.
 
 > **Tóm lại:**
 >
@@ -376,17 +376,17 @@ Refresh token có JTI và phải có session tương ứng trong Redis. Session 
 
 ### Validation và error mapping
 
-Global `ValidationPipe` bật whitelist, reject field lạ và transform DTO. Domain/application trả `Result` hoặc ném `DomainException`; `DomainExceptionFilter` map lỗi có ngữ nghĩa sang HTTP response.
+Global `ValidationPipe` bật chế độ whitelist: field lạ bị từ chối, dữ liệu hợp lệ được chuyển thành DTO đúng kiểu. Domain/application trả `Result` hoặc ném `DomainException`; `DomainExceptionFilter` dịch các lỗi nghiệp vụ đó thành HTTP response với status phù hợp.
 
 ### Audit
 
-Endpoint cần audit gắn `@AuditLog(action, detailsCallback)`. `AuditLogInterceptor` đọc metadata sau khi handler thành công, tạo audit entry rồi `await` `AuditWriter`. Interceptor phụ thuộc port, còn `PrismaAuditWriter` là adapter.
+Endpoint cần audit gắn `@AuditLog(action, detailsCallback)`. `AuditLogInterceptor` đọc metadata sau khi handler thành công, tạo audit entry rồi `await` `AuditWriter`. Interceptor chỉ phụ thuộc vào port `AuditWriter`; `PrismaAuditWriter` là adapter thật sự ghi bản ghi xuống database.
 
 Không được ghi password, JWT, refresh token hoặc secret vào audit details.
 
 ### Cache
 
-Read endpoint có thể dùng `CacheInterceptor`. Mutation dùng `CacheInvalidationInterceptor`, và invalidation chỉ chạy sau response thành công. Pattern deletion sử dụng Redis `SCAN` theo batch để không block server.
+Read endpoint có thể dùng `CacheInterceptor`. Mutation dùng `CacheInvalidationInterceptor`, và việc xóa cache cũ chỉ chạy sau khi response thành công. Khi xóa cache theo pattern, hệ thống dùng Redis `SCAN` từng đợt nhỏ để không làm nghẽn server.
 
 ### Health và shutdown
 
@@ -409,7 +409,7 @@ ISessionStore port  ──bound to──> RedisSessionStore
 AuditWriter port    ──bound to──> PrismaAuditWriter
 ```
 
-Không inject concrete adapter vào handler nếu đã có port. Concrete class chỉ nên xuất hiện ở module wiring hoặc code infrastructure.
+Không inject concrete adapter vào handler nếu đã có port. Concrete class chỉ nên xuất hiện ở chỗ module đấu nối dependency (wiring) hoặc trong code infrastructure.
 
 ## 13. Quy tắc phụ thuộc bắt buộc
 
@@ -437,13 +437,13 @@ Không inject concrete adapter vào handler nếu đã có port. Concrete class 
 
 Presentation được gọi application nhưng không gọi thẳng Prisma. Infrastructure được hiện thực port và phụ thuộc library kỹ thuật, nhưng không quyết định business rule.
 
-`src/architecture/dependency-rules.spec.ts` là executable documentation bảo vệ các hướng phụ thuộc quan trọng.
+`src/architecture/dependency-rules.spec.ts` là bộ test đóng vai trò "tài liệu chạy được": nó tự động canh giữ các hướng phụ thuộc quan trọng.
 
 ## 14. Cách thêm một use case mới
 
 Giả sử cần thêm “restore user”:
 
-1. Xác định invariant và đặt state transition trong `UserEntity.restore()`.
+1. Xác định các invariant cần giữ và viết bước chuyển trạng thái trong `UserEntity.restore()`.
 2. Xác định mutation có cần tăng tokenVersion hoặc phát event không.
 3. Tạo `RestoreUserCommand` diễn tả input của use case.
 4. Tạo handler: tải user, gọi entity, lưu qua `UserRepository`.
@@ -454,7 +454,7 @@ Giả sử cần thêm “restore user”:
 9. Viết E2E cho authentication, authorization, persistence và side effect quan trọng.
 10. Cập nhật README của Users nếu flow hoặc invariant thay đổi.
 
-Đối với query mới, không tạo state transition hoặc domain event. Query handler nên trả một contract rõ ràng, tránh `any`.
+Đối với query mới, không được đổi trạng thái dữ liệu và không phát domain event. Query handler nên trả một contract rõ ràng, tránh `any`.
 
 ## 15. Anti-pattern cần tránh
 
@@ -462,19 +462,19 @@ Giả sử cần thêm “restore user”:
 
 Sai: controller tự đổi `isActive`, tự tăng token version và gọi Prisma.
 
-Đúng: controller dispatch command; entity quyết định state transition; repository persistence.
+Đúng: controller chỉ gửi command; entity quyết định việc chuyển trạng thái; repository lo việc lưu xuống database.
 
 ### Domain event chứa delivery instruction
 
 Sai: event có `queueName`, `cachePattern` hoặc Socket.IO room.
 
-Đúng: event chỉ mô tả fact nghiệp vụ; router infrastructure quyết định delivery.
+Đúng: event chỉ mô tả sự việc nghiệp vụ đã xảy ra; router ở tầng infrastructure mới quyết định gửi event đi đâu.
 
 ### Ghi aggregate rồi enqueue riêng lẻ
 
 Sai: `await repository.save(); await queue.add();`.
 
-Đúng: ghi aggregate + outbox atomically, delivery sau commit.
+Đúng: ghi aggregate và outbox trong cùng một transaction, gửi event đi sau khi commit.
 
 ### `shared` thành thư mục tiện ích
 
@@ -482,7 +482,7 @@ Không đưa code vào shared chỉ vì hai file đang import nó. Shared phải
 
 ### Promise fire-and-forget
 
-Side effect quan trọng phải được await hoặc đưa vào queue/outbox có retry. `tap(async () => ...)` tạo promise không được observable theo dõi và không được dùng cho persistence quan trọng.
+Side effect quan trọng phải được await hoặc đưa vào queue/outbox có retry. `tap(async () => ...)` tạo ra một promise trôi nổi mà observable không theo dõi — không ai chờ, không ai bắt lỗi — nên không được dùng cho việc ghi dữ liệu quan trọng.
 
 ## 16. Testing và quality gates
 
@@ -508,7 +508,7 @@ pnpm --filter=server test:e2e
 
 Đọc theo một flow thay vì đọc alphabet:
 
-1. `src/main.ts` và `src/app.module.ts` để hiểu bootstrap/composition.
+1. `src/main.ts` và `src/app.module.ts` để hiểu ứng dụng khởi động và được lắp ráp thế nào.
 2. `src/shared/domain/base/aggregate-root.ts`, `result.ts` và `events/domain-event.ts`.
 3. README Users, sau đó lần theo `UserController → Command → Handler → UserEntity → Repository`.
 4. `PrismaUserRepository.save()` để hiểu transaction + outbox.
@@ -526,7 +526,7 @@ Trước khi merge một thay đổi backend, reviewer nên trả lời được
 - Business invariant nằm trong domain hay đang rò ra controller/repository?
 - Hướng dependency có đi từ ngoài vào trong?
 - Handler phụ thuộc port hay concrete adapter?
-- Mutation aggregate và event có được ghi atomically?
+- Thay đổi aggregate và event có được ghi trong cùng một transaction không?
 - Side effect có retry/idempotency không?
 - Mutation có ảnh hưởng tokenVersion, audit hoặc cache không?
 - DTO có runtime validation và reject field lạ không?
