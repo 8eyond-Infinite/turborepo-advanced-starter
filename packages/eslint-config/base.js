@@ -21,6 +21,8 @@ export const config = [
     },
   },
   {
-    ignores: ["dist/**"],
+    // tsup.config.bundled_* là file tạm tsup tạo rồi xóa trong lúc build;
+    // lint chạy song song với build của chính package nên phải bỏ qua nó.
+    ignores: ["dist/**", "tsup.config.bundled_*"],
   },
 ];
