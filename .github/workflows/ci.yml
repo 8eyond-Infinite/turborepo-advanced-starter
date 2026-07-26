@@ -73,10 +73,6 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
-      maildev:
-        image: maildev/maildev:2.1.0
-        ports:
-          - 1025:1025
     steps:
       - uses: actions/checkout@v4
 
