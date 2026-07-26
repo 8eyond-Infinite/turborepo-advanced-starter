@@ -1,4 +1,4 @@
-import type { Permission, Role } from "@repo/types";
+import type { PermissionRecord, Role } from "@repo/types";
 import { ApiClient } from "@/lib/api-client";
 
 export interface CreateRoleInput {
@@ -13,7 +13,7 @@ export interface UpdateRolePermissionsInput {
 
 export const roleApi = {
   getRoles: () => ApiClient.get<Role[]>("/roles"),
-  getPermissions: () => ApiClient.get<Permission[]>("/roles/permissions"),
+  getPermissions: () => ApiClient.get<PermissionRecord[]>("/roles/permissions"),
   create: (input: CreateRoleInput) => ApiClient.post<Role>("/roles", input),
   remove: (roleId: string) => ApiClient.delete<void>(`/roles/${roleId}`),
   updatePermissions: ({ roleId, permissions }: UpdateRolePermissionsInput) =>

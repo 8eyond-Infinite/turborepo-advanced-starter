@@ -12,11 +12,12 @@ import { DeleteUserCommandHandler } from './application/commands/handlers/delete
 import { ToggleUserStatusCommandHandler } from './application/commands/handlers/toggle-user-status.handler';
 import { UpdateUserCommandHandler } from './application/commands/handlers/update-user.handler';
 import { USER_QUEUE } from './application/queues/user-queue.constants';
-import { UserQueueProcessor } from './application/queues/user-queue.processor';
 import { USER_REPOSITORY } from './domain/ports/user.repository';
 import { PASSWORD_HASHER } from './domain/ports/password-hasher';
 
 @Module({
+  // registerQueue chỉ tạo producer (đẩy job vào queue). Consumer
+  // (UserQueueProcessor) chạy ở worker process riêng — xem worker.module.ts.
   imports: [CqrsModule, BullModule.registerQueue({ name: USER_QUEUE })],
   controllers: [UserController],
   providers: [
@@ -35,7 +36,6 @@ import { PASSWORD_HASHER } from './domain/ports/password-hasher';
     DeleteUserCommandHandler,
     ToggleUserStatusCommandHandler,
     UpdateUserCommandHandler,
-    UserQueueProcessor,
   ],
   exports: [USER_REPOSITORY, PASSWORD_HASHER, BullModule],
 })

@@ -44,4 +44,6 @@ EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD wget -qO- http://127.0.0.1:3001/health/live || exit 1
 
+# Worker dùng chung image này với entry khác:
+#   docker run ... starter-api node dist/worker.js
 CMD ["node", "dist/main.js"]

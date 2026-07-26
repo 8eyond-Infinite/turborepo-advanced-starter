@@ -32,10 +32,10 @@ import {
 import { useRoles } from "../hooks/useRoles";
 import { Can, usePermissions } from "@/hooks/usePermission";
 import { PERMISSIONS } from "@repo/contracts";
-import type { Permission } from "@repo/types";
+import type { PermissionRecord } from "@repo/types";
 
-const groupPermissions = (perms: Permission[]) => {
-  const groups: Record<string, Permission[]> = {};
+const groupPermissions = (perms: PermissionRecord[]) => {
+  const groups: Record<string, PermissionRecord[]> = {};
   for (const p of perms) {
     const category = p.module || "Khác";
     if (!groups[category]) {

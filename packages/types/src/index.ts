@@ -41,7 +41,10 @@ export interface Role {
   createdAt?: string;
 }
 
-export interface Permission {
+// Bản ghi permission trong database (dùng cho màn hình quản trị role).
+// Phân biệt với union type `Permission` của @repo/contracts — bên đó là
+// CHUỖI định danh quyền ('user:read'), bên này là ROW dữ liệu.
+export interface PermissionRecord {
   id: string;
   name: string;
   description: string | null;

@@ -3,11 +3,14 @@ import {
   WebSocketServer,
   OnGatewayConnection,
   OnGatewayDisconnect,
+  OnGatewayInit,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { Logger } from '@nestjs/common';
+import { Logger, OnApplicationShutdown } from '@nestjs/common';
+import { createAdapter } from '@socket.io/redis-adapter';
+import Redis from 'ioredis';
 import type { JwtPayload } from '@repo/contracts';
 import { parseCorsOrigins } from '../../config/environment';
 
@@ -21,21 +24,42 @@ import { parseCorsOrigins } from '../../config/environment';
   },
 })
 export class RealtimeGateway
-  implements OnGatewayConnection, OnGatewayDisconnect
+  implements
+    OnGatewayInit,
+    OnGatewayConnection,
+    OnGatewayDisconnect,
+    OnApplicationShutdown
 {
   @WebSocketServer()
   server!: Server;
 
   private readonly logger = new Logger(RealtimeGateway.name);
-  // Maps userId -> Set of Socket IDs
-  private readonly activeConnections = new Map<string, Set<string>>();
-  // Maps socketId -> userId
-  private readonly socketUsers = new Map<string, string>();
+  private pubClient?: Redis;
+  private subClient?: Redis;
 
   constructor(
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
   ) {}
+
+  // Redis adapter cho phép chạy nhiều API instance: emit từ instance này
+  // được phát tới socket đang nối vào instance khác qua Redis pub/sub.
+  afterInit(server: Server): void {
+    this.pubClient = new Redis({
+      host: this.configService.get<string>('REDIS_HOST', 'localhost'),
+      port: Number(this.configService.get<number>('REDIS_PORT', 6380)),
+      password: this.configService.get<string>('REDIS_PASSWORD') || undefined,
+    });
+    this.subClient = this.pubClient.duplicate();
+    server.adapter(createAdapter(this.pubClient, this.subClient));
+    this.logger.log('Socket.IO Redis adapter attached');
+  }
+
+  // onApplicationShutdown chạy SAU khi WebSocket server đã đóng — đóng
+  // pub/sub sớm hơn (onModuleDestroy) sẽ làm adapter dùng kết nối đã chết.
+  async onApplicationShutdown(): Promise<void> {
+    await Promise.allSettled([this.pubClient?.quit(), this.subClient?.quit()]);
+  }
 
   handleConnection(client: Socket): void {
     try {
@@ -70,12 +94,10 @@ export class RealtimeGateway
         return;
       }
 
-      // Bind socket to user
-      this.socketUsers.set(client.id, userId);
-      if (!this.activeConnections.has(userId)) {
-        this.activeConnections.set(userId, new Set());
-      }
-      this.activeConnections.get(userId)!.add(client.id);
+      // Mỗi user một room: emit theo room hoạt động xuyên instance nhờ
+      // Redis adapter, không cần tự theo dõi socket id trong bộ nhớ.
+      (client.data as { userId?: string }).userId = userId;
+      void client.join(RealtimeGateway.userRoom(userId));
 
       this.logger.log(`User ${userId} connected on socket ${client.id}`);
     } catch {
@@ -87,22 +109,13 @@ export class RealtimeGateway
   }
 
   handleDisconnect(client: Socket) {
-    const userId = this.socketUsers.get(client.id);
+    const userId = (client.data as { userId?: string }).userId;
     if (userId) {
-      this.socketUsers.delete(client.id);
-      const userSockets = this.activeConnections.get(userId);
-      if (userSockets) {
-        userSockets.delete(client.id);
-        if (userSockets.size === 0) {
-          this.activeConnections.delete(userId);
-        }
-      }
       this.logger.log(`Socket ${client.id} disconnected from user ${userId}`);
     }
   }
 
-  getSocketsForUser(userId: string): string[] {
-    const sockets = this.activeConnections.get(userId);
-    return sockets ? Array.from(sockets) : [];
+  static userRoom(userId: string): string {
+    return `user:${userId}`;
   }
 }

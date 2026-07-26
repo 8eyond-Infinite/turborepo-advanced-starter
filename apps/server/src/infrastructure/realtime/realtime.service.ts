@@ -7,21 +7,21 @@ export class RealtimeService implements IRealtimePort {
   constructor(private readonly gateway: RealtimeGateway) {}
 
   /**
-   * Emits a real-time event to all connected sockets of a specific user.
+   * Gửi event tới mọi socket của một user. Emit theo room nên hoạt động
+   * xuyên instance khi chạy nhiều replica (nhờ Redis adapter).
    */
-  sendToUser(userId: string, event: string, payload: any): void {
-    const socketIds = this.gateway.getSocketsForUser(userId);
-    if (socketIds.length > 0 && this.gateway.server) {
-      for (const socketId of socketIds) {
-        this.gateway.server.to(socketId).emit(event, payload);
-      }
+  sendToUser(userId: string, event: string, payload: unknown): void {
+    if (this.gateway.server) {
+      this.gateway.server
+        .to(RealtimeGateway.userRoom(userId))
+        .emit(event, payload);
     }
   }
 
   /**
-   * Broadcasts a real-time event to all connected users.
+   * Phát event tới tất cả user đang kết nối, trên mọi instance.
    */
-  broadcast(event: string, payload: any): void {
+  broadcast(event: string, payload: unknown): void {
     if (this.gateway.server) {
       this.gateway.server.emit(event, payload);
     }

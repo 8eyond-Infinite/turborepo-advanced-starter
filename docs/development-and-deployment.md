@@ -77,6 +77,14 @@ pnpm dev:admin
 pnpm dev:client
 ```
 
+Queue worker (gửi email nền) là một process tách khỏi API. Khi cần thấy email được gửi thật trong lúc phát triển, mở thêm một terminal:
+
+```powershell
+pnpm --filter=server dev:worker
+```
+
+Không chạy worker thì hệ thống vẫn hoạt động bình thường — job nằm chờ trong queue (Redis) và được xử lý ngay khi worker bật lên. Ở production, worker chạy bằng `node dist/worker.js` từ cùng image với API.
+
 ### Dừng
 
 `Ctrl+C` dừng application host.

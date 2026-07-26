@@ -195,6 +195,8 @@ Controller chỉ gắn guard, khai báo permission, audit và cache metadata. M�
 
 `user-queue.processor.ts` là BullMQ consumer gửi welcome/deactivation email. Worker nhận typed job data và trả typed result.
 
+Processor này KHÔNG chạy trong API process. Nó được lắp vào `src/worker.module.ts` và chạy như một process riêng (`pnpm --filter=server dev:worker` khi phát triển, `node dist/worker.js` ở production) — API chỉ đẩy job vào queue, việc gửi mail chậm bao nhiêu cũng không ảnh hưởng thời gian trả lời HTTP.
+
 Worker nằm ở tầng application nhưng job được đưa vào queue từ outbox router. Vì outbox đảm bảo “gửi ít nhất một lần” (at-least-once) — nghĩa là một event có thể được gửi lặp — job phải idempotent (chạy lại lần nữa kết quả vẫn như cũ) hoặc dùng jobId tính trước được để queue tự bỏ qua lần gửi trùng.
 
 Gửi mail thất bại không làm rollback transaction User, vì transaction đã commit từ trước. Việc thử gửi lại do BullMQ đảm nhiệm theo chính sách retry của queue.
