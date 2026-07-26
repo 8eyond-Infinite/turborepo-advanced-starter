@@ -15,5 +15,8 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["**/*.test.ts"],
+    env: {
+      SESSION_SECRET: "vitest-session-secret-vitest-session-secret",
+    },
   },
 });

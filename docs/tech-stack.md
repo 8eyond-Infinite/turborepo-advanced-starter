@@ -92,7 +92,7 @@ Nguyên tắc thêm dependency mới: phải trả lời được "nếu không 
 
 ## Client (`apps/client`)
 
-**Next.js** (App Router, Server Components, Server Actions, middleware) + React, cùng `@repo/types` và `@repo/contracts`. Không có thư viện auth hay data-fetching riêng: phiên đăng nhập là một cookie HttpOnly do chính Next.js quản lý, còn dữ liệu được lấy bằng `fetch` ở phía server. `server-only` chặn việc lỡ import code chứa token vào Client Component. Xem [Client handbook](../apps/client/README.md).
+**Next.js** (App Router, Server Components, Server Actions, middleware) + React, cùng `@repo/types` và `@repo/contracts`. Không có thư viện auth hay data-fetching riêng: phiên đăng nhập là một cookie HttpOnly do chính Next.js quản lý, còn dữ liệu được lấy bằng `fetch` ở phía server. `server-only` chặn việc lỡ import code chứa token vào Client Component. `jose` mã hóa nội dung session cookie (chuẩn JWE) — chọn nó thay vì module crypto của Node vì middleware có thể chạy ở edge runtime. Test bằng Vitest, môi trường Node thuần (không cần jsdom vì toàn logic phía server). Xem [Client handbook](../apps/client/README.md).
 
 ## Hạ tầng chạy kèm (Docker)
 

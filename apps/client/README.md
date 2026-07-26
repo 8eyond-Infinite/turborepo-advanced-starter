@@ -74,9 +74,16 @@ Cần API chạy sẵn (`pnpm dev:server`) và một file `.env.local`:
 
 ```dotenv
 API_URL=http://localhost:3001
+SESSION_SECRET=chuỗi-ngẫu-nhiên-tối-thiểu-32-ký-tự
 ```
 
-Biến này **không có tiền tố `NEXT_PUBLIC_`** — chỉ server đọc được. Trình duyệt không bao giờ biết địa chỉ API.
+Sinh secret ngẫu nhiên bằng:
+
+```powershell
+node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
+```
+
+Cả hai biến **không có tiền tố `NEXT_PUBLIC_`** — chỉ server đọc được. Ở dev, thiếu `SESSION_SECRET` thì app vẫn chạy bằng khóa mặc định (kèm cảnh báo trong log); ở production thiếu là app từ chối chạy — cố ý như vậy để không ai vô tình deploy với khóa ai cũng biết.
 
 ```powershell
 pnpm dev:client            # http://localhost:3005
@@ -97,9 +104,13 @@ curl -s -o /dev/null -w "%{http_code}\n" http://localhost:3005/me   # 307 → /l
 
 ## 5. Ghi chú về bảo mật của session cookie
 
-Cookie `client_session` chứa cả access token lẫn refresh token, đóng gói bằng base64 — **đóng gói không phải mã hóa**. Cookie là `HttpOnly` + `SameSite=Lax` (thêm `Secure` ở production) nên JavaScript không đọc được; mức rủi ro tương đương một session cookie thông thường: ai lấy được cookie thì có phiên.
+Cookie `client_session` chứa cả access token lẫn refresh token, được **mã hóa** theo chuẩn JWE (thuật toán `dir` + `A256GCM`, thư viện `jose`) bằng khóa sinh từ `SESSION_SECRET`. Nghĩa là:
 
-Nếu hệ thống cần mức cao hơn, có hai hướng chuẩn hóa: mã hóa nội dung cookie (ví dụ `iron-session`), hoặc chuyển sang session store phía server (Redis) và chỉ đặt session id vào cookie. Repo chọn cách đơn giản nhất chạy được để mô hình BFF dễ đọc, và ghi rõ giới hạn ở đây thay vì tuyên bố an toàn tuyệt đối.
+- Ai xem trộm được giá trị cookie (log, proxy, backup…) cũng **không đọc được token bên trong**.
+- Sửa dù một byte là giải mã thất bại — người dùng chỉ đơn giản bị coi như chưa đăng nhập, không có cách "chế" cookie giả.
+- Đổi `SESSION_SECRET` là toàn bộ phiên cũ mất hiệu lực ngay (mọi người phải đăng nhập lại) — đây cũng chính là nút "đăng xuất tất cả" khẩn cấp.
+
+Giới hạn còn lại đúng bằng bản chất của mọi session cookie: kẻ trộm được **nguyên vẹn** cookie thì vẫn dùng được phiên. Chống chuyện đó là việc của `HttpOnly` (XSS không đọc được), `Secure` (không đi qua HTTP thường) và `SameSite=Lax`. Nếu cần thu hồi từng phiên một, hướng nâng cấp là session store phía server (Redis) và chỉ đặt session id vào cookie.
 
 Một giới hạn nữa: khi nhiều tab cùng làm mới token gần như đồng thời, cơ chế rotation có thể khiến một tab dùng phải token vừa bị thu hồi và bị đăng xuất. Ngưỡng làm mới sớm 60 giây khiến tình huống này hiếm, nhưng chưa loại bỏ hoàn toàn.
 

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { EncryptJWT } from "jose";
 
 // Giả lập cookie store của Next.js: một Map trong bộ nhớ là đủ để kiểm tra
 // session.ts đọc/ghi/xóa đúng cookie, không cần dựng cả request thật.
@@ -20,8 +21,8 @@ vi.mock("next/headers", () => ({
 import {
   SESSION_COOKIE,
   clearSession,
-  decodeSession,
-  encodeSession,
+  decryptSession,
+  encryptSession,
   getSession,
   setSession,
   type Session,
@@ -36,34 +37,65 @@ beforeEach(() => {
   store.clear();
 });
 
-describe("encodeSession / decodeSession", () => {
-  it("giải mã lại đúng thứ đã mã hóa", () => {
-    expect(decodeSession(encodeSession(session))).toEqual(session);
+describe("encryptSession / decryptSession", () => {
+  it("giải mã lại đúng thứ đã mã hóa", async () => {
+    expect(await decryptSession(await encryptSession(session))).toEqual(
+      session,
+    );
   });
 
-  it("trả về null với chuỗi không phải base64url của JSON", () => {
-    expect(decodeSession("không-phải-base64")).toBeNull();
+  it("nội dung cookie không còn đọc được bằng mắt (đã mã hóa thật)", async () => {
+    const encrypted = await encryptSession(session);
+    // JWE 5 phần phân cách bằng dấu chấm, và token không xuất hiện dạng thô
+    // hay dạng base64 đơn thuần trong chuỗi.
+    expect(encrypted.split(".")).toHaveLength(5);
+    expect(encrypted).not.toContain("access-token");
+    expect(
+      Buffer.from(encrypted, "base64url").toString().includes("access-token"),
+    ).toBe(false);
   });
 
-  it("trả về null khi JSON hợp lệ nhưng thiếu trường bắt buộc", () => {
-    const encoded = Buffer.from(
-      JSON.stringify({ accessToken: "chỉ-có-một-nửa" }),
-    ).toString("base64url");
-    expect(decodeSession(encoded)).toBeNull();
+  it("sửa một ký tự của cookie là giải mã thất bại", async () => {
+    const encrypted = await encryptSession(session);
+    const tampered =
+      encrypted.slice(0, -2) + (encrypted.endsWith("A") ? "B" : "A");
+    expect(await decryptSession(tampered)).toBeNull();
   });
 
-  it("trả về null khi trường đúng tên nhưng sai kiểu", () => {
-    const encoded = Buffer.from(
-      JSON.stringify({ accessToken: 123, refreshToken: true }),
-    ).toString("base64url");
-    expect(decodeSession(encoded)).toBeNull();
+  it("trả về null với chuỗi rác bất kỳ", async () => {
+    expect(await decryptSession("khong-phai-jwe")).toBeNull();
+    expect(await decryptSession("")).toBeNull();
   });
 
-  it("trả về null với JSON không phải object (số, mảng)", () => {
-    for (const value of [42, [1, 2], null, "chuỗi"]) {
-      const encoded = Buffer.from(JSON.stringify(value)).toString("base64url");
-      expect(decodeSession(encoded)).toBeNull();
-    }
+  it("cookie kiểu cũ (base64 chưa mã hóa) bị coi như chưa đăng nhập", async () => {
+    const legacy = Buffer.from(JSON.stringify(session)).toString("base64url");
+    expect(await decryptSession(legacy)).toBeNull();
+  });
+
+  it("cookie mã hóa bằng secret khác không giải mã được", async () => {
+    const otherKey = new Uint8Array(
+      await crypto.subtle.digest(
+        "SHA-256",
+        new TextEncoder().encode("một-secret-hoàn-toàn-khác-dài-đủ-32-ký-tự"),
+      ),
+    );
+    const foreign = await new EncryptJWT({ ...session })
+      .setProtectedHeader({ alg: "dir", enc: "A256GCM" })
+      .encrypt(otherKey);
+    expect(await decryptSession(foreign)).toBeNull();
+  });
+
+  it("payload hợp lệ nhưng thiếu trường bắt buộc thì trả về null", async () => {
+    const key = new Uint8Array(
+      await crypto.subtle.digest(
+        "SHA-256",
+        new TextEncoder().encode("vitest-session-secret-vitest-session-secret"),
+      ),
+    );
+    const halfSession = await new EncryptJWT({ accessToken: "chỉ-một-nửa" })
+      .setProtectedHeader({ alg: "dir", enc: "A256GCM" })
+      .encrypt(key);
+    expect(await decryptSession(halfSession)).toBeNull();
   });
 });
 
@@ -79,7 +111,7 @@ describe("getSession / setSession / clearSession", () => {
   });
 
   it("getSession trả về null khi cookie bị sửa thành rác", async () => {
-    store.set(SESSION_COOKIE, "rác-ai-đó-tự-đặt");
+    store.set(SESSION_COOKIE, "rac-ai-do-tu-dat");
     expect(await getSession()).toBeNull();
   });
 

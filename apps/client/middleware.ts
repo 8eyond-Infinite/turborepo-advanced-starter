@@ -1,8 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import {
   SESSION_COOKIE,
-  decodeSession,
-  encodeSession,
+  decryptSession,
+  encryptSession,
   sessionCookieOptions,
 } from "@/lib/session";
 
@@ -30,7 +30,7 @@ export async function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith(prefix),
   );
   const raw = request.cookies.get(SESSION_COOKIE)?.value;
-  const session = raw ? decodeSession(raw) : null;
+  const session = raw ? await decryptSession(raw) : null;
 
   if (!session) {
     if (!isProtected) return NextResponse.next();
@@ -72,7 +72,7 @@ export async function middleware(request: NextRequest) {
   const response = NextResponse.next();
   response.cookies.set(
     SESSION_COOKIE,
-    encodeSession({
+    await encryptSession({
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken ?? session.refreshToken,
     }),
