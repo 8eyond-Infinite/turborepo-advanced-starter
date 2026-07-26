@@ -56,6 +56,31 @@ describe('AuthController (E2E)', () => {
     throw new Error('Expected queue job was not published within 2 seconds');
   };
 
+  // The outbox publisher polls and dispatches asynchronously; on slow CI
+  // runners a one-shot read races the PROCESSING -> PUBLISHED transition.
+  const waitForOutboxPublished = async (
+    prisma: PrismaService,
+    aggregateId: string,
+    type: string,
+  ) => {
+    const deadline = Date.now() + 5_000;
+
+    while (Date.now() < deadline) {
+      const outboxEvent = await prisma.outboxEvent.findFirst({
+        where: { aggregateId, type },
+      });
+      if (outboxEvent?.status === 'PUBLISHED') {
+        return outboxEvent;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+
+    throw new Error(
+      `Outbox event ${type} for ${aggregateId} was not PUBLISHED within 5 seconds`,
+    );
+  };
+
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -132,13 +157,12 @@ describe('AuthController (E2E)', () => {
     expect(welcomeJob.name).toEqual('send-welcome-email');
 
     const prisma = app.get(PrismaService);
-    const outboxEvent = await prisma.outboxEvent.findFirst({
-      where: {
-        aggregateId: response.body.id,
-        type: 'iam.user.registered.v1',
-      },
-    });
-    expect(outboxEvent?.status).toBe('PUBLISHED');
+    const outboxEvent = await waitForOutboxPublished(
+      prisma,
+      response.body.id,
+      'iam.user.registered.v1',
+    );
+    expect(outboxEvent.status).toBe('PUBLISHED');
   });
 
   it('/auth/register (POST) -> rejects an invalid runtime payload', async () => {

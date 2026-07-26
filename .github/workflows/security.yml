@@ -19,9 +19,16 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Chạy gitleaks CLI trực tiếp (MIT, miễn phí) — gitleaks-action yêu cầu
+      # license key trả phí cho organization repo.
+      - name: Install gitleaks
+        run: |
+          VERSION=$(curl -s https://api.github.com/repos/gitleaks/gitleaks/releases/latest | jq -r '.tag_name')
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/${VERSION}/gitleaks_${VERSION#v}_linux_x64.tar.gz" | tar -xz gitleaks
+          sudo install gitleaks /usr/local/bin/gitleaks
+
+      - name: Scan repository history
+        run: gitleaks detect --source . --redact --no-banner
 
   dependency-audit:
     name: Dependency audit
