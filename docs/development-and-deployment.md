@@ -370,6 +370,8 @@ Job `image` hoàn tất chuỗi cung ứng: build Docker image của server từ
 
 Database dùng cho test phải có tên/phạm vi riêng; backend E2E đã có chốt chặn từ chối reset bất kỳ database nào không có hậu tố `_test`.
 
+Quy trình phát hành từng bước, cách quay lui và cách xử lý khi hệ thống đang có sự cố nằm ở [Sổ tay vận hành](operations-runbook.md).
+
 ## 14. Release flow
 
 ```text

@@ -8,22 +8,23 @@ Không phải mọi phần đều có cùng mức hoàn thiện. Backend và Adm
 
 Người mới vào repo: bắt đầu từ [Lộ trình học từ đầu](docs/getting-started-path.md) và mở kèm [Bảng thuật ngữ](docs/glossary.md) — hai tài liệu này dẫn bạn qua toàn bộ hệ thống theo thứ tự có chủ đích, kèm bài tập tự kiểm tra. Các tài liệu còn lại là tra cứu theo nhu cầu.
 
-| Tài liệu                                                       | Đọc khi cần                                                                       |
-| -------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| [Lộ trình học từ đầu](docs/getting-started-path.md)            | Mới vào repo, muốn học có thứ tự với bài tập thực hành và câu hỏi tự kiểm tra     |
-| [Bảng thuật ngữ](docs/glossary.md)                             | Tra nghĩa mọi thuật ngữ trong docs, mỗi khái niệm kèm ví dụ trong chính repo      |
-| [Thư viện dùng để làm gì](docs/tech-stack.md)                  | Mỗi dependency giải quyết việc gì, vì sao chọn, và nằm ở đâu trong code           |
-| [Kiến trúc hệ thống](docs/architecture.md)                     | Hiểu ranh giới app/package, backend layers, frontend layers và flow liên ứng dụng |
-| [Phát triển và triển khai](docs/development-and-deployment.md) | Cài môi trường, chạy Docker/host, migration, CI và production topology            |
-| [Backend handbook](apps/server/README.md)                      | Đọc code NestJS, request flow, CQRS, outbox, auth và testing                      |
-| [Admin handbook](apps/admin/README.md)                         | Đọc React Admin, routing, query cache, auth refresh, RBAC và realtime             |
-| [Client handbook](apps/client/README.md)                       | Trạng thái hiện tại và quy ước phát triển Next.js client                          |
-| [Auth context](apps/server/src/contexts/iam/auth/README.md)    | Login, refresh rotation, logout, session và token revocation                      |
-| [Users context](apps/server/src/contexts/iam/users/README.md)  | User aggregate, commands, repository transaction và domain events                 |
-| [Roles context](apps/server/src/contexts/iam/roles/README.md)  | Role, permission catalog và RBAC behavior                                         |
-| [Audit context](apps/server/src/contexts/audit/README.md)      | Audit port, persistence và query flow                                             |
-| [Đóng góp](CONTRIBUTING.md)                                    | Quy trình branch/commit/PR, quality gate và các ranh giới không thương lượng      |
-| [Chính sách bảo mật](SECURITY.md)                              | Cách báo cáo lỗ hổng một cách có trách nhiệm                                      |
+| Tài liệu                                                       | Đọc khi cần                                                                         |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| [Lộ trình học từ đầu](docs/getting-started-path.md)            | Mới vào repo, muốn học có thứ tự với bài tập thực hành và câu hỏi tự kiểm tra       |
+| [Bảng thuật ngữ](docs/glossary.md)                             | Tra nghĩa mọi thuật ngữ trong docs, mỗi khái niệm kèm ví dụ trong chính repo        |
+| [Thư viện dùng để làm gì](docs/tech-stack.md)                  | Mỗi dependency giải quyết việc gì, vì sao chọn, và nằm ở đâu trong code             |
+| [Kiến trúc hệ thống](docs/architecture.md)                     | Hiểu ranh giới app/package, backend layers, frontend layers và flow liên ứng dụng   |
+| [Phát triển và triển khai](docs/development-and-deployment.md) | Cài môi trường, chạy Docker/host, migration, CI và production topology              |
+| [Sổ tay vận hành](docs/operations-runbook.md)                  | Đang có sự cố thì làm gì: triage, ngưỡng cảnh báo, phát hành, rollback, xoay secret |
+| [Backend handbook](apps/server/README.md)                      | Đọc code NestJS, request flow, CQRS, outbox, auth và testing                        |
+| [Admin handbook](apps/admin/README.md)                         | Đọc React Admin, routing, query cache, auth refresh, RBAC và realtime               |
+| [Client handbook](apps/client/README.md)                       | Trạng thái hiện tại và quy ước phát triển Next.js client                            |
+| [Auth context](apps/server/src/contexts/iam/auth/README.md)    | Login, refresh rotation, logout, session và token revocation                        |
+| [Users context](apps/server/src/contexts/iam/users/README.md)  | User aggregate, commands, repository transaction và domain events                   |
+| [Roles context](apps/server/src/contexts/iam/roles/README.md)  | Role, permission catalog và RBAC behavior                                           |
+| [Audit context](apps/server/src/contexts/audit/README.md)      | Audit port, persistence và query flow                                               |
+| [Đóng góp](CONTRIBUTING.md)                                    | Quy trình branch/commit/PR, quality gate và các ranh giới không thương lượng        |
+| [Chính sách bảo mật](SECURITY.md)                              | Cách báo cáo lỗ hổng một cách có trách nhiệm                                        |
 
 ## Thành phần trong monorepo
 
