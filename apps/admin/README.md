@@ -363,11 +363,13 @@ Navigation phải dùng cùng permission với route — nếu không sẽ hiệ
 
 ## 11. Testing
 
-Vitest chạy trong jsdom. Test hiện tại ở `src/lib/api-client.test.ts` khóa chặt ba hành vi bắt buộc (invariant) sau:
+Vitest chạy trong jsdom, kèm Testing Library cho component test (setup ở `src/test/setup.ts`). Ba nhóm test hiện có:
 
-1. Hai protected request trả 401 đồng thời chỉ tạo một refresh request.
-2. Refresh thất bại phải xóa local session và phát logout.
-3. Request retry vẫn 401 không được refresh lặp vô hạn.
+1. `src/lib/api-client.test.ts` — khóa chặt hành vi refresh: hai request 401 đồng thời chỉ tạo một refresh request; refresh thất bại phải xóa session và phát logout; retry vẫn 401 không được refresh lặp vô hạn.
+2. `src/hooks/usePermission.test.tsx` — render `<Can>` với các tổ hợp quyền: có quyền thì hiện, thiếu thì hiện fallback, `all`/`any` đúng ngữ nghĩa, và hành vi fail-open khi route không khai báo permission.
+3. `src/features/auth/components/LoginForm.test.tsx` — submit gọi `login` đúng credentials và điều hướng khi thành công; lỗi hiển thị thông báo thân thiện và ở lại trang; nút ẩn/hiện mật khẩu có accessible name.
+
+`pnpm test` chạy kèm coverage và fail nếu tụt dưới sàn khai báo trong `vitest.config.ts` (~13% hiện tại). Quy tắc ratchet: phủ thêm test thì nâng sàn lên theo, không bao giờ hạ sàn để cho qua.
 
 Test mới nên đặt cạnh source khi test một unit hoặc module nhỏ. Integration test của một feature có thể đặt trong thư mục feature. Ưu tiên test behavior nhìn thấy từ public API thay vì private implementation.
 
