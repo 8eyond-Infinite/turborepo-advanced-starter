@@ -331,7 +331,9 @@ Nó không:
 - chứa password database của môi trường development;
 - chạy schema push.
 
-Nên build bằng Dockerfile nhiều giai đoạn (multi-stage) và chạy container bằng user không có quyền root.
+Công thức trên đã được hiện thực tại `apps/server/Dockerfile`: build nhiều giai đoạn (multi-stage), chạy bằng user không có quyền root, có `HEALTHCHECK` trỏ `/health/live`, và CI build + quét + publish image này lên GHCR (xem mục 13). Worker chạy từ cùng image với entry khác: `node dist/worker.js`.
+
+Lưu ý cho người sửa Dockerfile: với `node-linker=hoisted`, các link `@repo/*` nằm trong `node_modules` của từng app (trỏ về `packages/`), không nằm ở `node_modules` gốc — stage runner phải copy cả `apps/server/node_modules`, thiếu nó là image build xong nhưng crash `MODULE_NOT_FOUND` lúc chạy.
 
 ## 12. Production topology
 

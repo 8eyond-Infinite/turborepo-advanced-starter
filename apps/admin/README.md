@@ -392,7 +392,7 @@ Dev server mặc định chạy ở `http://localhost:5173`. Backend URL lấy t
 
 ## 13. Những điểm cần tiếp tục cải thiện
 
-Dashboard đang kéo theo một thư viện chart lớn và hiển thị vài thông tin hạ tầng chỉ mang tính trưng bày; nên tách phần chart thành component con được nạp trễ (lazy) và lấy trạng thái health thật từ endpoint backend thay vì ghi cứng chữ `Online`.
+Dashboard đã lấy trạng thái hạ tầng thật từ `/health/ready` (làm mới mỗi 30 giây) và hiển thị audit trail thật thay cho dữ liệu trưng bày. Điểm còn lại: thư viện chart (recharts) vẫn nằm trong chunk của route dashboard — nên tách phần chart thành component con được nạp trễ (lazy) để giảm JavaScript tải khi mở trang.
 
 Phần bundle dùng chung vẫn còn lớn. Việc tách code theo từng route đã giảm đáng kể lượng JavaScript tải lần đầu, nhưng cần đo bằng bundle analyzer trước khi tự tay chia vendor chunk, để chiến lược cache dựa trên số liệu thay vì phỏng đoán.
 
