@@ -2,6 +2,8 @@
 
 Roles sở hữu mô hình RBAC: role, permission catalog và quan hệ role-permission. Context này trả lời “một role đại diện cho tập quyền nào?”. Việc một HTTP request có tập quyền cần thiết được thực hiện ở presentation guard.
 
+> Gặp từ lạ (RBAC, guard, aggregate, tokenVersion…)? Tra [Bảng thuật ngữ](../../../../../../docs/glossary.md).
+
 ## 1. Khái niệm nghiệp vụ
 
 Permission là capability nhỏ, ổn định và dùng chung qua `@repo/contracts`, ví dụ quyền đọc hoặc cập nhật user. Role là nhóm permission có tên và mô tả. User nhận permission thông qua role assignments.
@@ -74,6 +76,29 @@ Permission check dùng claim trong token sau khi strategy đã xác nhận token
 
 Authentication failure trả 401; principal hợp lệ nhưng thiếu permission trả 403. Hai trường hợp không được trộn.
 
+### Thử bằng tay: phân biệt 401 và 403
+
+```bash
+# Không có token → 401: "bạn là ai tôi còn chưa biết"
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost:3001/roles
+# → 401
+
+# Token hợp lệ nhưng user KHÔNG có ROLE.READ → 403: "biết bạn là ai, nhưng không được phép"
+# (đăng nhập bằng một user thường chỉ có role USER)
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost:3001/roles \
+  -H "Authorization: Bearer <token của user thường>"
+# → 403
+
+# Token admin → 200 kèm danh sách role và permission
+curl -s http://localhost:3001/roles -H "Authorization: Bearer <admin token>"
+```
+
+> **Tóm lại:**
+>
+> - Hai cổng nối tiếp: JwtAuthGuard trả lời "bạn là ai?" (sai → 401), PermissionsGuard trả lời "bạn được làm gì?" (thiếu → 403).
+> - Permission check đọc claim trong token — tin được vì JwtStrategy đã đối chiếu `tokenVersion` với DB ngay trước đó.
+> - Đổi role assignment của user ⇒ tokenVersion tăng ⇒ token cũ mang permission cũ bị loại ngay.
+
 ## 5. Create role flow
 
 1. DTO validate name/description.
@@ -95,6 +120,11 @@ Tập permissions được hiểu là desired state, không phải danh sách pa
 Hướng chuẩn hóa tiếp theo là validate toàn bộ identifier trước khi thay mapping và trả domain error nếu có giá trị không tồn tại. Cho tới khi phần đó được triển khai, tài liệu và API không được tuyên bố input đã được allowlist hoàn toàn.
 
 Khi role definition đổi, access token đã cấp có thể vẫn chứa permissions cũ cho tới khi tokenVersion của các user liên quan thay đổi. Hiện tại tokenVersion tăng khi role assignments của User đổi, không tự động fan-out khi nội dung Role đổi. Nếu sản phẩm yêu cầu revoke ngay cho mọi user thuộc role vừa sửa, cần bổ sung một use case/outbox flow rõ ràng; không nên ngầm tuyên bố behavior chưa tồn tại.
+
+> **Tóm lại (hai giới hạn thật cần nhớ):**
+>
+> - Gửi permission string sai chính tả hiện bị **âm thầm bỏ qua**, không báo lỗi — đừng tin rằng "gọi API thành công nghĩa là mọi permission đã được gán".
+> - Sửa NỘI DUNG một role **không** tự thu hồi token của những user đang mang role đó; chỉ sửa ASSIGNMENT của từng user mới bump tokenVersion.
 
 ## 7. Delete semantics
 

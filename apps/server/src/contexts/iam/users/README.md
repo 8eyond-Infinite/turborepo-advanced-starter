@@ -2,6 +2,8 @@
 
 Users sở hữu User aggregate: danh tính nội bộ, profile, password hash, role assignments, trạng thái active/deleted và version dùng để thu hồi token. Đây là nơi đặt mọi invariant liên quan đến vòng đời tài khoản.
 
+> Gặp từ lạ (aggregate, port, invariant, outbox…)? Tra [Bảng thuật ngữ](../../../../../../docs/glossary.md) — mỗi khái niệm có định nghĩa một câu kèm ví dụ trong repo.
+
 ## 1. Ranh giới và ownership
 
 Users sở hữu:
@@ -27,6 +29,12 @@ Aggregate bảo vệ state transition:
 - `activate()`, `softDelete()` và `restore()` thay trạng thái và revoke token cũ bằng version.
 
 Token version thuộc aggregate vì nó biểu diễn revision của quyền truy cập User, không phải chi tiết JWT.
+
+> **Tóm lại:**
+>
+> - Mọi thay đổi trạng thái User đi qua method của `UserEntity` — không ai sửa field trực tiếp.
+> - Quy tắc nhớ nhanh: thay đổi nào ảnh hưởng QUYỀN TRUY CẬP thì tăng `tokenVersion`; thay đổi nào là SỰ KIỆN NGHIỆP VỤ đáng để hệ thống phản ứng thì phát domain event.
+> - `register()` và `deactivate()` làm cả hai: đổi state và phát event.
 
 ## 3. Value objects
 
@@ -99,6 +107,43 @@ Khi admin deactivate account, entity chỉ thay state và ghi event. Sau transac
 
 Side effect không nằm trong entity hoặc handler vì nó có failure/retry lifecycle khác database transaction.
 
+```mermaid
+flowchart LR
+    D[deactivate commit] --> O[(outbox_events)]
+    O --> R{OutboxEventRouter}
+    R --> S[Xóa refresh sessions Redis]
+    R --> Q[BullMQ: deactivation email]
+    R --> N[Tạo notification]
+    R --> W[Socket.IO: force_logout]
+```
+
+### Thử bằng tay
+
+Chuỗi lệnh sau cho thấy toàn bộ chương này chạy thật (cần token admin — xem cách lấy ở [handbook backend §6](../../../../README.md)):
+
+```bash
+# 1. Tạo một user thí nghiệm rồi đăng nhập bằng chính nó
+curl -s -X POST http://localhost:3001/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"victim@example.com","username":"victim","password":"matkhau123"}'
+# → ghi lại "id" trong response
+
+curl -s -X POST http://localhost:3001/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"victim@example.com","password":"matkhau123"}'
+# → giữ accessToken của victim (gọi là V)
+
+# 2. Dùng token admin deactivate user đó
+curl -s -X PATCH http://localhost:3001/users/<id>/deactivate \
+  -H "Authorization: Bearer <admin accessToken>"
+
+# 3. Token V chết NGAY LẬP TỨC dù còn hạn 15 phút — vì tokenVersion đã tăng
+curl -s http://localhost:3001/users/me -H "Authorization: Bearer <V>"
+# → 401 "Access token has been revoked"
+```
+
+Ba dấu vết hậu trường để đối chiếu với diagram: row `iam.user.deactivated.v1` trong `outbox_events` chuyển `PUBLISHED`; mail deactivation hiện trong Maildev (`http://localhost:1083`); và key `refresh_token:<id>:*` biến mất khỏi Redis.
+
 ## 7. Persistence và transaction boundary
 
 `PrismaUserRepository` hiện thực `UserRepository`. Mapper chuyển Prisma record sang aggregate; `toPrimitives()` chuyển aggregate về dữ liệu persistence có kiểu.
@@ -125,6 +170,12 @@ Repository không tự quyết định business transition. Nó chỉ lưu state
 - persistence join records.
 
 `GET /users/me` có cache theo user id. Mutation invalidate cache sau khi command thành công.
+
+> **Tóm lại:**
+>
+> - Ghi: một transaction duy nhất gồm User + UserRole + OutboxEvent — event chỉ được clear SAU commit.
+> - Đọc: sort/search qua allowlist trong DTO; presenter quyết định field nào được ra ngoài.
+> - Hai thứ không bao giờ xuất hiện trong response: `password` hash và `tokenVersion`.
 
 ## 9. API surface
 

@@ -4,6 +4,8 @@ Audit cung cấp dấu vết có cấu trúc cho các hành động quan trọng
 
 Audit không thay thế application log. Application log phục vụ vận hành/debug; audit trail phục vụ truy vết hành động nghiệp vụ và cần schema ổn định hơn.
 
+> Gặp từ lạ (port, adapter, interceptor, correlation id…)? Tra [Bảng thuật ngữ](../../../../../docs/glossary.md).
+
 ## 1. Ranh giới và ownership
 
 Audit sở hữu:
@@ -61,6 +63,34 @@ sequenceDiagram
 Interceptor dùng `mergeMap` và await writer. Điều này tránh promise bị bỏ quên như `tap(async ...)`. Business response chỉ được audit sau khi endpoint thành công.
 
 Nếu detail callback lỗi, interceptor dùng fallback description. Nếu persistence audit lỗi, error được ghi application log; implementation hiện tại không biến business success thành HTTP failure. Đây là policy availability hiện hành và phải được cân nhắc lại nếu có yêu cầu compliance “audit-or-fail”.
+
+### Thử bằng tay
+
+Thực hiện một mutation có decorator audit rồi xem record xuất hiện:
+
+```bash
+# 1. Toggle trạng thái một user bất kỳ (endpoint này có @AuditLog)
+curl -s -X PATCH http://localhost:3001/users/<id>/toggle-status \
+  -H “Authorization: Bearer <admin token>”
+
+# 2. Đọc lại qua chính API audit
+curl -s “http://localhost:3001/audit-logs?page=1&limit=3” \
+  -H “Authorization: Bearer <admin token>”
+# → record mới nhất có action, details, userEmail của bạn, ip và userAgent
+```
+
+Hoặc nhìn thẳng vào bảng:
+
+```powershell
+docker exec starter-postgres psql -U postgres -d starter_db \
+  -c “SELECT action, user_email, ip FROM audit_logs ORDER BY created_at DESC LIMIT 3;”
+```
+
+> **Tóm lại:**
+>
+> - Context khác KHÔNG gọi audit trực tiếp — chỉ gắn `@AuditLog('ACTION', callback)` lên endpoint; interceptor toàn cục lo phần còn lại.
+> - Chỉ audit khi business ĐÃ thành công; audit ghi lỗi thì response nghiệp vụ vẫn trả bình thường (fail-open — là policy có chủ đích, không phải bug).
+> - Writer được `await` thật sự, không fire-and-forget.
 
 ## 4. Audit entry
 
@@ -125,6 +155,11 @@ Không được ghi vào audit:
 - dữ liệu cá nhân không cần thiết.
 
 Audit read endpoint là dữ liệu nhạy cảm và phải được bảo vệ bằng permission. Retention, export, tamper resistance và redaction là concern production cần policy hạ tầng riêng.
+
+> **Tóm lại:**
+>
+> - Câu hỏi trước khi ghi bất kỳ thứ gì vào details: "nếu bảng audit bị lộ, dòng này có gây hại không?" — secret/token/password tuyệt đối không, PII chỉ khi thực sự cần truy vết.
+> - Action identifier là thứ để MÁY tìm kiếm (`USER_UPDATE`), details là thứ để NGƯỜI đọc — đừng trộn vai trò hai cột.
 
 ## 9. Ý nghĩa từng file
 
