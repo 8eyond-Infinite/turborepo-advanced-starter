@@ -224,25 +224,142 @@ Hook chịu trách nhiệm đăng ký và hủy toàn bộ listener trong cùng 
 | `src/features/*/components`             | Interaction state và render nghiệp vụ                     |
 | `src/features/*/index.ts`               | Public API cho code bên ngoài feature                     |
 
-## 10. Cách thêm một feature chuẩn
+## 10. Cách thêm một feature chuẩn (mini-tutorial)
 
-Giả sử cần thêm feature `projects`.
+Giả sử cần thêm feature `projects`. Một feature chuẩn gồm đúng 4 nhóm file, và ta sẽ viết từng file theo đúng khuôn của feature `users` đang có. Nguyên tắc xuyên suốt: **component không biết endpoint, hook không biết URL, chỉ api adapter biết backend**.
 
-Tạo `features/projects/api/project.api.ts` cho endpoint adapter và `project.keys.ts` cho cache identity. `hooks/useProjects.ts` dùng hai module đó để orchestration query, mutation, invalidation và feedback. `components/ProjectsManagement.tsx` quản lý filter, pagination, dialog và bốn trạng thái query. Không đặt raw `fetch` hoặc endpoint string trong component/hook.
+### Bước 1 — API adapter: nơi DUY NHẤT biết endpoint
 
-Sau đó thêm `PROJECT.*` vào shared contracts nếu permission chưa tồn tại, lazy import page trong route registry và khai báo route permission. Navigation phải dùng cùng permission để tránh hiển thị link mà người dùng không thể mở.
+`features/projects/api/project.api.ts`:
 
-Một feature đúng chuẩn phải đảm bảo:
+```ts
+import type { PaginatedResult } from "@repo/types";
+import { ApiClient } from "@/lib/api-client";
+import type { ProjectListParams } from "./project.keys";
 
-- Không import trực tiếp code nội bộ của feature khác; chia sẻ qua `components`, `hooks`, `lib` hoặc package chung.
-- Feature khác chỉ được import qua `features/<name>/index.ts`; ESLint chặn deep import giữa các feature.
-- UI primitive không được phụ thuộc feature nghiệp vụ.
-- Không duplicate response type nếu kiểu đó là contract giữa backend và nhiều app.
-- Không dùng `any` để vượt qua type boundary.
-- Mutation có pending state, success feedback, friendly error và cache invalidation.
-- Query có loading, retryable error, empty và success state.
-- Icon-only control có accessible name.
-- Business action nhạy cảm có xác nhận và backend authorization.
+export interface Project {
+  id: string;
+  name: string;
+  description: string | null;
+  createdAt: string;
+}
+
+export interface CreateProjectInput {
+  name: string;
+  description?: string;
+}
+
+const getProjects = ({ page, limit, search }: ProjectListParams) => {
+  const params = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+  });
+  if (search) params.set("search", search);
+  return ApiClient.get<PaginatedResult<Project>>(`/projects?${params}`);
+};
+
+export const projectApi = {
+  getProjects,
+  create: (input: CreateProjectInput) =>
+    ApiClient.post<Project>("/projects", input),
+};
+```
+
+`ApiClient` tự gắn access token và tự refresh khi 401 — feature không phải bận tâm.
+
+### Bước 2 — Query key factory: "địa chỉ nhà" của cache
+
+`features/projects/api/project.keys.ts`:
+
+```ts
+export interface ProjectListParams {
+  page: number;
+  limit: number;
+  search: string;
+}
+
+export const projectKeys = {
+  all: ["projects"] as const,
+  lists: () => [...projectKeys.all, "list"] as const,
+  list: (params: ProjectListParams) =>
+    [...projectKeys.lists(), params] as const,
+};
+```
+
+Vì sao phải có file này? Vì key gõ tay ở hai nơi mà lệch nhau một ký tự là cache và invalidation "nhìn không thấy nhau" — bug rất khó lần.
+
+### Bước 3 — Hook: nối api + keys thành query/mutation
+
+`features/projects/hooks/useProjects.ts`:
+
+```ts
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { getFriendlyErrorMessage } from "@/lib/error-handler";
+import { projectApi } from "../api/project.api";
+import { projectKeys } from "../api/project.keys";
+
+export const useProjects = (options?: { page?: number; search?: string }) => {
+  const queryClient = useQueryClient();
+  const params = {
+    page: options?.page || 1,
+    limit: 10,
+    search: options?.search || "",
+  };
+
+  const projectsQuery = useQuery({
+    queryKey: projectKeys.list(params),
+    queryFn: () => projectApi.getProjects(params),
+    staleTime: 30000,
+  });
+
+  const createProjectMutation = useMutation({
+    mutationFn: projectApi.create,
+    onSuccess: (created) => {
+      // Báo cache "nhóm projects đã cũ" → danh sách tự refetch
+      queryClient.invalidateQueries({ queryKey: projectKeys.all });
+      toast.success(`Đã tạo dự án "${created.name}"!`);
+    },
+    onError: (error: unknown) => {
+      toast.error(`Không thể tạo dự án: ${getFriendlyErrorMessage(error)}`);
+    },
+  });
+
+  return { projectsQuery, createProjectMutation };
+};
+```
+
+### Bước 4 — Component, barrel và route
+
+`components/ProjectsManagement.tsx` chỉ gọi `useProjects()` và lo 4 trạng thái hiển thị (loading / error có nút retry / empty / success). Xuất public qua barrel `features/projects/index.ts`:
+
+```ts
+export { ProjectsManagement } from "./components/ProjectsManagement";
+```
+
+Thêm permission `PROJECT.READ`/`PROJECT.CREATE` vào `@repo/contracts` (backend seed cùng chuỗi đó), rồi khai báo route trong `routes/index.tsx`:
+
+```tsx
+{
+  path: "/projects",
+  permission: PERMISSIONS.PROJECT.READ,
+  element: lazyPage(() => import("@/features/projects")),
+}
+```
+
+Navigation phải dùng cùng permission với route — nếu không sẽ hiện link mà người dùng bấm vào chỉ nhận trang 403.
+
+### Checklist feature đúng chuẩn (kèm lý do)
+
+- Không import trực tiếp code nội bộ của feature khác — **vì** ESLint sẽ chặn, và deep-import biến hai feature thành một khối không tách được nữa.
+- Feature khác chỉ được import qua `features/<name>/index.ts` — **vì** barrel là hợp đồng công khai; đổi cấu trúc bên trong không vỡ ai.
+- UI primitive không phụ thuộc feature nghiệp vụ — **vì** button/dialog phải tái sử dụng được ở mọi feature, kể cả feature chưa ra đời.
+- Không duplicate response type nếu là contract backend–frontend — **vì** hai bản copy sẽ lệch nhau đúng lúc backend đổi field.
+- Không dùng `any` để vượt type boundary — **vì** `any` lây: một chỗ `any` làm mọi chỗ chạm vào nó mất kiểm tra kiểu.
+- Mutation có pending state, success feedback, friendly error, cache invalidation — **vì** thiếu invalidation thì UI hiển thị dữ liệu cũ như thể thao tác thất bại.
+- Query đủ 4 trạng thái loading / retryable error / empty / success — **vì** màn hình trắng khi lỗi mạng là bug, không phải "edge case".
+- Icon-only control có accessible name — **vì** screen reader chỉ đọc được text, không đọc được hình.
+- Business action nhạy cảm có xác nhận UI và authorization backend — **vì** ẩn nút chỉ là trải nghiệm; kẻ xấu gọi thẳng API, chốt chặn thật nằm ở server.
 
 ## 11. Testing
 

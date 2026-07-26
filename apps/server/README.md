@@ -34,6 +34,12 @@ Infrastructure ──implements──> Port do Domain/Application định nghĩa
 
 Domain là lõi ổn định nhất. Presentation và infrastructure là chi tiết có thể thay đổi. Vì vậy domain không được biết NestJS controller, Prisma, Redis, BullMQ, Socket.IO hay HTTP status.
 
+> **Tóm lại (chép sổ được):**
+>
+> - Một app deploy duy nhất, chia thành các bounded context theo nghiệp vụ.
+> - Trong mỗi context: Presentation → Application → Domain; Infrastructure cắm vào port.
+> - Domain không import framework — có test kiến trúc tự động canh điều này.
+
 ## 2. Các phong cách kiến trúc đang được áp dụng
 
 ### 2.1 Domain-Driven Design
@@ -192,6 +198,56 @@ Lấy danh sách users minh họa read path:
 
 Read flow không được thay đổi domain state và không tạo domain event.
 
+### Thử bằng tay
+
+```bash
+# Đăng nhập để lấy access token
+curl -s -X POST http://localhost:3001/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@example.com","password":"<SEED_ADMIN_PASSWORD>"}'
+# → {"accessToken":"eyJhbGciOi...","refreshToken":"eyJhbGciOi..."}
+
+curl -s "http://localhost:3001/users?page=1&limit=2" \
+  -H "Authorization: Bearer <accessToken>"
+```
+
+Response (rút gọn) — đối chiếu với 9 bước ở trên:
+
+```json
+{
+  "data": [
+    {
+      "id": "0d9c1f4e-...",
+      "email": "admin@example.com",
+      "username": "admin",
+      "avatar": null,
+      "isActive": true,
+      "isDeleted": false,
+      "roles": ["ADMIN"],
+      "createdAt": "2026-07-26T07:00:00.000Z",
+      "updatedAt": "2026-07-26T07:00:00.000Z",
+      "createdBy": null,
+      "updatedBy": null
+    }
+  ],
+  "meta": {
+    "totalItems": 1,
+    "itemCount": 1,
+    "itemsPerPage": 2,
+    "totalPages": 1,
+    "currentPage": 1
+  }
+}
+```
+
+Chú ý hai điều: response **không có** `password`/`tokenVersion` (bước 8 — presenter allowlist quyết định), và `meta` do pagination presenter dựng (bước 9).
+
+> **Tóm lại:**
+>
+> - Read path: Guard → DTO validate → Controller dựng Query → Handler → Repository → Presenter.
+> - Presenter là allowlist: field không được liệt kê thì không bao giờ ra ngoài.
+> - Query không được gây side effect nghiệp vụ.
+
 ## 7. Một write flow hoàn chỉnh
 
 Vô hiệu hóa user minh họa write path:
@@ -223,6 +279,35 @@ sequenceDiagram
 
 Transaction boundary nằm trong repository vì repository biết cách persistence aggregate và outbox atomically. Domain không biết transaction; controller cũng không điều khiển transaction.
 
+### Thử bằng tay
+
+Đăng ký một user mới rồi nhìn outbox làm việc:
+
+```bash
+curl -s -X POST http://localhost:3001/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"hocvien@example.com","username":"hocvien","password":"matkhau123"}'
+# → 201, body là user theo presenter allowlist
+```
+
+Trong ~1 giây sau đó, event đã đi hết vòng đời:
+
+```powershell
+docker exec starter-postgres psql -U postgres -d starter_db \
+  -c "SELECT type, status, attempts FROM outbox_events ORDER BY occurred_at DESC LIMIT 1;"
+#            type            |  status   | attempts
+# --------------------------+-----------+----------
+#  iam.user.registered.v1   | PUBLISHED |        1
+```
+
+Mở Maildev (`http://localhost:1083`) sẽ thấy mail chào mừng — bằng chứng event đã được route sang BullMQ worker.
+
+> **Tóm lại:**
+>
+> - Write path: Controller dựng Command → Handler load aggregate → gọi method domain → Repository save.
+> - Aggregate đổi state VÀ ghi event trong CÙNG một transaction — không bao giờ lệch nhau.
+> - Command đặt tên theo ý định nghiệp vụ (`DeactivateUser`), không theo CRUD (`UpdateUser`).
+
 ## 8. Domain event và outbox delivery
 
 Sau write transaction, `OutboxPublisherService` poll các event đủ điều kiện. Publisher claim event bằng optimistic update từ `PENDING` sang `PROCESSING`, tăng số lần thử và đặt `lockedAt`.
@@ -242,6 +327,12 @@ At-least-once delivery có nghĩa consumer có thể nhận lại event. Vì v�
 - BullMQ dùng `eventId` làm `jobId`.
 - Notification do event tạo dùng deterministic id.
 - Side effect mới phải được thiết kế idempotent.
+
+> **Tóm lại:**
+>
+> - Vòng đời một event: `PENDING` → `PROCESSING` (claim) → `PUBLISHED`; lỗi thì quay về `PENDING` với backoff, quá ngưỡng thành `FAILED`.
+> - Giao hàng kiểu at-least-once: có thể nhận trùng, nên mọi consumer phải idempotent.
+> - Theo dõi sức khỏe outbox qua `GET /metrics`: `outbox_events{status}` và `outbox_oldest_pending_age_seconds`.
 
 ## 9. Shared kernel: đặt gì và không đặt gì?
 
@@ -271,9 +362,15 @@ Access token chứa subject, email, permissions và `tokenVersion`. `JwtStrategy
 - không active;
 - có token version khác payload.
 
-Các mutation làm thay đổi quyền truy cập như update role/profile, deactivate, activate, delete hoặc restore đều tăng `tokenVersion`. Do đó access token cũ mất hiệu lực ngay.
+Các mutation làm thay đổi quyền truy cập như update role/profile, deactivate, activate, delete hoặc restore đều tăng `tokenVersion`. Global logout cũng tăng `tokenVersion`. Do đó access token cũ mất hiệu lực ngay.
 
-Refresh token có JTI và phải có session tương ứng trong Redis. Session key có dạng `refresh_token:{userId}:{jti}`. Refresh thực hiện rotation; logout xóa một session; global logout xóa toàn bộ session của user bằng cursor-based `SCAN`.
+Refresh token có JTI và phải có session tương ứng trong Redis. Session key có dạng `refresh_token:{userId}:{jti}`. Refresh thực hiện rotation; logout xóa một session; global logout xóa toàn bộ session của user bằng cursor-based `SCAN` đồng thời bump `tokenVersion` để access token đang lưu hành chết ngay thay vì sống nốt TTL.
+
+> **Tóm lại:**
+>
+> - Access token (15 phút) chứng minh "tôi là ai + được làm gì"; refresh token (7 ngày) chỉ để xin token mới.
+> - Hai cần gạt thu hồi: xóa session Redis (chặn refresh) và bump `tokenVersion` (giết access token ngay).
+> - JwtStrategy luôn đối chiếu user hiện tại trong DB — không tin mù payload.
 
 ## 11. Cross-cutting concerns
 

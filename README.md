@@ -6,8 +6,12 @@ Không phải mọi phần đều có cùng mức hoàn thiện. Backend và Adm
 
 ## Bản đồ tài liệu
 
+Người mới vào repo: bắt đầu từ [Lộ trình học từ đầu](docs/getting-started-path.md) và mở kèm [Bảng thuật ngữ](docs/glossary.md) — hai tài liệu này dẫn bạn qua toàn bộ hệ thống theo thứ tự có chủ đích, kèm bài tập tự kiểm tra. Các tài liệu còn lại là tra cứu theo nhu cầu.
+
 | Tài liệu                                                       | Đọc khi cần                                                                       |
 | -------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| [Lộ trình học từ đầu](docs/getting-started-path.md)            | Mới vào repo, muốn học có thứ tự với bài tập thực hành và câu hỏi tự kiểm tra     |
+| [Bảng thuật ngữ](docs/glossary.md)                             | Tra nghĩa mọi thuật ngữ trong docs, mỗi khái niệm kèm ví dụ trong chính repo      |
 | [Kiến trúc hệ thống](docs/architecture.md)                     | Hiểu ranh giới app/package, backend layers, frontend layers và flow liên ứng dụng |
 | [Phát triển và triển khai](docs/development-and-deployment.md) | Cài môi trường, chạy Docker/host, migration, CI và production topology            |
 | [Backend handbook](apps/server/README.md)                      | Đọc code NestJS, request flow, CQRS, outbox, auth và testing                      |
