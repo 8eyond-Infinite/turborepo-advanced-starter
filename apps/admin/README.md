@@ -19,8 +19,8 @@ Nhờ vậy frontend không tự phát minh permission string hoặc tạo lại
 flowchart LR
     Browser[Admin Portal] -->|HTTP + Bearer token| API[NestJS API]
     Browser <-->|Socket.IO + access token| Realtime[Realtime Gateway]
-    Browser --> Contracts[@repo/contracts]
-    Browser --> Types[@repo/types]
+    Browser --> Contracts["@repo/contracts"]
+    Browser --> Types["@repo/types"]
     API --> Contracts
     API --> Types
 ```
