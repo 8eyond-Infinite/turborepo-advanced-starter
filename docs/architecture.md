@@ -306,7 +306,7 @@ schema change
 
 `prisma generate` chỉ tạo client. `db push` không tạo migration history và không phải production deployment mechanism.
 
-Database local hiện từng được tạo bằng `db push` và có thể không có `_prisma_migrations`. Cần recreate hoặc baseline có chủ đích trước khi dùng migration governance nghiêm túc.
+Database local đã được baseline có chủ đích (`prisma migrate resolve --applied` cho toàn bộ chain) và migration chain đã được xác nhận tái tạo đầy đủ schema trên database sạch. Môi trường mới dựng bằng `prisma migrate deploy`; `db push` chỉ còn dành cho database test dùng xong bỏ.
 
 ## 12. Runtime topology
 

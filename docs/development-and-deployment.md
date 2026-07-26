@@ -168,12 +168,11 @@ Seed cần idempotent hoặc chỉ dùng database đã reset rõ ràng.
 
 `pnpm db:push` đồng bộ schema không có migration history. Chỉ dùng cho disposable prototype/test database. Không dùng cho staging/production.
 
-Database local hiện tại đã từng dùng `db push`, được xác nhận bởi việc có schema nhưng không có bảng `_prisma_migrations`. Để chuyển sang migration governance sạch, chọn một trong hai:
+Migration chain đã được đối chiếu với schema bằng `prisma migrate diff --from-migrations` và tái tạo đầy đủ schema trên database sạch (migration `20260726073000_add_user_profile_menus_and_notifications` đóng phần drift từng tồn tại: `users.username`, `users.avatar`, bảng `menus` và `notifications`). Database dev local đã được baseline bằng `prisma migrate resolve --applied` cho toàn bộ chain; `prisma migrate status` phải trả "up to date".
 
-1. reset local volume rồi apply toàn bộ migration;
-2. baseline database có chủ đích nếu phải giữ dữ liệu.
+Lệnh cần replay migration chain (`migrate diff --from-migrations`, `migrate dev`) yêu cầu `SHADOW_DATABASE_URL` trỏ tới một database dùng xong bỏ, ví dụ `postgresql://postgres:password@localhost:5433/starter_shadow`.
 
-Không giả vờ database đã được migrate chỉ vì schema hiện tại trùng.
+Không giả vờ database đã được migrate chỉ vì schema hiện tại trùng — môi trường mới phải dựng bằng `prisma migrate deploy`, không phải `db push`.
 
 ### Deployment migration
 
