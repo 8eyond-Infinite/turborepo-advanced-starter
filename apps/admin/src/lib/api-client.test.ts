@@ -10,13 +10,10 @@ const jsonResponse = (body: unknown, status = 200) =>
 describe("ApiClient token refresh", () => {
   beforeEach(() => {
     ApiClient.setToken("expired-access-token");
-    localStorage.clear();
-    localStorage.setItem("refresh_token", "valid-refresh-token");
   });
 
   afterEach(() => {
     ApiClient.setToken(null);
-    localStorage.clear();
   });
 
   it("shares one refresh request between concurrent unauthorized requests", async () => {
@@ -28,13 +25,11 @@ describe("ApiClient token refresh", () => {
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
         if (String(input).endsWith("/auth/refresh")) {
           refreshRequestCount += 1;
-          expect(init?.headers).toMatchObject({
-            Authorization: "Bearer valid-refresh-token",
-          });
-          return jsonResponse({
-            accessToken: "fresh-access-token",
-            refreshToken: "rotated-refresh-token",
-          });
+          // Refresh dựa vào HttpOnly cookie: không gửi Authorization header,
+          // và phải bật credentials để trình duyệt đính kèm cookie.
+          expect(new Headers(init?.headers).get("Authorization")).toBeNull();
+          expect(init?.credentials).toBe("include");
+          return jsonResponse({ accessToken: "fresh-access-token" });
         }
 
         protectedRequestCount += 1;
@@ -55,7 +50,6 @@ describe("ApiClient token refresh", () => {
     expect(refreshRequestCount).toBe(1);
     expect(protectedRequestCount).toBe(4);
     expect(ApiClient.getToken()).toBe("fresh-access-token");
-    expect(localStorage.getItem("refresh_token")).toBe("rotated-refresh-token");
   });
 
   it("expires the local session and emits logout when refresh fails", async () => {
@@ -77,7 +71,6 @@ describe("ApiClient token refresh", () => {
     });
 
     expect(ApiClient.getToken()).toBeNull();
-    expect(localStorage.getItem("refresh_token")).toBeNull();
     expect(logoutListener).toHaveBeenCalledOnce();
     window.removeEventListener("auth:logout", logoutListener);
   });
@@ -90,10 +83,7 @@ describe("ApiClient token refresh", () => {
       vi.fn(async (input: RequestInfo | URL) => {
         if (String(input).endsWith("/auth/refresh")) {
           refreshRequestCount += 1;
-          return jsonResponse({
-            accessToken: "fresh-access-token",
-            refreshToken: "rotated-refresh-token",
-          });
+          return jsonResponse({ accessToken: "fresh-access-token" });
         }
         return jsonResponse({ message: "Still unauthorized" }, 401);
       }),

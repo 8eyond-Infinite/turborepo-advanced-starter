@@ -11,6 +11,7 @@ import {
   USER_REPOSITORY,
   type UserRepository,
 } from '@iam/users/domain/ports/user.repository';
+import { refreshTokenFromCookie } from '../../presentation/refresh-cookie';
 
 @Injectable()
 export class JwtRefreshStrategy extends PassportStrategy(
@@ -25,7 +26,12 @@ export class JwtRefreshStrategy extends PassportStrategy(
     private readonly configService: ConfigService,
   ) {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      // Cookie trước, bearer sau: trình duyệt (admin) dùng HttpOnly cookie;
+      // API client/mobile/E2E vẫn gửi được qua Authorization header.
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        refreshTokenFromCookie,
+        ExtractJwt.fromAuthHeaderAsBearerToken(),
+      ]),
       ignoreExpiration: false,
       secretOrKey: configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
       passReqToCallback: true,
@@ -52,9 +58,9 @@ export class JwtRefreshStrategy extends PassportStrategy(
     }
 
     const authHeader = req.get('Authorization');
-    const refreshToken = authHeader
-      ? authHeader.replace('Bearer', '').trim()
-      : '';
+    const refreshToken =
+      refreshTokenFromCookie(req) ??
+      (authHeader ? authHeader.replace('Bearer', '').trim() : '');
 
     return {
       id: user.id,

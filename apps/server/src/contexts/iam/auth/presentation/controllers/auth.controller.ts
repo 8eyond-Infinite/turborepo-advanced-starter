@@ -8,8 +8,11 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import type { Request, Response } from 'express';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { Throttle } from '@nestjs/throttler';
 import {
@@ -34,6 +37,11 @@ import { UserPresenter } from '@iam/users/presentation/presenters/user.presenter
 import { PaginationQueryDto } from '@presentation/common/dto/pagination-query.dto';
 import { PaginatedResponsePresenter } from '@presentation/common/presenters/pagination.presenter';
 import { AuditLog, GetUser, ClientInfo } from '@presentation/decorators';
+import {
+  clearRefreshCookie,
+  refreshTokenFromCookie,
+  setRefreshCookie,
+} from '../refresh-cookie';
 
 @ApiTags('Authentication')
 @Throttle({ default: { limit: 20, ttl: 60_000 } })
@@ -74,11 +82,22 @@ export class AuthController {
     description: 'Return Access Token and Refresh Token',
   })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
-  async login(@Body() dto: LoginDto, @ClientInfo() client: ClientInfo) {
+  async login(
+    @Body() dto: LoginDto,
+    @ClientInfo() client: ClientInfo,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const result = await this.commandBus.execute(
       new LoginCommand(dto.email, dto.password, client.ip, client.userAgent),
     );
-    return result.unwrap();
+    const tokens = result.unwrap() as {
+      accessToken: string;
+      refreshToken: string;
+    };
+    // Trình duyệt giữ refresh token trong HttpOnly cookie; body vẫn trả đủ
+    // cặp token cho API client không dùng cookie (mobile, script, E2E).
+    setRefreshCookie(res, tokens.refreshToken);
+    return tokens;
   }
 
   @UseGuards(JwtRefreshAuthGuard)
@@ -95,11 +114,24 @@ export class AuthController {
     @GetUser('id') userId: string,
     @GetUser('email') email: string,
     @GetUser('jti') jti: string,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.commandBus.execute(
       new RefreshCommand(userId, email, jti),
     );
-    return result.unwrap();
+    const tokens = result.unwrap() as {
+      accessToken: string;
+      refreshToken: string;
+    };
+    setRefreshCookie(res, tokens.refreshToken);
+
+    // Client xác thực bằng cookie thì token mới cũng chỉ nằm trong cookie —
+    // không trả refresh token qua body để XSS không đọc trộm được.
+    if (refreshTokenFromCookie(req)) {
+      return { accessToken: tokens.accessToken };
+    }
+    return tokens;
   }
 
   @UseGuards(JwtRefreshAuthGuard)
@@ -109,11 +141,16 @@ export class AuthController {
   @ApiOperation({ summary: 'Logout from the current session' })
   @ApiResponse({ status: 200, description: 'Successfully logged out' })
   @ApiResponse({ status: 401, description: 'Invalid refresh token' })
-  async logout(@GetUser('id') userId: string, @GetUser('jti') jti: string) {
+  async logout(
+    @GetUser('id') userId: string,
+    @GetUser('jti') jti: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const result = await this.commandBus.execute(
       new LogoutCommand({ userId, jti }),
     );
     result.unwrap();
+    clearRefreshCookie(res);
     return { success: true };
   }
 
@@ -131,11 +168,15 @@ export class AuthController {
     'SESSION_REVOKE_ALL',
     () => 'Thu hồi toàn bộ các phiên hoạt động khác',
   )
-  async logoutAll(@GetUser('id') userId: string) {
+  async logoutAll(
+    @GetUser('id') userId: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const result = await this.commandBus.execute(
       new LogoutAllCommand({ userId }),
     );
     result.unwrap();
+    clearRefreshCookie(res);
     return { success: true };
   }
 

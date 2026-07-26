@@ -179,7 +179,7 @@ curl -s -X POST http://localhost:3001/auth/refresh -H "Authorization: Bearer <R1
 
 **Tự kiểm tra:**
 
-- [ ] Access token của admin được lưu ở đâu? Refresh token lưu ở đâu? Cái nào rủi ro hơn và README thừa nhận điều đó ở mục nào?
+- [ ] Access token của admin được lưu ở đâu? Refresh token lưu ở đâu và vì sao JavaScript không đọc được nó? (gợi ý: mở DevTools → Application → Cookies, để ý cột HttpOnly)
 - [ ] Vì sao component không được gọi `fetch` trực tiếp mà phải qua api adapter của feature?
 - [ ] Nút "Xóa user" biến mất với tài khoản thiếu quyền — đó có phải là bảo mật không? Chốt chặn thật nằm ở đâu?
 

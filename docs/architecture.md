@@ -220,7 +220,7 @@ sequenceDiagram
 
 Route guard xác minh người gọi là ai (identity); permission guard kiểm tra người đó được phép làm gì. Permission guard phía frontend chỉ giúp trải nghiệm người dùng gọn hơn — chốt chặn bảo mật thật nằm ở backend.
 
-Admin hiện giữ access token trong memory và refresh token trong `localStorage`. Khi nhiều request cùng lúc bị trả về 401, API client gom tất cả về chung một lần refresh (một promise duy nhất), rồi thử lại mỗi request đúng một lần; nếu refresh thất bại thì phát tín hiệu logout cho toàn ứng dụng.
+Admin giữ access token trong memory; refresh token nằm trong cookie `HttpOnly` giới hạn path `/auth` do server quản lý — JavaScript phía trình duyệt không đọc được, nên XSS không đánh cắp được credential sống dài. Khi client xác thực refresh bằng cookie, body response chỉ chứa access token; refresh token mới được rotate ngay trong cookie. API client/mobile không dùng cookie vẫn gửi refresh token qua `Authorization: Bearer` và nhận đủ cặp token trong body. Khi nhiều request cùng lúc bị trả về 401, API client gom tất cả về chung một lần refresh (một promise duy nhất), rồi thử lại mỗi request đúng một lần; nếu refresh thất bại thì phát tín hiệu logout cho toàn ứng dụng.
 
 ## 8. Audit
 

@@ -8,9 +8,13 @@ interface LoginCredentials {
   password?: string;
 }
 
-interface TokenPair {
+interface LoginResponse {
   accessToken: string;
-  refreshToken: string;
+  refreshToken?: string;
+}
+
+interface RefreshResponse {
+  accessToken: string;
 }
 
 interface AuthState {
@@ -18,7 +22,6 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   isInitializing?: boolean;
-  setAuth: (user: User, accessToken: string, refreshToken: string) => void;
   clearAuth: () => void;
   initialize: () => Promise<void>;
   login: (credentials: LoginCredentials) => Promise<void>;
@@ -26,23 +29,17 @@ interface AuthState {
   logoutGlobal: () => Promise<void>;
 }
 
+// Refresh token nằm trong HttpOnly cookie do server quản lý — JavaScript
+// không đọc/ghi được. Store chỉ giữ access token (trong memory của
+// ApiClient) và thông tin user.
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isAuthenticated: false,
   isLoading: true,
   isInitializing: false,
-  setAuth: (user, accessToken, refreshToken) => {
-    ApiClient.setToken(accessToken);
-    localStorage.setItem("refresh_token", refreshToken);
-    set({
-      user,
-      isAuthenticated: true,
-      isLoading: false,
-      isInitializing: false,
-    });
-  },
   clearAuth: () => {
     ApiClient.setToken(null);
+    // Dọn refresh token của phiên bản cũ còn sót trong localStorage.
     localStorage.removeItem("refresh_token");
     set({
       user: null,
@@ -57,29 +54,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
     set({ isInitializing: true });
 
-    const refreshToken = localStorage.getItem("refresh_token");
-    if (!refreshToken) {
-      set({
-        user: null,
-        isAuthenticated: false,
-        isLoading: false,
-        isInitializing: false,
-      });
-      return;
-    }
-
+    // Không thể biết cookie có tồn tại hay không (HttpOnly) — cứ thử
+    // refresh; chưa từng đăng nhập thì server trả 401 và ta về trạng thái
+    // chưa xác thực, không có gì để mất.
     try {
-      const data = await ApiClient.post<TokenPair>(
+      const data = await ApiClient.post<RefreshResponse>(
         "/auth/refresh",
         {},
-        {
-          skipAuth: true,
-          headers: { Authorization: `Bearer ${refreshToken}` },
-        },
+        { skipAuth: true },
       );
 
       ApiClient.setToken(data.accessToken);
-      localStorage.setItem("refresh_token", data.refreshToken);
 
       const user = await ApiClient.get<User>("/users/me");
       set({
@@ -88,10 +73,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoading: false,
         isInitializing: false,
       });
-    } catch (error) {
-      console.error("[AuthStore Initialize Error]", error);
+    } catch {
       ApiClient.setToken(null);
-      localStorage.removeItem("refresh_token");
       set({
         user: null,
         isAuthenticated: false,
@@ -101,12 +84,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
   login: async (credentials: LoginCredentials) => {
-    const tokens = await ApiClient.post<TokenPair>("/auth/login", credentials, {
-      skipAuth: true,
-    });
+    const tokens = await ApiClient.post<LoginResponse>(
+      "/auth/login",
+      credentials,
+      { skipAuth: true },
+    );
 
+    // Chỉ giữ access token trong memory; refresh token đã nằm trong
+    // HttpOnly cookie mà server vừa set.
     ApiClient.setToken(tokens.accessToken);
-    localStorage.setItem("refresh_token", tokens.refreshToken);
 
     const user = await ApiClient.get<User>("/users/me");
     set({
@@ -118,17 +104,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
   logout: async () => {
     try {
-      const refreshToken = localStorage.getItem("refresh_token");
-      if (refreshToken) {
-        await ApiClient.post(
-          "/auth/logout",
-          {},
-          {
-            skipAuth: true,
-            headers: { Authorization: `Bearer ${refreshToken}` },
-          },
-        );
-      }
+      // Cookie refresh_token tự đi kèm request; server thu hồi phiên và
+      // xóa cookie trong response.
+      await ApiClient.post(
+        "/auth/logout",
+        {},
+        { skipAuth: true, skipRefresh: true },
+      );
     } catch (error) {
       console.error("[AuthStore Single Logout Error]", error);
     } finally {

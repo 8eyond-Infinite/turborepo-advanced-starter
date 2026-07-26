@@ -10,6 +10,7 @@ import { Logger } from 'nestjs-pino';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { DomainExceptionFilter } from '@presentation/filters/domain-exception.filter';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { join } from 'path';
 import { ConfigService } from '@nestjs/config';
@@ -26,6 +27,9 @@ async function bootstrap() {
   // Deployments sit behind a reverse proxy; required for correct client IPs
   // in rate limiting and audit logs.
   app.set('trust proxy', 1);
+
+  // Đọc HttpOnly refresh cookie ở các endpoint /auth/*
+  app.use(cookieParser());
 
   app.use(
     helmet({

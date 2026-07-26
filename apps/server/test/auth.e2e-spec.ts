@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { HttpStatus, INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
+import cookieParser from 'cookie-parser';
 import { AppModule } from '../src/app.module';
 import { DomainExceptionFilter } from '../src/presentation/filters/domain-exception.filter';
 import { RedisService } from '../src/infrastructure/cache/redis.service';
@@ -87,6 +88,7 @@ describe('AuthController (E2E)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    app.use(cookieParser());
     app.useGlobalPipes(
       new ValidationPipe({ whitelist: true, transform: true }),
     );
@@ -210,6 +212,47 @@ describe('AuthController (E2E)', () => {
         expect(res.body).toHaveProperty('accessToken');
         expect(res.body).toHaveProperty('refreshToken');
       });
+  });
+
+  it('/auth/refresh (POST) -> flow HttpOnly cookie: rotate cookie, không lộ refresh token qua body', async () => {
+    // Login phải set refresh token vào HttpOnly cookie giới hạn path /auth
+    const loginRes = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: testEmail, password: testPassword })
+      .expect(200);
+
+    const loginCookies = loginRes.headers['set-cookie'] as unknown as string[];
+    const refreshCookie = loginCookies.find((c) =>
+      c.startsWith('refresh_token='),
+    );
+    expect(refreshCookie).toBeDefined();
+    expect(refreshCookie).toContain('HttpOnly');
+    expect(refreshCookie).toContain('Path=/auth');
+
+    // Refresh bằng cookie (không có Authorization header): body chỉ có
+    // access token — refresh token mới nằm trong cookie được rotate
+    const refreshRes = await request(app.getHttpServer())
+      .post('/auth/refresh')
+      .set('Cookie', loginCookies)
+      .expect(200);
+
+    expect(refreshRes.body).toHaveProperty('accessToken');
+    expect(refreshRes.body).not.toHaveProperty('refreshToken');
+
+    const rotatedCookies = refreshRes.headers[
+      'set-cookie'
+    ] as unknown as string[];
+    const rotatedCookie = rotatedCookies.find((c) =>
+      c.startsWith('refresh_token='),
+    );
+    expect(rotatedCookie).toBeDefined();
+    expect(rotatedCookie).not.toEqual(refreshCookie);
+
+    // Cookie cũ đã bị rotation thu hồi — dùng lại phải bị 401
+    await request(app.getHttpServer())
+      .post('/auth/refresh')
+      .set('Cookie', loginCookies)
+      .expect(HttpStatus.UNAUTHORIZED);
   });
 
   it('/users/me (GET) -> Nên lấy được thông tin cá nhân của người dùng đăng nhập', async () => {

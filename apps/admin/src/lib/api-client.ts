@@ -11,9 +11,8 @@ interface ErrorResponse extends JsonObject {
   args?: Record<string, unknown>;
 }
 
-interface TokenPair {
+interface RefreshResponse {
   accessToken: string;
-  refreshToken: string;
 }
 
 interface RequestOptions extends RequestInit {
@@ -66,6 +65,9 @@ export class ApiClient {
   ): Promise<T> {
     const response = await fetch(`${API_URL}${path}`, {
       ...options,
+      // Refresh token sống trong HttpOnly cookie — trình duyệt tự gửi kèm
+      // khi gọi các endpoint /auth/*, JavaScript không thấy giá trị.
+      credentials: "include",
       headers: this.createHeaders(options),
     });
 
@@ -115,28 +117,21 @@ export class ApiClient {
   }
 
   private static async performTokenRefresh(): Promise<string> {
-    const refreshToken = localStorage.getItem("refresh_token");
-    if (!refreshToken) {
-      this.expireSession();
-      throw new ApiError("No refresh token available", 401);
-    }
-
     try {
+      // Không đính kèm gì cả: HttpOnly cookie refresh_token tự đi theo
+      // request. Server rotate cookie và chỉ trả access token trong body.
       const response = await fetch(`${API_URL}/auth/refresh`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${refreshToken}`,
-          "Content-Type": "application/json",
-        },
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
       });
 
       if (!response.ok) {
         throw await this.createApiError(response);
       }
 
-      const tokens = (await response.json()) as TokenPair;
+      const tokens = (await response.json()) as RefreshResponse;
       this.accessToken = tokens.accessToken;
-      localStorage.setItem("refresh_token", tokens.refreshToken);
       window.dispatchEvent(
         new CustomEvent<string>("auth:token-refreshed", {
           detail: tokens.accessToken,
@@ -151,6 +146,7 @@ export class ApiClient {
 
   private static expireSession(): void {
     this.accessToken = null;
+    // Dọn refresh token của phiên bản cũ còn sót trong localStorage.
     localStorage.removeItem("refresh_token");
     window.dispatchEvent(new Event("auth:logout"));
   }

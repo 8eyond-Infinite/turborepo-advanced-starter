@@ -109,7 +109,7 @@ Khi thêm page mới, cần tạo feature component, lazy import component đó 
 
 ## 5. Authentication và token lifecycle
 
-Authentication state thuộc `features/auth/store/auth.store.ts`. Zustand store giữ `user`, `isAuthenticated` và trạng thái bootstrap. Access token chỉ nằm trong memory của `ApiClient`; refresh token hiện được lưu trong `localStorage`.
+Authentication state thuộc `features/auth/store/auth.store.ts`. Zustand store giữ `user`, `isAuthenticated` và trạng thái bootstrap. Access token chỉ nằm trong memory của `ApiClient`; refresh token nằm trong cookie `HttpOnly` do server quản lý — JavaScript không đọc/ghi được, trình duyệt tự gửi kèm khi gọi các endpoint `/auth/*` (mọi request của `ApiClient` bật `credentials: "include"`).
 
 ### Đăng nhập
 
@@ -148,9 +148,9 @@ Request retry được đánh dấu `skipRefresh`, do đó một response 401 ti
 
 Nếu refresh thất bại, `ApiClient` xóa token và phát event `auth:logout`. `App` nhận event, dọn auth store và điều hướng về `/login`. Nếu refresh thành công, client phát `auth:token-refreshed`; `useWebSocket` cập nhật token dùng cho lần reconnect tiếp theo.
 
-### Giới hạn bảo mật hiện tại
+### Thuộc tính bảo mật của mô hình cookie
 
-Refresh token trong `localStorage` có thể bị đọc nếu ứng dụng có lỗ hổng XSS. Nền tảng có yêu cầu bảo mật cao nên chuyển refresh token sang cookie `HttpOnly`, `Secure`, `SameSite` bằng một thay đổi đồng bộ backend/frontend. Không nên sửa riêng frontend vì sẽ làm vỡ authentication contract.
+Refresh token nằm trong cookie `HttpOnly` (`Secure` ở production, `SameSite=Lax`, giới hạn path `/auth`) nên XSS không đọc trộm được credential sống 7 ngày. Giới hạn còn lại: mã độc chạy được trong trang vẫn có thể GỌI `/auth/refresh` (trình duyệt tự đính cookie) để lấy access token ngắn hạn — HttpOnly chặn việc đánh cắp mang đi nơi khác, không chặn session-riding ngay tại tab bị nhiễm. Vì vậy phòng chống XSS (không `dangerouslySetInnerHTML` với dữ liệu chưa sạch, phụ thuộc bên thứ ba được kiểm soát) vẫn là yêu cầu bắt buộc. Lưu ý vận hành: `SameSite=Lax` yêu cầu admin và API cùng site (cùng registrable domain — ví dụ `admin.example.com` và `api.example.com`); nếu triển khai khác site thật sự, phải chuyển sang `SameSite=None; Secure`.
 
 ## 6. Server state và UI state
 
