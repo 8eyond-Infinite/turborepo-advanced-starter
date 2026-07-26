@@ -8,7 +8,7 @@ Monorepo có ba application:
 
 - `server` là "nguồn dữ liệu gốc" (system of record) — nơi lưu và quyết định mọi dữ liệu về danh tính người dùng, phân quyền, thông báo, audit và số liệu thống kê.
 - `admin` là SPA quản trị đã tích hợp đầy đủ với API và realtime gateway.
-- `client` là Next.js application dành cho end user nhưng hiện mới ở trạng thái scaffold (bộ khung dựng sẵn, chưa có tính năng thật).
+- `client` là Next.js application dành cho end user, dùng mô hình BFF: trình duyệt chỉ gọi Next.js, còn Next.js gọi API ở phía server.
 
 ```mermaid
 flowchart TB
@@ -42,7 +42,8 @@ apps/server  ─┬─> @repo/database
 apps/admin  ──┬─> @repo/contracts
               └─> @repo/types
 
-apps/client    # chưa dùng shared business packages
+apps/client  ──┬─> @repo/contracts
+               └─> @repo/types
 ```
 
 ### `@repo/contracts`
@@ -277,7 +278,7 @@ Chi tiết đầy đủ nằm trong [Admin handbook](../apps/admin/README.md).
 
 ## 10. Next.js client architecture
 
-Client dùng Next.js App Router và React Server Components mặc định. Hiện chỉ có root layout và homepage scaffold; chưa có feature, authentication hoặc API adapter.
+Client dùng Next.js App Router và React Server Components. Auth theo mô hình BFF: Next.js sở hữu session cookie HttpOnly, đọc access token ở phía server để gọi API, và làm mới token trong middleware (Next.js không cho ghi cookie lúc render trang). Nhờ vậy trang công khai có SEO thật và trình duyệt không bao giờ giữ token. Chi tiết và đánh đổi so với mô hình bearer của Admin: xem Client handbook.
 
 Khi phát triển, định hướng là:
 

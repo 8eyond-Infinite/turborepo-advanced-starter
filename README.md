@@ -2,7 +2,7 @@
 
 Đây là monorepo nền tảng gồm một NestJS API, một React Admin SPA, một Next.js client và các package dùng chung. Repository ưu tiên bốn thứ: kiến trúc có ranh giới rõ ràng giữa các phần, contract dùng chung để các app hiểu dữ liệu giống nhau, cơ chế đăng nhập có khả năng thu hồi phiên, và tài liệu bám sát code thật.
 
-Không phải mọi phần đều có cùng mức hoàn thiện. Backend và Admin đã có kiến trúc nghiệp vụ; `apps/client` hiện vẫn chỉ là bộ khung Next.js tối thiểu (scaffold), chưa có tính năng thật. Các giới hạn đang tồn tại được ghi rõ thay vì được che bằng nhãn “enterprise”.
+Không phải mọi phần đều có cùng mức hoàn thiện. Backend và Admin đã có kiến trúc nghiệp vụ; `apps/client` là một lát cắt dọc nhỏ minh họa mô hình BFF (render phía server, token không xuống trình duyệt) chứ không phải một sản phẩm hoàn chỉnh. Các giới hạn đang tồn tại được ghi rõ thay vì được che bằng nhãn “enterprise”.
 
 ## Bản đồ tài liệu
 
@@ -51,7 +51,7 @@ turborepo-advanced-starter/
 ```mermaid
 flowchart LR
     Admin[React Admin] -->|HTTP + JWT| API[NestJS API]
-    Client[Next.js Client] -.->|chưa tích hợp| API
+    Client[Next.js Client] -->|BFF: server-side fetch| API
     Admin <-->|Socket.IO| Realtime[Realtime Gateway]
     API --> Postgres[(PostgreSQL)]
     API --> Redis[(Redis)]
@@ -168,7 +168,6 @@ Admin `verify` chạy lint, Vitest và production build. Server `verify` chạy 
 ## Trạng thái và technical debt quan trọng
 
 - API development container trong Docker Compose đã nằm sau profile `container-dev`; `docker compose up -d` mặc định chỉ khởi động infrastructure. Container này vẫn mount toàn bộ repository từ máy ngoài vào (bind mount) — nếu dùng nó, xem hướng dẫn vận hành để tránh việc symlink kiểu Linux làm hỏng `node_modules` trên Windows.
-- Next.js client chưa có business feature hoặc backend integration.
 
 Danh sách này là phần của kiến trúc hiện tại, không phải ghi chú tùy chọn.
 

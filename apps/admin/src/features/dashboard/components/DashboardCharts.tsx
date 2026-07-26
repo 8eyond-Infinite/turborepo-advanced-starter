@@ -22,13 +22,9 @@ import type { DashboardStats } from "../api/dashboard.api";
 
 const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
 
-// Tách riêng để recharts (~380 kB) được nạp trễ: phần còn lại của dashboard
-// hiển thị ngay, biểu đồ tới sau.
 export const DashboardCharts = ({ stats }: { stats: DashboardStats }) => (
   <>
-    {/* Charts Section */}
     <div className="grid gap-6 md:grid-cols-3">
-      {/* Registration Trend Area Chart (2/3 width) */}
       <Card className="md:col-span-2 border-border/60 shadow-xs">
         <CardHeader>
           <CardTitle className="text-sm font-bold text-foreground">
