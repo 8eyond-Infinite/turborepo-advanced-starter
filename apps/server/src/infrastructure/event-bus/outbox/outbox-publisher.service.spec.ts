@@ -83,4 +83,53 @@ describe('OutboxPublisherService', () => {
       }),
     );
   });
+
+  it('backs off and stops spamming logs while the database is unreachable', async () => {
+    const prisma = {
+      outboxEvent: {
+        updateMany: jest.fn().mockRejectedValue(new Error('ECONNREFUSED')),
+        findMany: jest.fn(),
+        update: jest.fn(),
+      },
+    } as unknown as jest.Mocked<PrismaService>;
+    const router = {
+      dispatch: jest.fn(),
+    } as unknown as jest.Mocked<OutboxEventRouter>;
+    const service = new OutboxPublisherService(
+      prisma,
+      router,
+      new ConfigService(),
+    );
+    const errorSpy = jest
+      .spyOn(service['logger'], 'error')
+      .mockImplementation(() => undefined);
+
+    await service.poll();
+    // Các nhịp quét ngay sau đó rơi vào cửa sổ chờ: không chạm database,
+    // không ghi thêm log.
+    await service.poll();
+    await service.poll();
+
+    expect(prisma.outboxEvent.updateMany).toHaveBeenCalledTimes(1);
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('deletes only published events older than the retention window', async () => {
+    const deleteMany = jest.fn().mockResolvedValue({ count: 7 });
+    const prisma = {
+      outboxEvent: { deleteMany },
+    } as unknown as jest.Mocked<PrismaService>;
+    const service = new OutboxPublisherService(
+      prisma,
+      {} as unknown as jest.Mocked<OutboxEventRouter>,
+      new ConfigService(),
+    );
+
+    const removed = await service.cleanupPublished(30);
+
+    expect(removed).toBe(7);
+    const where = deleteMany.mock.calls[0][0].where;
+    expect(where.status).toBe('PUBLISHED');
+    expect(where.processedAt.lt).toBeInstanceOf(Date);
+  });
 });

@@ -3,6 +3,7 @@ import { UserRegisteredEvent } from '@iam/users/domain/events/user-registered.ev
 import { NotificationCreatedEvent } from '@/contexts/notifications/domain/events/notification-created.event';
 import { DomainEvent } from '@shared/domain/events/domain-event';
 import type { Prisma } from '@repo/database';
+import { getCorrelationId } from '@infrastructure/observability/correlation-context';
 
 export const OUTBOX_EVENT_TYPES = {
   USER_REGISTERED: 'iam.user.registered.v1',
@@ -16,6 +17,7 @@ export interface SerializedOutboxEvent {
   aggregateId: string;
   payload: Prisma.InputJsonObject;
   occurredAt: Date;
+  correlationId: string | null;
 }
 
 export interface PersistedOutboxEvent {
@@ -43,9 +45,18 @@ const requireString = (
   return value;
 };
 
+// Gắn correlation ID của request đang chạy vào row outbox, để sau này lần
+// ngược được từ email/notification về đúng request đã sinh ra nó.
 export const serializeDomainEvent = (
   event: DomainEvent,
-): SerializedOutboxEvent => {
+): SerializedOutboxEvent => ({
+  ...serializeEventPayload(event),
+  correlationId: getCorrelationId() ?? null,
+});
+
+const serializeEventPayload = (
+  event: DomainEvent,
+): Omit<SerializedOutboxEvent, 'correlationId'> => {
   if (event instanceof UserRegisteredEvent) {
     return {
       id: event.eventId,

@@ -168,7 +168,6 @@ Admin `verify` chạy lint, Vitest và production build. Server `verify` chạy 
 ## Trạng thái và technical debt quan trọng
 
 - API development container trong Docker Compose đã nằm sau profile `container-dev`; `docker compose up -d` mặc định chỉ khởi động infrastructure. Container này vẫn mount toàn bộ repository từ máy ngoài vào (bind mount) — nếu dùng nó, xem hướng dẫn vận hành để tránh việc symlink kiểu Linux làm hỏng `node_modules` trên Windows.
-- Outbox được quét (poll) mỗi 100 ms theo mặc định, nhưng khi hạ tầng lỗi thì chưa biết giãn dần thời gian chờ (backoff), vì vậy lỗi kết nối có thể spam log.
 - Bundle khởi động của Admin vẫn lớn; cần đo bằng bundle analyzer trước khi tự tay chia nhỏ (manual chunking).
 - Next.js client chưa có business feature hoặc backend integration.
 

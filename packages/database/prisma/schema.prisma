@@ -137,6 +137,7 @@ model OutboxEvent {
   lockedAt      DateTime? @map("locked_at")
   processedAt   DateTime? @map("processed_at")
   lastError     String?   @map("last_error")
+  correlationId String?   @map("correlation_id")
   createdAt     DateTime  @default(now()) @map("created_at")
 
   @@index([status, availableAt])

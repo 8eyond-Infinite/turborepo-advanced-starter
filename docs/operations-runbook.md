@@ -118,7 +118,14 @@ Sau mọi thao tác: đối chiếu `/audit-logs` để dựng lại dòng thờ
 
 Mọi response đều mang header `x-correlation-id`. Xin người báo lỗi giá trị đó (hoặc lấy từ log proxy), rồi lọc log theo trường `correlationId` — pino xuất JSON nên lọc được bằng công cụ, không phải grep chuỗi.
 
-Giới hạn hiện tại cần biết: correlation ID **dừng ở tầng HTTP**. Log của worker và bước phát outbox chưa mang nó, nên chưa nối được một request tới email mà nó sinh ra. Đây là món nợ kỹ thuật đã biết.
+Correlation ID đi xuyên suốt: từ HTTP request → row `outbox_events` (cột `correlation_id`) → job BullMQ → log của worker. Vì vậy lần được từ một email đã gửi ngược về request đã sinh ra nó:
+
+```sql
+-- Từ correlation ID, xem những event nào đã phát sinh
+SELECT type, status, occurred_at FROM outbox_events WHERE correlation_id = '<id>';
+```
+
+Job nền hoặc script chạy ngoài request HTTP sẽ có `correlation_id` rỗng — đó là bình thường, không phải lỗi.
 
 ## 4. Quy trình phát hành
 
@@ -158,10 +165,10 @@ Sau khi xoay vòng, kiểm tra `.env.example` xem có biến mới nào cần kh
 
 ## 6. Việc định kỳ
 
-| Việc                                         | Tần suất             | Ghi chú                                             |
-| -------------------------------------------- | -------------------- | --------------------------------------------------- |
-| Xem PR của Dependabot                        | Hàng tuần            | Gộp bản vá bảo mật sớm; CI đã chặn CVE mức HIGH     |
-| Diễn tập khôi phục từ backup                 | Hàng quý             | Backup chưa từng khôi phục thử thì chưa phải backup |
-| Xem lại quyền và tài khoản admin             | Hàng quý             | Gỡ tài khoản không còn cần                          |
-| Dọn bảng `outbox_events` đã `PUBLISHED`      | Hàng tháng           | Chưa có cơ chế tự dọn — bảng chỉ lớn dần            |
-| Kiểm tra sàn coverage và các mục nợ kỹ thuật | Mỗi lần lập kế hoạch | Xem mục technical debt trong README                 |
+| Việc                                         | Tần suất             | Ghi chú                                                                          |
+| -------------------------------------------- | -------------------- | -------------------------------------------------------------------------------- |
+| Xem PR của Dependabot                        | Hàng tuần            | Gộp bản vá bảo mật sớm; CI đã chặn CVE mức HIGH                                  |
+| Diễn tập khôi phục từ backup                 | Hàng quý             | Backup chưa từng khôi phục thử thì chưa phải backup                              |
+| Xem lại quyền và tài khoản admin             | Hàng quý             | Gỡ tài khoản không còn cần                                                       |
+| Kiểm tra kích thước bảng `outbox_events`     | Hàng quý             | Đã tự dọn mỗi giờ theo `OUTBOX_RETENTION_DAYS`; chỉ cần xác nhận nó thật sự chạy |
+| Kiểm tra sàn coverage và các mục nợ kỹ thuật | Mỗi lần lập kế hoạch | Xem mục technical debt trong README                                              |

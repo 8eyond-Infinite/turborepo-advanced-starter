@@ -9,6 +9,7 @@ import type { Response } from 'express';
 import { randomUUID } from 'node:crypto';
 import { Observable, finalize } from 'rxjs';
 import type { AuthenticatedRequest } from '../http/authenticated-request';
+import { runWithCorrelationId } from '@infrastructure/observability/correlation-context';
 
 const CORRELATION_ID_HEADER = 'x-correlation-id';
 const MAX_CORRELATION_ID_LENGTH = 128;
@@ -30,6 +31,27 @@ export class RequestContextInterceptor implements NestInterceptor {
     const startedAt = performance.now();
 
     response.setHeader(CORRELATION_ID_HEADER, correlationId);
+
+    return runWithCorrelationId(correlationId, () =>
+      this.handleWithContext(next, {
+        correlationId,
+        request,
+        response,
+        startedAt,
+      }),
+    );
+  }
+
+  private handleWithContext(
+    next: CallHandler,
+    ctx: {
+      correlationId: string;
+      request: AuthenticatedRequest;
+      response: Response;
+      startedAt: number;
+    },
+  ): Observable<unknown> {
+    const { correlationId, request, response, startedAt } = ctx;
 
     return next.handle().pipe(
       finalize(() => {

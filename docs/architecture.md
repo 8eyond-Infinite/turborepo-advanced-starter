@@ -189,7 +189,7 @@ sequenceDiagram
 
 Cơ chế giao event là at-least-once — một event có thể được xử lý nhiều hơn một lần. Vì vậy bên nhận phải idempotent (xử lý lặp lại không gây hậu quả) hoặc dùng định danh cố định để nhận ra event đã xử lý rồi. Publisher "nhận việc" bằng cách đổi status của event — chỉ ai đổi được status thì người đó xử lý, nhờ vậy nhiều instance không giẫm chân nhau. Mỗi lần thử, nó tăng bộ đếm attempts; thất bại thì chờ một khoảng rồi thử lại; vượt số lần cho phép thì chuyển event sang `FAILED`.
 
-`recoverStaleClaims` tìm những event kẹt ở trạng thái `PROCESSING` vì worker chết giữa chừng, rồi trả chúng về `PENDING` để được xử lý lại. Khi hạ tầng (database, kết nối) gặp lỗi, vòng polling hiện chưa biết giãn dần thời gian chờ giữa các lần thử (backoff); đây là món nợ kỹ thuật đã biết.
+`recoverStaleClaims` tìm những event kẹt ở trạng thái `PROCESSING` vì worker chết giữa chừng, rồi trả chúng về `PENDING` để được xử lý lại. Khi hạ tầng (database, kết nối) gặp lỗi, vòng polling giãn dần thời gian chờ (tối đa 30 giây) và chỉ ghi log ở thời điểm đổi trạng thái — hạ tầng sập không làm ngập log. Row `PUBLISHED` được dọn theo tuổi mỗi giờ (`OUTBOX_RETENTION_DAYS`, mặc định 30 ngày).
 
 ## 7. Authentication và authorization
 
@@ -349,7 +349,6 @@ Hệ thống đã có:
 
 Hệ thống còn cần:
 
-- khả năng lần theo một request xuyên suốt HTTP → command → outbox → worker (correlation ID hiện dừng ở tầng HTTP, chưa được truyền vào BullMQ job và bước phát outbox);
 - giới hạn tần suất và giãn dần nhịp ghi log khi hạ tầng lỗi liên tục, để log không bị spam;
 - một adapter gửi lỗi frontend về hệ thống theo dõi lỗi, thay vì chỉ `console.error`.
 

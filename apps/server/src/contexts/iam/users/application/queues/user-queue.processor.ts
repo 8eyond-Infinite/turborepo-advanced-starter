@@ -7,6 +7,9 @@ import { USER_QUEUE, USER_JOBS } from './user-queue.constants';
 
 interface UserQueueJobData {
   email: string;
+  // Do BullmqQueueAdapter gắn vào; cho phép nối log của worker với HTTP
+  // request đã kích hoạt job này.
+  correlationId?: string;
 }
 
 interface UserQueueJobResult {
@@ -34,7 +37,12 @@ export class UserQueueProcessor extends WorkerHost {
   async process(
     job: Job<UserQueueJobData, UserQueueJobResult, string>,
   ): Promise<UserQueueJobResult> {
-    this.logger.log(`Processing job ${job.id} of type ${job.name}...`);
+    this.logger.log({
+      message: `Processing job ${job.id} of type ${job.name}`,
+      jobId: job.id,
+      jobName: job.name,
+      correlationId: job.data.correlationId,
+    });
     const fromEmail = this.configService.get<string>(
       'MAIL_FROM',
       'no-reply@turbostarter.dev',
