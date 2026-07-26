@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "bootstrap": "node scripts/bootstrap.mjs",
     "prebuild": "pnpm db:generate",
     "predev": "pnpm db:generate",
     "build": "turbo run build",
@@ -13,6 +14,7 @@
     "db:generate": "dotenv -e .env -- pnpm --filter=@repo/database db:generate",
     "db:push": "dotenv -e .env -- pnpm --filter=@repo/database db:push",
     "db:migrate": "dotenv -e .env -- pnpm --filter=@repo/database db:migrate",
+    "db:deploy": "dotenv -e .env -- pnpm --filter=@repo/database db:deploy",
     "db:seed": "dotenv -e .env -- pnpm --filter=@repo/database db:seed",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",

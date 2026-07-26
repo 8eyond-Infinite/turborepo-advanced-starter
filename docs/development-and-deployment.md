@@ -146,6 +146,14 @@ pnpm db:generate
 
 Generate không sửa database.
 
+### Áp migration có sẵn
+
+```powershell
+pnpm db:deploy
+```
+
+Chạy `prisma migrate deploy`: chỉ áp những migration đã commit, không hỏi han, không sinh gì mới — dùng cho máy mới clone (`pnpm bootstrap` gọi lệnh này) và cho môi trường triển khai.
+
 ### Tạo migration trong development
 
 ```powershell

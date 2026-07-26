@@ -18,16 +18,13 @@ Tổng thời gian tham khảo: 1–2 ngày làm việc nếu đã biết TypeSc
 
 ```powershell
 corepack enable
-pnpm install --frozen-lockfile
-docker compose up -d
-pnpm db:generate
-pnpm db:migrate
-# thêm SEED_ADMIN_PASSWORD=<mật khẩu ≥12 ký tự> vào .env root trước khi seed
-pnpm db:seed
+pnpm bootstrap   # tạo .env, khởi động Docker, cài dependency, migrate, seed
 pnpm dev
 ```
 
-Mở `http://localhost:5173`, đăng nhập bằng `admin@example.com` + mật khẩu bạn vừa đặt trong `SEED_ADMIN_PASSWORD`.
+`pnpm bootstrap` tự làm mọi bước chuẩn bị và in ra tài khoản admin ở cuối. Muốn biết bên trong nó làm những gì (và tự tay làm lại từng bước), xem mục "Làm từng bước bằng tay" trong README — hiểu được từng bước đó chính là một phần của lộ trình học.
+
+Mở `http://localhost:5173`, đăng nhập bằng `admin@example.com` + mật khẩu mà bootstrap in ra (được lưu ở dòng `SEED_ADMIN_PASSWORD` trong `.env` root).
 
 **Tự kiểm tra:**
 

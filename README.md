@@ -66,26 +66,39 @@ Backend chia theo bounded context (mỗi mảng nghiệp vụ là một khu riê
 
 Đọc [docs/architecture.md](docs/architecture.md) để hiểu dependency direction và flow chi tiết.
 
-## Quick start chuẩn trên Windows
+## Quick start
 
-Workflow mặc định là chạy application trên host và chỉ chạy infrastructure bằng Docker.
+Workflow mặc định là chạy application trên host và chỉ chạy infrastructure bằng Docker. Yêu cầu sẵn có: Node.js 20, pnpm 9 (`corepack enable` là đủ), Docker Desktop đang chạy.
 
-### 1. Yêu cầu
-
-- Node.js 20 được khuyến nghị.
-- pnpm 9, được pin bởi `packageManager`.
-- Docker Desktop.
+Từ clone tới chạy được là **một lệnh**:
 
 ```powershell
 corepack enable
-pnpm install --frozen-lockfile
+pnpm bootstrap
 ```
 
-### 2. Environment
+Lệnh này tạo các file `.env` từ `.env.example` (tự sinh JWT secret, session secret, mật khẩu admin — file đã có thì giữ nguyên), khởi động Postgres/Redis/Maildev bằng Docker, cài dependency, áp migration và seed dữ liệu ban đầu. Chạy lại bao nhiêu lần cũng an toàn. Xong nó in ra tài khoản admin để đăng nhập.
 
-Tạo `.env` ở root cho các script Prisma và `apps/server/.env` cho API. Tham khảo `apps/server/.env.example`.
+> Vì sao là `bootstrap` mà không phải `setup`? Vì `pnpm setup` là lệnh có sẵn của pnpm — script trùng tên sẽ bị lệnh built-in che mất.
 
-Các giá trị local quan trọng:
+Sau đó:
+
+```powershell
+pnpm dev          # chạy cả 3 app
+```
+
+### Làm từng bước bằng tay (khi muốn hiểu bootstrap làm gì)
+
+```powershell
+pnpm install --frozen-lockfile
+# Tạo .env (root), apps/server/.env, apps/client/.env.local từ các file .env.example
+docker compose up -d      # API container nằm sau profile container-dev nên lệnh này chỉ chạy infrastructure
+pnpm db:generate
+pnpm db:deploy            # áp migration có sẵn; db:migrate là để TẠO migration mới khi phát triển
+pnpm db:seed              # cần SEED_ADMIN_PASSWORD (>= 12 ký tự) trong .env root để tạo admin lần đầu
+```
+
+Các giá trị local quan trọng trong `.env`:
 
 ```dotenv
 DATABASE_URL=postgresql://postgres:password@localhost:5433/starter_db?schema=public
@@ -95,31 +108,11 @@ PORT=3001
 CORS_ORIGINS=http://localhost:5173,http://localhost:3005
 ```
 
-### 3. Khởi động infrastructure
-
-API container nằm sau profile `container-dev`, nên lệnh mặc định chỉ khởi động infrastructure:
-
-```powershell
-docker compose up -d
-```
-
-### 4. Database
-
-```powershell
-pnpm db:generate
-pnpm db:migrate
-pnpm db:seed
-```
-
-`db:migrate` là workflow chuẩn khi schema cần lịch sử migration. `db:push` chỉ dành cho database tạm/prototype và không thay thế migration.
+`db:deploy` áp các migration đã có (bootstrap dùng lệnh này); `db:migrate` là để tạo migration mới khi thay đổi schema; `db:push` chỉ dành cho database tạm/prototype và không thay thế migration.
 
 Seed yêu cầu `SEED_ADMIN_PASSWORD` (tối thiểu 12 ký tự) trong `.env` root để tạo tài khoản admin lần đầu; nếu thiếu, seed vẫn chạy nhưng bỏ qua bước tạo admin. Re-seed không bao giờ reset mật khẩu admin đang tồn tại, và menu chỉ được seed khi bảng `menus` rỗng.
 
-### 5. Chạy application
-
-```powershell
-pnpm dev
-```
+### Các địa chỉ sau khi chạy
 
 | Service    | URL                         |
 | ---------- | --------------------------- |
