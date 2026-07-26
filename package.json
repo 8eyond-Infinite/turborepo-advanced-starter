@@ -34,10 +34,18 @@
   },
   "pnpm": {
     "overrides": {
-      "typescript": "6.0.3"
+      "typescript": "6.0.3",
+      "fast-uri": ">=3.1.4",
+      "postcss": ">=8.5.18",
+      "sharp": ">=0.35.0"
+    },
+    "auditConfig": {
+      "ignoreGhsas": [
+        "GHSA-qwww-vcr4-c8h2"
+      ]
     }
   },
-  "packageManager": "pnpm@9.0.0",
+  "packageManager": "pnpm@9.15.9",
   "engines": {
     "node": ">=20"
   }

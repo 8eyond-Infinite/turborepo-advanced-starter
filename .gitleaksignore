@@ -1,0 +1,6 @@
+# Baseline các finding lịch sử đã được review — KHÔNG thêm fingerprint mới
+# nếu chưa xác nhận đó là false positive.
+
+# Ví dụ minh họa "?token=abc123def456" trong README cũ (commit đầu tiên),
+# không phải secret thật.
+9dfed2f169bc21579a2cf021b7140382baefe3b9:apps/server/README.md:generic-api-key:5
