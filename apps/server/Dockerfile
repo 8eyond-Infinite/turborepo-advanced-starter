@@ -2,8 +2,9 @@
 # Build from the repository root:
 #   docker build -f apps/server/Dockerfile -t starter-api .
 
-FROM node:20-alpine AS builder
+FROM node:20-alpine AS base
 RUN corepack enable
+ENV HUSKY=0
 WORKDIR /app
 
 # Manifests first so dependency install caches independently of source changes.
@@ -16,6 +17,8 @@ COPY packages/database/package.json packages/database/
 COPY packages/types/package.json packages/types/
 COPY packages/eslint-config/package.json packages/eslint-config/
 COPY packages/typescript-config/package.json packages/typescript-config/
+
+FROM base AS builder
 RUN pnpm install --frozen-lockfile
 
 COPY . .
@@ -25,23 +28,35 @@ ENV DATABASE_URL=postgresql://build:build@localhost:5432/build
 RUN pnpm --filter=@repo/database db:generate \
   && pnpm turbo run build --filter=server...
 
+# Chỉ cài production dependencies của riêng server (và các package nó dùng).
+# Không có devDependencies, không có deps của admin/client — bề mặt tấn công
+# và kích thước image nhỏ đi đáng kể, trivy không còn quét thấy dev tooling.
+# pnpm deploy dựng một thư mục tự chứa chỉ gồm server + workspace package nó
+# dùng, kèm ĐÚNG dependencies production. Cách này loại sạch devDependencies
+# và deps của app khác (admin/client) vốn bị hoist chung vào node_modules gốc —
+# ít CVE bị quét thấy hơn và image nhỏ hơn.
+FROM builder AS prod-deps
+RUN pnpm --filter=server deploy --prod /prod/server
+# Prisma client được sinh ra lúc build; deploy chỉ link lại package gốc nên
+# phải mang phần đã generate sang.
+RUN cp -r /app/node_modules/.prisma /prod/server/node_modules/.prisma
+
 FROM node:20-alpine AS runner
 ENV NODE_ENV=production
+# Vá các package hệ điều hành của base image và gỡ npm/corepack —
+# runtime chỉ cần binary node, npm đi kèm kéo theo CVE không liên quan.
+RUN apk upgrade --no-cache \
+  && rm -rf /usr/local/lib/node_modules /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
 RUN addgroup -S app && adduser -S app -G app
 WORKDIR /app
 
-COPY --from=builder /app/package.json ./
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/packages ./packages
-COPY --from=builder /app/apps/server/package.json ./apps/server/
-# Với node-linker=hoisted, các link @repo/* nằm trong node_modules CỦA app
-# (trỏ về ../../packages) chứ không nằm ở node_modules gốc.
-COPY --from=builder /app/apps/server/node_modules ./apps/server/node_modules
-COPY --from=builder /app/apps/server/dist ./apps/server/dist
-COPY --from=builder /app/apps/server/public ./apps/server/public
+# Thư mục deploy tự chứa package.json + node_modules (chỉ prod deps).
+COPY --from=prod-deps /prod/server ./
+# dist bị .gitignore nên pnpm deploy không mang theo — copy thẳng từ builder.
+COPY --from=builder /app/apps/server/dist ./dist
+COPY --from=builder /app/apps/server/public ./public
 
 USER app
-WORKDIR /app/apps/server
 EXPOSE 3001
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
