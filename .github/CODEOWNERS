@@ -1,0 +1,8 @@
+# Mọi thay đổi mặc định cần review của owner.
+# Khi team lớn lên: tách owner theo đường dẫn (ví dụ apps/server/ cho backend team).
+* @trhgatu
+
+# Những đường ranh nhạy cảm — đổi là ảnh hưởng nhiều phía, luôn cần owner:
+/packages/contracts/ @trhgatu
+/packages/database/prisma/migrations/ @trhgatu
+/.github/ @trhgatu

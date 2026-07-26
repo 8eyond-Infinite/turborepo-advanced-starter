@@ -21,6 +21,8 @@ Người mới vào repo: bắt đầu từ [Lộ trình học từ đầu](docs
 | [Users context](apps/server/src/contexts/iam/users/README.md)  | User aggregate, commands, repository transaction và domain events                 |
 | [Roles context](apps/server/src/contexts/iam/roles/README.md)  | Role, permission catalog và RBAC behavior                                         |
 | [Audit context](apps/server/src/contexts/audit/README.md)      | Audit port, persistence và query flow                                             |
+| [Đóng góp](CONTRIBUTING.md)                                    | Quy trình branch/commit/PR, quality gate và các ranh giới không thương lượng      |
+| [Chính sách bảo mật](SECURITY.md)                              | Cách báo cáo lỗ hổng một cách có trách nhiệm                                      |
 
 ## Thành phần trong monorepo
 
