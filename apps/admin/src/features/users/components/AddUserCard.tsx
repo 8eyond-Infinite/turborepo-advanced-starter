@@ -7,11 +7,12 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { SingleSelect } from "@/components";
+import { QueryErrorState, SingleSelect } from "@/components";
 import { AvatarUpload } from "./AvatarUpload";
 import { Loader2 } from "lucide-react";
 
 import type { Role, User } from "@repo/types";
+import { validateUserForm, type UserFormErrors } from "./user-form.validation";
 
 interface CreateUserInput {
   email: string;
@@ -26,6 +27,10 @@ interface AddUserCardProps {
   onCreateUser: (data: CreateUserInput) => Promise<User>;
   isCreating: boolean;
   roles: Role[];
+  isRolesLoading: boolean;
+  isRolesError: boolean;
+  rolesError: unknown;
+  onRetryRoles: () => void;
 }
 
 export const AddUserCard: React.FC<AddUserCardProps> = ({
@@ -33,16 +38,31 @@ export const AddUserCard: React.FC<AddUserCardProps> = ({
   onCreateUser,
   isCreating,
   roles,
+  isRolesLoading,
+  isRolesError,
+  rolesError,
+  onRetryRoles,
 }) => {
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [avatar, setAvatar] = useState<string | null>(null);
-  const [selectedRole, setSelectedRole] = useState("USER");
+  const [roleOverride, setRoleOverride] = useState("");
+  const [errors, setErrors] = useState<UserFormErrors>({});
+  const selectedRole =
+    roleOverride ||
+    roles.find((role) => role.name === "USER")?.name ||
+    roles[0]?.name ||
+    "";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !username.trim() || !password.trim()) return;
+    const nextErrors = validateUserForm(
+      { email, username, password, role: selectedRole },
+      { requirePassword: true },
+    );
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
 
     try {
       await onCreateUser({
@@ -56,7 +76,8 @@ export const AddUserCard: React.FC<AddUserCardProps> = ({
       setUsername("");
       setPassword("");
       setAvatar(null);
-      setSelectedRole("USER");
+      setRoleOverride("");
+      setErrors({});
       onClose();
     } catch {
       // Error is handled in useUsers hook
@@ -74,7 +95,7 @@ export const AddUserCard: React.FC<AddUserCardProps> = ({
           hệ thống.
         </CardDescription>
       </CardHeader>
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4" noValidate>
         <AvatarUpload
           value={avatar}
           onChange={setAvatar}
@@ -96,8 +117,19 @@ export const AddUserCard: React.FC<AddUserCardProps> = ({
               onChange={(e) => setUsername(e.target.value)}
               placeholder="john_doe"
               className="mt-1 bg-transparent border-input"
-              required
+              aria-invalid={Boolean(errors.username)}
+              aria-describedby={
+                errors.username ? "create-user-username-error" : undefined
+              }
             />
+            {errors.username && (
+              <p
+                id="create-user-username-error"
+                className="mt-1 text-xs text-destructive"
+              >
+                {errors.username}
+              </p>
+            )}
           </div>
           <div>
             <label
@@ -113,8 +145,19 @@ export const AddUserCard: React.FC<AddUserCardProps> = ({
               onChange={(e) => setEmail(e.target.value)}
               placeholder="john.doe@example.com"
               className="mt-1 bg-transparent border-input"
-              required
+              aria-invalid={Boolean(errors.email)}
+              aria-describedby={
+                errors.email ? "create-user-email-error" : undefined
+              }
             />
+            {errors.email && (
+              <p
+                id="create-user-email-error"
+                className="mt-1 text-xs text-destructive"
+              >
+                {errors.email}
+              </p>
+            )}
           </div>
         </div>
 
@@ -133,8 +176,19 @@ export const AddUserCard: React.FC<AddUserCardProps> = ({
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               className="mt-1 bg-transparent border-input"
-              required
+              aria-invalid={Boolean(errors.password)}
+              aria-describedby={
+                errors.password ? "create-user-password-error" : undefined
+              }
             />
+            {errors.password && (
+              <p
+                id="create-user-password-error"
+                className="mt-1 text-xs text-destructive"
+              >
+                {errors.password}
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -149,12 +203,25 @@ export const AddUserCard: React.FC<AddUserCardProps> = ({
               accessibleLabel="Chọn vai trò cho tài khoản mới"
               options={roles.map((r) => ({ label: r.name, value: r.name }))}
               value={selectedRole}
-              onChange={setSelectedRole}
+              onChange={setRoleOverride}
               placeholder="Chọn vai trò"
               className="w-full bg-card"
+              disabled={isRolesLoading || isRolesError}
             />
+            {errors.role && (
+              <p className="text-xs text-destructive">{errors.role}</p>
+            )}
           </div>
         </div>
+
+        {isRolesError && (
+          <QueryErrorState
+            error={rolesError}
+            onRetry={onRetryRoles}
+            title="Không thể tải danh sách vai trò"
+            className="min-h-40"
+          />
+        )}
 
         <div className="flex justify-end gap-2 pt-2">
           <Button
@@ -169,13 +236,15 @@ export const AddUserCard: React.FC<AddUserCardProps> = ({
           <Button
             type="submit"
             size="sm"
-            disabled={isCreating}
+            disabled={
+              isCreating || isRolesLoading || isRolesError || roles.length === 0
+            }
             className="cursor-pointer text-xs"
           >
-            {isCreating ? (
+            {isCreating || isRolesLoading ? (
               <>
                 <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                Đang tạo...
+                {isCreating ? "Đang tạo..." : "Đang tải vai trò..."}
               </>
             ) : (
               "Tạo người dùng"

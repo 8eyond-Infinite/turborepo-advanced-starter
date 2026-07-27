@@ -11,6 +11,14 @@ interface AvatarUploadProps {
   username?: string;
 }
 
+const MAX_AVATAR_SIZE = 5 * 1024 * 1024;
+const ACCEPTED_AVATAR_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+]);
+
 const getAvatarUrl = (avatarPath?: string | null) => {
   if (!avatarPath) return undefined;
   if (avatarPath.startsWith("http")) return avatarPath;
@@ -24,11 +32,24 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
   username = "AV",
 }) => {
   const inputId = useId();
+  const helperTextId = `${inputId}-helper`;
   const [uploading, setUploading] = useState(false);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (!ACCEPTED_AVATAR_TYPES.has(file.type)) {
+      toast.error("Chỉ hỗ trợ ảnh JPG, PNG, WEBP hoặc GIF.");
+      e.target.value = "";
+      return;
+    }
+
+    if (file.size > MAX_AVATAR_SIZE) {
+      toast.error("Ảnh đại diện không được vượt quá 5 MB.");
+      e.target.value = "";
+      return;
+    }
 
     setUploading(true);
     try {
@@ -45,6 +66,7 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
       toast.error(`Không thể tải ảnh lên: ${getFriendlyErrorMessage(error)}`);
     } finally {
       setUploading(false);
+      e.target.value = "";
     }
   };
 
@@ -52,13 +74,20 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
     <div className="flex items-center gap-4 p-3 bg-muted/20 border border-dashed border-border rounded-lg">
       <div className="relative h-12 w-12 rounded-full shrink-0">
         <Avatar className="h-full w-full rounded-full">
-          <AvatarImage src={getAvatarUrl(value)} />
+          <AvatarImage
+            src={getAvatarUrl(value)}
+            alt={`Ảnh đại diện của ${username}`}
+          />
           <AvatarFallback className="rounded-full bg-muted text-muted-foreground font-bold">
             {username.substring(0, 2).toUpperCase()}
           </AvatarFallback>
         </Avatar>
         {uploading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full">
+          <div
+            role="status"
+            aria-label="Đang tải ảnh đại diện"
+            className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full"
+          >
             <Loader2 className="h-4 w-4 text-white animate-spin" />
           </div>
         )}
@@ -73,11 +102,15 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
         <input
           id={inputId}
           type="file"
-          accept="image/*"
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          aria-describedby={helperTextId}
           disabled={uploading}
           onChange={handleFileChange}
           className="text-xs text-muted-foreground file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-primary-foreground hover:file:opacity-90 cursor-pointer"
         />
+        <p id={helperTextId} className="text-[11px] text-muted-foreground">
+          JPG, PNG, WEBP hoặc GIF, tối đa 5 MB.
+        </p>
       </div>
     </div>
   );

@@ -24,6 +24,7 @@ interface SingleSelectProps {
   className?: string;
   triggerId?: string;
   accessibleLabel?: string;
+  disabled?: boolean;
 }
 
 export const SingleSelect = ({
@@ -35,6 +36,7 @@ export const SingleSelect = ({
   className = "w-full",
   triggerId,
   accessibleLabel,
+  disabled = false,
 }: SingleSelectProps) => {
   const selectedOption = options.find((opt) => opt.value === value);
 
@@ -44,6 +46,7 @@ export const SingleSelect = ({
         <Button
           id={triggerId}
           aria-label={accessibleLabel}
+          disabled={disabled}
           variant="outline"
           className={`flex items-center justify-between font-normal bg-transparent border-input text-left ${className}`}
         >

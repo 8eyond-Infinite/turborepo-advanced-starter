@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -42,10 +43,37 @@ const getAvatarUrl = (avatarPath?: string | null) => {
   return `${baseUrl}${avatarPath}`;
 };
 
+const DebouncedUserSearch = ({
+  initialValue,
+  onSearch,
+}: {
+  initialValue: string;
+  onSearch: (value: string) => void;
+}) => {
+  const [value, setValue] = useState(initialValue);
+
+  useEffect(() => {
+    const timer = setTimeout(() => onSearch(value.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [onSearch, value]);
+
+  return (
+    <SearchInput
+      placeholder="Tìm kiếm tài khoản..."
+      value={value}
+      onChange={setValue}
+      className="max-w-xs"
+      aria-label="Tìm kiếm tài khoản"
+    />
+  );
+};
+
 export const UserTable = () => {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlSearch = searchParams.get("q") ?? "";
+  const parsedPage = Number(searchParams.get("page"));
+  const currentPage =
+    Number.isInteger(parsedPage) && parsedPage > 0 ? parsedPage : 1;
   const [isAdding, setIsAdding] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [togglingUser, setTogglingUser] = useState<User | null>(null);
@@ -54,15 +82,34 @@ export const UserTable = () => {
   const access = usePermissions({
     canManageUsers: [PERMISSIONS.USER.UPDATE, PERMISSIONS.USER.DELETE],
     canCreateUser: PERMISSIONS.USER.CREATE,
+    canUpdateUser: PERMISSIONS.USER.UPDATE,
   });
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(searchQuery);
-      setCurrentPage(1);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
+  const handleSearch = useCallback(
+    (nextSearch: string) => {
+      if (nextSearch === urlSearch) return;
+      setSearchParams(
+        (current) => {
+          const next = new URLSearchParams(current);
+          if (nextSearch) next.set("q", nextSearch);
+          else next.delete("q");
+          next.delete("page");
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams, urlSearch],
+  );
+
+  const setCurrentPage = (page: number) => {
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      if (page <= 1) next.delete("page");
+      else next.set("page", String(page));
+      return next;
+    });
+  };
 
   const {
     users,
@@ -79,7 +126,18 @@ export const UserTable = () => {
     isFetching,
     isCreating,
     isUpdating,
-  } = useUsers({ page: currentPage, limit: 10, search: debouncedSearch });
+    isToggling,
+    isDeleting,
+    isRolesLoading,
+    isRolesError,
+    rolesError,
+    refetchRoles,
+  } = useUsers({
+    page: currentPage,
+    limit: 10,
+    search: urlSearch,
+    loadRoles: access.canCreateUser || access.canUpdateUser,
+  });
 
   const totalPages = meta.totalPages;
   const safeCurrentPage = meta.currentPage;
@@ -111,6 +169,10 @@ export const UserTable = () => {
             onCreateUser={createUser}
             isCreating={isCreating}
             roles={roles}
+            isRolesLoading={isRolesLoading}
+            isRolesError={isRolesError}
+            rolesError={rolesError}
+            onRetryRoles={() => void refetchRoles()}
           />
         </Can>
       )}
@@ -118,11 +180,10 @@ export const UserTable = () => {
       {/* Main Table view */}
       <PageCard className="p-0 border-border overflow-hidden">
         <div className="p-4 border-b border-border/50 bg-muted/5 flex items-center justify-between gap-4">
-          <SearchInput
-            placeholder="Tìm kiếm tài khoản..."
-            value={searchQuery}
-            onChange={setSearchQuery}
-            className="max-w-xs"
+          <DebouncedUserSearch
+            key={urlSearch}
+            initialValue={urlSearch}
+            onSearch={handleSearch}
           />
         </div>
 
@@ -172,8 +233,8 @@ export const UserTable = () => {
                   <EmptyState
                     title="Không tìm thấy tài khoản nào"
                     description={
-                      debouncedSearch
-                        ? `Không có kết quả khớp với từ khóa "${debouncedSearch}".`
+                      urlSearch
+                        ? `Không có kết quả khớp với từ khóa "${urlSearch}".`
                         : "Chưa có dữ liệu thành viên trên hệ thống."
                     }
                   />
@@ -235,6 +296,7 @@ export const UserTable = () => {
                         <Switch
                           checked={user.isActive}
                           onCheckedChange={() => setTogglingUser(user)}
+                          disabled={isToggling}
                           aria-label={`${user.isActive ? "Khóa" : "Kích hoạt"} tài khoản ${user.email}`}
                           className="cursor-pointer data-[state=checked]:bg-emerald-500"
                         />
@@ -284,6 +346,7 @@ export const UserTable = () => {
                                 className="h-7 w-7 text-muted-foreground hover:text-destructive cursor-pointer"
                                 aria-label={`Xóa tài khoản ${user.email}`}
                                 title={`Xóa ${user.email}`}
+                                disabled={isDeleting}
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>
@@ -301,6 +364,7 @@ export const UserTable = () => {
                             }
                             confirmText="Xác nhận xóa"
                             variant="destructive"
+                            pendingText="Đang xóa..."
                             onConfirm={() => deleteUser(user.id)}
                           />
                         </Can>
@@ -336,9 +400,12 @@ export const UserTable = () => {
             : `Tài khoản ${togglingUser?.email} sẽ được kích hoạt lại và có quyền truy cập trở lại vào hệ thống.`
         }
         confirmText={togglingUser?.isActive ? "Khóa tài khoản" : "Kích hoạt"}
-        onConfirm={() => {
+        pendingText={
+          togglingUser?.isActive ? "Đang khóa..." : "Đang kích hoạt..."
+        }
+        onConfirm={async () => {
           if (togglingUser) {
-            toggleStatus(togglingUser.id);
+            await toggleStatus(togglingUser.id);
             setTogglingUser(null);
           }
         }}
@@ -354,6 +421,10 @@ export const UserTable = () => {
             onUpdateUser={updateUser}
             isUpdating={isUpdating}
             roles={roles}
+            isRolesLoading={isRolesLoading}
+            isRolesError={isRolesError}
+            rolesError={rolesError}
+            onRetryRoles={() => void refetchRoles()}
           />
         </Can>
       )}

@@ -161,7 +161,7 @@ Refresh token nằm trong cookie `HttpOnly` (`Secure` ở production, `SameSite=
 
 ## 6. Server state và UI state
 
-TanStack Query sở hữu dữ liệu đến từ server: users, roles, permissions, sessions, audit logs, dashboard stats và notifications. Zustand chỉ sở hữu authentication state có phạm vi toàn ứng dụng. State ngắn hạn như modal đang mở, search input và current page nằm trong component.
+TanStack Query sở hữu dữ liệu đến từ server: users, roles, permissions, sessions, audit logs, dashboard stats và notifications. Zustand chỉ sở hữu authentication state có phạm vi toàn ứng dụng. State điều hướng cần chia sẻ hoặc khôi phục khi reload, như bộ lọc và trang hiện tại của danh sách users, nằm trong URL. State tương tác thoáng qua như modal đang mở hoặc lựa chọn chưa submit nằm trong component.
 
 Cache server được xem là dữ liệu thuộc về principal đang đăng nhập, không phải cache dùng chung cho cả tab. `app/auth-cache-boundary.ts` theo dõi transition từ authenticated sang unauthenticated và gọi `QueryClient.clear()`. Vì vậy logout, force logout hoặc refresh token hết hạn đều loại bỏ dữ liệu của phiên cũ trước khi một tài khoản khác đăng nhập trong cùng tab.
 
@@ -171,8 +171,8 @@ Quy tắc ownership:
 | ------------------ | -------------- | --------------------------- |
 | Server state       | TanStack Query | danh sách users, roles      |
 | Session toàn cục   | Zustand        | current user, authenticated |
-| URL/navigation     | React Router   | route hiện tại              |
-| Interaction cục bộ | `useState`     | modal, page, search         |
+| URL/navigation     | React Router   | route, page và search       |
+| Interaction cục bộ | `useState`     | modal, draft form           |
 | Theme              | Theme provider | light/dark/system           |
 
 Mỗi feature có query-key factory, ví dụ `userKeys.list({ page, limit, search })`. Factory bảo đảm cùng một loại dữ liệu luôn dùng cùng một key trong cache, và cung cấp root key như `userKeys.all` để khi mutation cần làm mới cache, mọi biến thể phân trang đều được làm mới mà không phải lặp lại chuỗi key ở nhiều nơi.
@@ -180,6 +180,16 @@ Mỗi feature có query-key factory, ví dụ `userKeys.list({ page, limit, sear
 Mutation thành công phải `await queryClient.invalidateQueries(...)`. Promise mutation chỉ resolve sau khi cache liên quan đã được đánh dấu stale và các active query hoàn tất refetch; form không được báo hoàn thành trong khi màn hình vẫn còn dữ liệu cũ. Mutation thất bại hiển thị lỗi nhưng không invalidate dữ liệu đang hợp lệ.
 
 Query screen phải phân biệt bốn trạng thái: loading, error có retry, empty và success. `components/query-error-state.tsx` là pattern dùng chung để lỗi mạng không bị hiển thị nhầm thành dữ liệu rỗng.
+
+### Flow quản lý người dùng
+
+`UserTable` đọc `q` và `page` từ query string rồi truyền chúng vào `useUsers`. Ô tìm kiếm giữ draft cục bộ trong lúc gõ, debounce 300 ms, sau đó cập nhật URL và đưa trang về 1. Vì URL là nguồn sự thật nên đường dẫn có thể bookmark, reload và dùng Back/Forward mà không mất ngữ cảnh danh sách.
+
+`useUsers` là application hook của feature. Hook sở hữu query danh sách, mutation tạo/sửa/khóa/xóa và invalidation. Danh sách role chỉ được tải khi principal có quyền mở form tạo hoặc sửa; người dùng read-only không phát sinh request `/roles` trái quyền ở background. Lỗi tải role được hiển thị thành trạng thái retry trong form, không được biến âm thầm thành danh sách rỗng.
+
+Form tạo và sửa validate cùng các bất biến công khai của backend trước khi gửi: email hợp lệ, username dài 3–50 ký tự, mật khẩu tạo mới tối thiểu 6 ký tự và phải chọn role. Đây là lớp phản hồi sớm cho UX; backend vẫn là security/domain boundary cuối cùng. Avatar chỉ nhận JPG, PNG, WEBP hoặc GIF tối đa 5 MB, đồng bộ với giới hạn upload phía server.
+
+Các thao tác phá hủy hoặc đổi trạng thái phải chờ Promise mutation hoàn tất. `ConfirmDialog` giữ dialog mở, khóa nút trong lúc pending, chỉ đóng sau khi mutation và cache invalidation thành công; nếu thất bại dialog giữ nguyên ngữ cảnh để người dùng thử lại. Không được dùng mutation fire-and-forget cho flow cần xác nhận.
 
 ## 7. Permission model
 

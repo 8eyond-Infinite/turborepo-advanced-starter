@@ -1,6 +1,7 @@
 import type { User } from "@repo/types";
 import { PERMISSIONS } from "@repo/contracts";
 import { render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAuthStore } from "@/features/auth";
 import { UserTable } from "./UserTable";
@@ -32,6 +33,13 @@ const setPermissions = (permissions: string[]) => {
   });
 };
 
+const renderTable = (initialEntry = "/users") =>
+  render(
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <UserTable />
+    </MemoryRouter>,
+  );
+
 describe("<UserTable /> permission visibility", () => {
   beforeEach(() => {
     useUsers.mockReturnValue({
@@ -55,12 +63,18 @@ describe("<UserTable /> permission visibility", () => {
       isFetching: false,
       isCreating: false,
       isUpdating: false,
+      isToggling: false,
+      isDeleting: false,
+      isRolesLoading: false,
+      isRolesError: false,
+      rolesError: null,
+      refetchRoles: vi.fn(),
     });
   });
 
   it("renders a read-only table without mutation controls", () => {
     setPermissions([PERMISSIONS.USER.READ]);
-    render(<UserTable />);
+    renderTable();
 
     expect(screen.getByText("member@example.com")).toBeInTheDocument();
     expect(
@@ -80,7 +94,7 @@ describe("<UserTable /> permission visibility", () => {
 
   it("shows only controls granted by the current permission set", () => {
     setPermissions([PERMISSIONS.USER.CREATE, PERMISSIONS.USER.UPDATE]);
-    render(<UserTable />);
+    renderTable();
 
     expect(
       screen.getByRole("button", { name: /Thêm người dùng mới/i }),
@@ -104,7 +118,7 @@ describe("<UserTable /> permission visibility", () => {
 
   it("renders an accessible delete trigger for delete permission", () => {
     setPermissions([PERMISSIONS.USER.DELETE]);
-    render(<UserTable />);
+    renderTable();
 
     expect(
       screen.getByRole("button", {
@@ -116,5 +130,18 @@ describe("<UserTable /> permission visibility", () => {
         name: "Chỉnh sửa tài khoản member@example.com",
       }),
     ).not.toBeInTheDocument();
+  });
+
+  it("uses the URL as the source of truth for search and pagination", () => {
+    setPermissions([PERMISSIONS.USER.READ]);
+    renderTable("/users?q=member&page=2");
+
+    expect(useUsers).toHaveBeenCalledWith({
+      page: 2,
+      limit: 10,
+      search: "member",
+      loadRoles: false,
+    });
+    expect(screen.getByRole("textbox")).toHaveValue("member");
   });
 });
