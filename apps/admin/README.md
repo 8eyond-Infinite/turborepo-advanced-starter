@@ -29,15 +29,16 @@ flowchart LR
 
 Code nghiệp vụ được tổ chức theo feature; phần dùng chung được tổ chức theo lớp kỹ thuật (layer).
 
-`features` chứa các vertical slice như users, roles và sessions. Mỗi feature đặt component màn hình cạnh hook truy cập dữ liệu của chính nó. `components` chứa UI dùng lại giữa nhiều feature. `lib` chứa client hạ tầng không phụ thuộc một màn hình cụ thể. `routes` là composition root (điểm lắp ráp duy nhất) của điều hướng: mọi route và permission đi kèm đều được khai báo tại đây. `app` chứa các boundary có vòng đời toàn ứng dụng, hiện gồm auth-cache boundary và realtime provider. `hooks` chỉ chứa hành vi React dùng chung không thuộc một feature hay boundary cụ thể, như kiểm tra permission và theo dõi kích thước màn hình.
+`features` chứa các vertical slice như users, roles và sessions. Mỗi feature đặt component màn hình cạnh hook truy cập dữ liệu của chính nó. `components` chứa UI dùng lại giữa nhiều feature và không biết auth hay nghiệp vụ. `lib` chứa client hạ tầng không phụ thuộc màn hình. `routes` là composition root của điều hướng. `app` chứa application boundary và composition có quyền phụ thuộc feature, gồm access control, authenticated shell, cache policy và realtime lifecycle. `hooks` chỉ còn hook kỹ thuật dùng chung, không đọc business state.
 
 ```text
 src/
 ├── app/
+│   ├── access/                 # Permission evaluator và UI guard
+│   ├── shell/                  # Layout/navigation/notification sau đăng nhập
 │   ├── auth-cache-boundary.ts # Xóa server cache khi principal thay đổi
 │   └── realtime/              # Socket client, event handlers và lifecycle provider
 ├── components/
-│   ├── layout/                 # Shell sau đăng nhập
 │   ├── ui/                     # UI primitive, không chứa nghiệp vụ
 │   └── *.tsx                   # Pattern dùng chung: page, error, pagination...
 ├── features/
@@ -48,7 +49,7 @@ src/
 │   ├── sessions/               # Phiên đăng nhập và thu hồi
 │   ├── audit/                  # Nhật ký quản trị
 │   └── notifications/          # Query và mutation thông báo
-├── hooks/                      # Permission và responsive hooks dùng chung
+├── hooks/                      # Hook kỹ thuật dùng chung, ví dụ responsive
 ├── i18n/                       # Translation resource cho lỗi
 ├── lib/                        # API client, error mapping, utilities
 ├── routes/                     # Route tree và protected route
@@ -112,7 +113,7 @@ URL
 
 Access token của Socket.IO chỉ đi trong `handshake.auth.token`, không nằm trong query string để tránh URL hoặc proxy log ghi lại bearer credential. Khi HTTP refresh thành công, event `auth:token-refreshed` cập nhật `socket.auth`; lần reconnect kế tiếp luôn dùng token mới.
 
-Khi thêm page mới, cần tạo feature component, lazy import component đó và thêm một entry vào `adminRoutes`. Permission của route phải lấy từ `@repo/contracts`, không viết string trực tiếp.
+Khi thêm page mới, feature export page qua `pages.ts`; route lazy import `@/features/<name>/pages` rồi thêm entry vào `adminRoutes`. Permission của route phải lấy từ `@repo/contracts`, không viết string trực tiếp. `index.ts` và `pages.ts` có mục đích khác nhau: `index.ts` là capability/API dùng chéo; `pages.ts` là entry chỉ dành cho lazy route. Không export page từ `index.ts`, vì một import tĩnh vào capability có thể kéo page vào initial bundle và phá code splitting.
 
 ## 5. Authentication và token lifecycle
 
@@ -286,14 +287,16 @@ Feature component không được tự tạo socket. Khi thêm event mới, khai
 | `src/lib/error-handler.ts`                    | Chuyển lỗi kỹ thuật thành message thân thiện                          |
 | `src/lib/observability.ts`                    | Chuẩn hóa, redact và chuyển lỗi tới telemetry sink                    |
 | `src/features/auth/store/auth.store.ts`       | Đăng nhập, đăng xuất, khôi phục phiên và giữ thông tin user hiện tại  |
-| `src/hooks/usePermission.tsx`                 | Kiểm tra permission; cung cấp `Can` và `PermissionGuard`              |
+| `src/app/access/usePermission.tsx`            | Kiểm tra permission; cung cấp `Can` và `PermissionGuard`              |
+| `src/app/shell`                               | Authenticated layout, navigation, user và notification controls       |
 | `src/components/ui`                           | UI primitive; không gọi API và không chứa business rule               |
 | `src/components/*.tsx`                        | Các mẫu giao diện dùng lại giữa nhiều feature                         |
 | `src/features/*/api/*.api.ts`                 | Nơi duy nhất của feature biết endpoint backend và kiểu dữ liệu vào/ra |
 | `src/features/*/api/*.keys.ts`                | Sinh query key để định danh dữ liệu của feature trong cache           |
 | `src/features/*/hooks`                        | Gọi API qua query/mutation và làm mới cache của feature               |
 | `src/features/*/components`                   | Giữ trạng thái tương tác và hiển thị màn hình nghiệp vụ               |
-| `src/features/*/index.ts`                     | Cổng public duy nhất để code bên ngoài import feature                 |
+| `src/features/*/index.ts`                     | Public capability/API dùng bởi app hoặc feature khác                  |
+| `src/features/*/pages.ts`                     | Public route entry, chỉ được nạp bằng lazy import                     |
 
 ## 10. Cách thêm một feature chuẩn (mini-tutorial)
 
@@ -402,7 +405,7 @@ export const useProjects = (options?: { page?: number; search?: string }) => {
 
 ### Bước 4 — Component, barrel và route
 
-`components/ProjectsManagement.tsx` chỉ gọi `useProjects()` và lo 4 trạng thái hiển thị (loading / error có nút retry / empty / success). Xuất public qua barrel `features/projects/index.ts`:
+`components/ProjectsManagement.tsx` chỉ gọi `useProjects()` và lo 4 trạng thái hiển thị (loading / error có nút retry / empty / success). Vì đây là route page, xuất nó qua `features/projects/pages.ts`:
 
 ```ts
 export { ProjectsManagement } from "./components/ProjectsManagement";
@@ -414,7 +417,7 @@ Thêm permission `PROJECT.READ`/`PROJECT.CREATE` vào `@repo/contracts` (backend
 {
   path: "/projects",
   permission: PERMISSIONS.PROJECT.READ,
-  element: lazyPage(() => import("@/features/projects")),
+  element: lazyPage(() => import("@/features/projects/pages")),
 }
 ```
 
@@ -423,7 +426,7 @@ Navigation phải dùng cùng permission với route — nếu không sẽ hiệ
 ### Checklist feature đúng chuẩn (kèm lý do)
 
 - Không import trực tiếp code nội bộ của feature khác — **vì** ESLint sẽ chặn, và deep-import biến hai feature thành một khối không tách được nữa.
-- Feature khác chỉ được import qua `features/<name>/index.ts` — **vì** barrel là hợp đồng công khai; đổi cấu trúc bên trong không vỡ ai.
+- Feature khác chỉ được import capability qua `features/<name>/index.ts`; route chỉ import `features/<name>/pages.ts` — **vì** hai public entry tách dependency dùng chéo khỏi code page cần lazy-load.
 - UI primitive không phụ thuộc feature nghiệp vụ — **vì** button/dialog phải tái sử dụng được ở mọi feature, kể cả feature chưa ra đời.
 - Không duplicate response type nếu là contract backend–frontend — **vì** hai bản copy sẽ lệch nhau đúng lúc backend đổi field.
 - Không dùng `any` để vượt type boundary — **vì** `any` lây: một chỗ `any` làm mọi chỗ chạm vào nó mất kiểm tra kiểu.
@@ -437,7 +440,7 @@ Navigation phải dùng cùng permission với route — nếu không sẽ hiệ
 Vitest chạy trong jsdom, kèm Testing Library cho component test (setup ở `src/test/setup.ts`). Các nhóm test nền tảng hiện có:
 
 1. `src/lib/api-client.test.ts` — khóa chặt hành vi refresh: hai request 401 đồng thời chỉ tạo một refresh request; refresh thất bại phải xóa session và phát logout; retry vẫn 401 không được refresh lặp vô hạn.
-2. `src/hooks/usePermission.test.tsx` — render `<Can>` với các tổ hợp quyền: có quyền thì hiện, thiếu thì hiện fallback, `all`/`any` đúng ngữ nghĩa, và hành vi fail-open khi route không khai báo permission.
+2. `src/app/access/usePermission.test.tsx` — render `<Can>` với các tổ hợp quyền: có quyền thì hiện, thiếu thì hiện fallback, `all`/`any` đúng ngữ nghĩa, và hành vi fail-open khi route không khai báo permission.
 3. `src/features/auth/components/LoginForm.test.tsx` — submit gọi `login` đúng credentials và điều hướng khi thành công; lỗi hiển thị thông báo thân thiện và ở lại trang; nút ẩn/hiện mật khẩu có accessible name.
 4. `src/features/auth/store/auth.store.test.ts` — khóa transition login, rollback/revoke khi profile không tải được và local cleanup khi logout gặp lỗi mạng.
 5. `src/routes/protected-route.test.tsx` — phân biệt đúng bootstrap pending, unauthenticated redirect và authenticated outlet.

@@ -21,7 +21,7 @@ const loginAs = (permissions: string[]) => {
   });
 };
 
-describe("<Can /> permission gating", () => {
+describe("<Can /> application permission gating", () => {
   it("renders children when the user holds the required permission", () => {
     loginAs(["user:read"]);
     render(<Can I="user:read">visible-content</Can>);

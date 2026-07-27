@@ -30,7 +30,7 @@ import {
   FolderOpen,
 } from "lucide-react";
 import { useRoles } from "../hooks/useRoles";
-import { Can, usePermissions } from "@/hooks/usePermission";
+import { Can, usePermissions } from "@/app/access/usePermission";
 import { isSystemRole, PERMISSIONS } from "@repo/contracts";
 import type { PermissionRecord } from "@repo/types";
 import { validateRoleForm, type RoleFormErrors } from "./role-form.validation";

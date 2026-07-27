@@ -13,7 +13,7 @@ const notification = {
   createdAt: "2026-07-27T00:00:00.000Z",
 };
 
-describe("<NotificationItemButton />", () => {
+describe("<NotificationItemButton /> application shell", () => {
   it("is keyboard operable and exposes the original timestamp", async () => {
     const onMarkAsRead = vi.fn().mockResolvedValue(undefined);
     const user = userEvent.setup();

@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { useSessions } from "../hooks/useSessions";
 import type { ActiveSession } from "@repo/types";
-import { Can, usePermissions } from "@/hooks/usePermission";
+import { Can, usePermissions } from "@/app/access/usePermission";
 import { PERMISSIONS } from "@repo/contracts";
 
 const parseUserAgent = (uaString?: string) => {

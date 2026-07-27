@@ -5,7 +5,7 @@ import { PERMISSIONS } from "@repo/contracts";
 import { UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog, PageCard, PageHeader } from "@/components";
-import { usePermissions } from "@/hooks/usePermission";
+import { usePermissions } from "@/app/access/usePermission";
 import { useUsers } from "../hooks/useUsers";
 import { AddUserCard } from "./AddUserCard";
 import { EditUserModal } from "./EditUserModal";

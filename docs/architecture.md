@@ -249,7 +249,8 @@ features/users/
 │   └── user.keys.ts
 ├── components/
 ├── hooks/
-└── index.ts                 # khi feature cần public API
+├── index.ts                 # capability/API public dùng chéo
+└── pages.ts                 # route entry public, luôn lazy import
 ```
 
 Flow dữ liệu:
@@ -287,7 +288,17 @@ Với mutation kiểu read-modify-write, component không được gửi đồng
 
 ### Module boundary
 
-Feature khác chỉ được import qua `index.ts` công khai, không được import thẳng vào file bên trong (deep import). ESLint chặn deep import giữa các feature và chặn `components/ui` phụ thuộc vào business feature.
+Dependency direction được ESLint thực thi, không chỉ ghi trong tài liệu:
+
+| Nguồn          | Được phép phụ thuộc                                                     |
+| -------------- | ----------------------------------------------------------------------- |
+| `lib`, `hooks` | package ngoài và module shared cùng tầng                                |
+| `components`   | `lib`, hook kỹ thuật và UI primitive; không được biết app/route/feature |
+| `features/<A>` | shared layer và public API `features/<B>`                               |
+| `app`          | shared layer và public feature API                                      |
+| `routes`       | app boundary và `features/<name>/pages`                                 |
+
+Deep import `@/features/<name>/...` bị cấm, ngoại trừ public route entry `pages`. Feature capability dùng chéo đi qua `index.ts`; page route đi qua `pages.ts`. Tách hai entry giữ lazy loading đúng: auth store hoặc role API có thể được import tĩnh mà không kéo Login/Roles page vào initial bundle. Application-aware shell và permission guard nằm trong `app`, không nằm trong `components`; vì vậy shared component không cần ngoại lệ để đọc auth hoặc notifications.
 
 ### Runtime composition
 
