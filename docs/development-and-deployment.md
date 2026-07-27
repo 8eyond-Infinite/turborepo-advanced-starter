@@ -143,7 +143,7 @@ pnpm --filter=admin exec playwright install chromium # chỉ cần lần đầu
 pnpm e2e:admin
 ```
 
-`e2e:admin:prepare` bật Postgres/Redis rồi drop/recreate đúng database `admin_browser_e2e`, áp migration và seed admin test. Nó không đụng tới `starter_db`. Playwright sau đó khởi động API ở `127.0.0.1:3101` và Admin ở `127.0.0.1:5174`; hai cổng riêng ngăn suite reuse nhầm dev process `3001/5173`, còn cùng hostname bảo đảm cookie `SameSite=Lax` phản ánh topology được kiểm tra.
+`e2e:admin:prepare` bật Postgres/Redis bằng `docker compose up --wait`, chỉ tiếp tục sau khi cả hai healthcheck thành công, rồi drop/recreate đúng database `admin_browser_e2e`, áp migration và seed admin test. Không thay bằng `up -d` đơn thuần: khi Docker Desktop vừa khởi động, container có thể đã ở trạng thái running trong lúc PostgreSQL vẫn startup và làm `dropdb` fail ngẫu nhiên. Script không đụng tới `starter_db`. Playwright sau đó khởi động API ở `127.0.0.1:3101` và Admin ở `127.0.0.1:5174`; hai cổng riêng ngăn suite reuse nhầm dev process `3001/5173`, còn cùng hostname bảo đảm cookie `SameSite=Lax` phản ánh topology được kiểm tra.
 
 ## 5. Prisma workflow
 

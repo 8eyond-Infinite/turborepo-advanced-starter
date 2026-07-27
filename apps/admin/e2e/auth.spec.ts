@@ -232,6 +232,31 @@ test.describe("Admin authentication boundaries", () => {
     await expect(page.getByText("Phiên hiện tại")).toBeVisible();
   });
 
+  test("searches audit records through URL-backed filters", async ({
+    page,
+    request,
+  }) => {
+    const roleName = `AUDIT_E2E_${Date.now()}`;
+    const adminToken = await loginByApi(request, ADMIN_EMAIL, ADMIN_PASSWORD);
+    const createRoleResponse = await request.post(`${API_URL}/roles`, {
+      headers: { Authorization: `Bearer ${adminToken}` },
+      data: {
+        name: roleName,
+        description: "Produces an auditable browser-test action",
+      },
+    });
+    expect(createRoleResponse.ok()).toBeTruthy();
+
+    await loginInBrowser(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await page.goto(`/audit-logs?q=${roleName}`);
+
+    await expect(
+      page.getByRole("textbox", { name: "Tìm kiếm nhật ký hoạt động" }),
+    ).toHaveValue(roleName);
+    await expect(page.getByText("Tạo vai trò", { exact: true })).toBeVisible();
+    await expect(page.getByText(new RegExp(roleName))).toBeVisible();
+  });
+
   test("deactivating a connected user forces logout through realtime", async ({
     page,
     request,
