@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { getFriendlyErrorMessage } from "@/lib/error-handler";
 import { roleApi } from "../api/role.api";
 import { roleKeys } from "../api/role.keys";
+import { isSystemRole } from "@repo/contracts";
 
 export const useRoles = () => {
   const queryClient = useQueryClient();
@@ -60,9 +61,7 @@ export const useRoles = () => {
   });
 
   const deleteRole = (roleId: string, roleName: string) => {
-    const isDefaultRole =
-      roleName === "ADMIN" || roleName === "USER" || roleId === "1";
-    if (isDefaultRole) {
+    if (isSystemRole(roleName)) {
       toast.error(`Không thể xóa vai trò mặc định "${roleName}"!`);
       return;
     }

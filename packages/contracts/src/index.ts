@@ -4,5 +4,6 @@ export * from './auth/current-user.js';
 export * from './auth/authenticated-principal.js';
 export * from './auth/permissions.js';
 export * from './auth/permission-utils.js';
+export * from './auth/system-roles.js';
 export * from './api/api-error.js';
 export * from './api/api-response.js';

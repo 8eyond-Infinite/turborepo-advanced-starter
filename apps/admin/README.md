@@ -382,7 +382,7 @@ Vitest chạy trong jsdom, kèm Testing Library cho component test (setup ở `s
 5. `src/routes/protected-route.test.tsx` — phân biệt đúng bootstrap pending, unauthenticated redirect và authenticated outlet.
 6. `src/app/auth-cache-boundary.test.ts` — bảo đảm cache server bị xóa khi principal đăng xuất nhưng không bị xóa bởi update auth state không liên quan.
 
-`pnpm test` chạy kèm coverage và fail nếu tụt dưới sàn khai báo trong `vitest.config.ts` (~29% hiện tại). Quy tắc ratchet: phủ thêm test thì nâng sàn lên theo, không bao giờ hạ sàn để cho qua.
+`pnpm test` chạy kèm coverage và fail nếu tụt dưới sàn khai báo trong `vitest.config.ts` (~35% hiện tại). Quy tắc ratchet: phủ thêm test thì nâng sàn lên theo, không bao giờ hạ sàn để cho qua.
 
 Test mới nên đặt cạnh source khi test một unit hoặc module nhỏ. Integration test của một feature có thể đặt trong thư mục feature. Ưu tiên test behavior nhìn thấy từ public API thay vì private implementation.
 

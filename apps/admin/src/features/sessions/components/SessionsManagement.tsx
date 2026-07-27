@@ -193,6 +193,7 @@ export const SessionsManagement = () => {
                               <Button
                                 variant="ghost"
                                 size="sm"
+                                aria-label={`Đăng xuất thiết bị tại IP ${session.ip}`}
                                 className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer transition-colors"
                               >
                                 <LogOut className="h-4 w-4 mr-1.5" /> Đăng xuất
