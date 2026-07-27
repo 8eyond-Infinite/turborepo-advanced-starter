@@ -44,11 +44,15 @@ const AuditLogsManagement = lazy(() =>
 
 const RouteFallback = () => (
   <div
-    className="flex min-h-64 items-center justify-center"
+    className="flex min-h-64 flex-col items-center justify-center gap-3 text-muted-foreground"
     role="status"
-    aria-label="Đang tải trang"
+    aria-live="polite"
   >
-    <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+    <div
+      className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent"
+      aria-hidden="true"
+    />
+    <span className="text-sm">Đang tải trang…</span>
   </div>
 );
 
