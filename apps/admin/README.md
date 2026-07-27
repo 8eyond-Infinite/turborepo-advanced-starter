@@ -280,6 +280,7 @@ Feature component không được tự tạo socket. Khi thêm event mới, khai
 | `src/routes/protected-route.tsx`              | Chặn người chưa đăng nhập; không sở hữu hạ tầng realtime              |
 | `src/lib/api-client.ts`                       | Gắn header, xử lý JSON, dịch lỗi, tự refresh token và retry request   |
 | `src/lib/error-handler.ts`                    | Chuyển lỗi kỹ thuật thành message thân thiện                          |
+| `src/lib/observability.ts`                    | Chuẩn hóa, redact và chuyển lỗi tới telemetry sink                    |
 | `src/features/auth/store/auth.store.ts`       | Đăng nhập, đăng xuất, khôi phục phiên và giữ thông tin user hiện tại  |
 | `src/hooks/usePermission.tsx`                 | Kiểm tra permission; cung cấp `Can` và `PermissionGuard`              |
 | `src/components/ui`                           | UI primitive; không gọi API và không chứa business rule               |
@@ -445,7 +446,7 @@ Vitest chạy trong jsdom, kèm Testing Library cho component test (setup ở `s
 12. `src/app/query-client.test.ts` — khóa retry policy: chỉ lỗi tạm thời được retry, có giới hạn; mutation không bao giờ tự phát lại.
 13. `src/routes/route-error-page.test.ts` — bảo đảm route boundary không rò thông điệp kỹ thuật hoặc dữ liệu nhạy cảm ra giao diện.
 
-`pnpm test` chạy kèm coverage và fail nếu tụt dưới sàn khai báo trong `vitest.config.ts` (hiện là 57% statements, 54% branches, 48% functions và 58% lines). Quy tắc ratchet: phủ thêm test thì nâng sàn lên theo, không bao giờ hạ sàn để cho qua.
+`pnpm test` chạy kèm coverage và fail nếu tụt dưới sàn khai báo trong `vitest.config.ts` (hiện là 58% statements, 55% branches, 49% functions và 60% lines). Quy tắc ratchet: phủ thêm test thì nâng sàn lên theo, không bao giờ hạ sàn để cho qua.
 
 Test mới nên đặt cạnh source khi test một unit hoặc module nhỏ. Integration test của một feature có thể đặt trong thư mục feature. Ưu tiên test behavior nhìn thấy từ public API thay vì private implementation.
 
@@ -492,4 +493,8 @@ Authentication đã dùng HttpOnly refresh cookie, access token trong memory, si
 
 Test suite đã bảo vệ API client, auth store, route guard, permission evaluator, cache boundary, realtime boundary, permission visibility của các màn hình quản trị chính và mutation/invalidation của users, roles, sessions và notifications. Browser suite bảo vệ các flow quan trọng nhất qua frontend, API, cookie, database, Redis và WebSocket thật.
 
-Application resilience hiện có ba tầng. Lỗi render vượt khỏi feature được chặn bởi `ApplicationErrorBoundary`; lỗi lazy route/loader được chặn bởi `RouteErrorPage`; lỗi server state dự kiến được feature hiển thị bằng `QueryErrorState`. Boundary không đưa raw `Error.message` ra người dùng vì message kỹ thuật có thể chứa endpoint, identifier hoặc dữ liệu nhạy cảm. Lỗi vẫn được ghi vào console tại boundary để hỗ trợ local diagnosis; production cần nối cùng điểm này vào hệ thống telemetry khi observability provider được chọn.
+Application resilience hiện có ba tầng. Lỗi render vượt khỏi feature được chặn bởi `ApplicationErrorBoundary`; lỗi lazy route/loader được chặn bởi `RouteErrorPage`; lỗi server state dự kiến được feature hiển thị bằng `QueryErrorState`. Boundary không đưa raw `Error.message` ra người dùng vì message kỹ thuật có thể chứa endpoint, identifier hoặc dữ liệu nhạy cảm.
+
+Mọi lỗi cấp boundary đi qua `reportError()` trong `src/lib/observability.ts`, không gọi trực tiếp SDK của một vendor. Reporter tạo incident ID, timestamp, source, operation và route; nếu lỗi đến từ backend, `ApiClient` lấy `x-correlation-id` từ response và reporter giữ giá trị này để nối browser incident với backend log/outbox/job. Trước khi chuyển payload, reporter redact bearer token, JWT và các assignment mang tên password, secret, token, authorization hoặc cookie. Sink lỗi bị cô lập để telemetry outage không thể làm hỏng user flow.
+
+Sink mặc định phát browser event `admin:observability-error`; development đồng thời in structured report để debug. Khi chọn Sentry, OpenTelemetry collector hoặc provider khác, composition root chỉ cần gọi `configureObservabilitySink(report => provider.capture(report))`. Feature và boundary không import provider SDK. Custom sink phải gửi bất đồng bộ, tôn trọng sampling/rate limit của production và không bổ sung raw request body, header hoặc auth state vào report.

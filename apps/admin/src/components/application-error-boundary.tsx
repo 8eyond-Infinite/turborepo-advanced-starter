@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { reportError } from "@/lib/observability";
 
 interface ApplicationErrorBoundaryProps {
   children: ReactNode;
@@ -21,7 +22,12 @@ export class ApplicationErrorBoundary extends Component<
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
-    console.error("[ApplicationErrorBoundary]", error, info);
+    reportError(error, {
+      source: "application",
+      route: window.location.pathname,
+      operation: "render",
+      componentStack: info.componentStack,
+    });
   }
 
   render(): ReactNode {

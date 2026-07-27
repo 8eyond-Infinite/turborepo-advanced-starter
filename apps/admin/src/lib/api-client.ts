@@ -26,6 +26,7 @@ export class ApiError extends Error {
   public readonly details?: unknown;
   public readonly translationKey?: string;
   public readonly args?: Record<string, unknown>;
+  public readonly correlationId?: string;
 
   constructor(
     message: string,
@@ -35,6 +36,7 @@ export class ApiError extends Error {
       details?: unknown;
       translationKey?: string;
       args?: Record<string, unknown>;
+      correlationId?: string;
     } = {},
   ) {
     super(message);
@@ -43,6 +45,7 @@ export class ApiError extends Error {
     this.details = options.details;
     this.translationKey = options.translationKey;
     this.args = options.args;
+    this.correlationId = options.correlationId;
     this.name = "ApiError";
   }
 }
@@ -161,6 +164,7 @@ export class ApiClient {
         details: body.details,
         translationKey: body.translationKey,
         args: body.args,
+        correlationId: response.headers.get("x-correlation-id") || undefined,
       },
     );
   }
