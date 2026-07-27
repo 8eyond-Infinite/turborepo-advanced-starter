@@ -31,6 +31,7 @@ export interface ActiveSession {
   ip: string;
   userAgent: string;
   createdAt: string;
+  isCurrent?: boolean;
 }
 
 export interface Role {

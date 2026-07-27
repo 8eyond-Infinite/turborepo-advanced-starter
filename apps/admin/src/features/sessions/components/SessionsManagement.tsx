@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   PageHeader,
   PageCard,
@@ -15,6 +15,7 @@ import {
   Clock,
   ShieldAlert,
   Loader2,
+  BadgeCheck,
 } from "lucide-react";
 import { useSessions } from "../hooks/useSessions";
 import type { ActiveSession } from "@repo/types";
@@ -51,7 +52,10 @@ const parseUserAgent = (uaString?: string) => {
 };
 
 export const SessionsManagement = () => {
-  const [currentPage, setCurrentPage] = useState(1);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const parsedPage = Number(searchParams.get("page"));
+  const currentPage =
+    Number.isInteger(parsedPage) && parsedPage > 0 ? parsedPage : 1;
   const pageSize = 10;
 
   const {
@@ -64,12 +68,23 @@ export const SessionsManagement = () => {
     isFetching,
     revokeSession,
     revokeAllSessions,
+    isRevoking,
+    revokingSessionId,
     isRevokingAll,
   } = useSessions({ page: currentPage, limit: pageSize });
 
   const access = usePermissions({
     canRevokeSessions: PERMISSIONS.SESSION.DELETE,
   });
+
+  const setCurrentPage = (page: number) => {
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      if (page <= 1) next.delete("page");
+      else next.set("page", String(page));
+      return next;
+    });
+  };
 
   if (isLoading) {
     return (
@@ -100,7 +115,7 @@ export const SessionsManagement = () => {
         title="Quản lý Phiên đăng nhập"
         description="Xem các thiết bị và trình duyệt đang kết nối vào tài khoản của bạn, thu hồi quyền truy cập khi phát hiện bất thường."
       >
-        {sessions.length > 1 && (
+        {meta.totalItems > 1 && (
           <Can I={PERMISSIONS.SESSION.DELETE}>
             <ConfirmDialog
               trigger={
@@ -126,6 +141,7 @@ export const SessionsManagement = () => {
               title="Hủy toàn bộ các phiên đăng nhập khác?"
               description="Hành động này sẽ xóa toàn bộ Refresh Token của tài khoản ngoại trừ phiên làm việc hiện tại của bạn trên trình duyệt này."
               confirmText="Xác nhận đăng xuất toàn bộ"
+              pendingText="Đang thu hồi..."
               variant="destructive"
               onConfirm={() => revokeAllSessions()}
             />
@@ -167,6 +183,12 @@ export const SessionsManagement = () => {
                           <span className="text-sm font-semibold text-foreground">
                             {os} • {browser}
                           </span>
+                          {session.isCurrent && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                              <BadgeCheck className="h-3 w-3" />
+                              Phiên hiện tại
+                            </span>
+                          )}
                         </div>
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                           <span className="flex items-center gap-1 font-mono bg-muted/50 px-1.5 py-0.5 rounded border border-border/40">
@@ -185,7 +207,7 @@ export const SessionsManagement = () => {
                         </div>
                       </div>
                     </div>
-                    {access.canRevokeSessions && (
+                    {access.canRevokeSessions && !session.isCurrent && (
                       <div className="flex items-center shrink-0 self-end sm:self-center">
                         <Can I={PERMISSIONS.SESSION.DELETE}>
                           <ConfirmDialog
@@ -194,6 +216,10 @@ export const SessionsManagement = () => {
                                 variant="ghost"
                                 size="sm"
                                 aria-label={`Đăng xuất thiết bị tại IP ${session.ip}`}
+                                disabled={
+                                  isRevoking &&
+                                  revokingSessionId === session.jti
+                                }
                                 className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer transition-colors"
                               >
                                 <LogOut className="h-4 w-4 mr-1.5" /> Đăng xuất
@@ -203,6 +229,7 @@ export const SessionsManagement = () => {
                             title="Đăng xuất thiết bị này?"
                             description={`Phiên đăng nhập tại địa chỉ IP ${session.ip} sử dụng trình duyệt ${browser} sẽ lập tức bị thu hồi.`}
                             confirmText="Đăng xuất thiết bị"
+                            pendingText="Đang đăng xuất..."
                             variant="destructive"
                             onConfirm={() => revokeSession(session.jti)}
                           />

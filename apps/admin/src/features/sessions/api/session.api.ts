@@ -15,5 +15,6 @@ const getSessions = ({ page, limit }: SessionListParams) => {
 export const sessionApi = {
   getSessions,
   revoke: (jti: string) => ApiClient.delete<void>(`/auth/sessions/${jti}`),
-  revokeOthers: () => ApiClient.post<void>("/auth/logout/global"),
+  revokeOthers: () =>
+    ApiClient.post<void>("/auth/sessions/revoke-others", undefined),
 };

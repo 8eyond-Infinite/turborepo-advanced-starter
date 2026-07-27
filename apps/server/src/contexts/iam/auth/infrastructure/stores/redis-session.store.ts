@@ -52,6 +52,19 @@ export class RedisSessionStore implements ISessionStore {
     await this.cache.invalidatePattern(`refresh_token:${userId}:*`);
   }
 
+  async revokeOtherUserSessions(
+    userId: string,
+    currentJti: string,
+  ): Promise<void> {
+    const currentKey = this.buildKey(userId, currentJti);
+    const keys = await this.cache.scan(`refresh_token:${userId}:*`);
+    await Promise.all(
+      keys
+        .filter((key) => key !== currentKey)
+        .map((key) => this.cache.del(key)),
+    );
+  }
+
   async isRefreshTokenValid(userId: string, jti: string): Promise<boolean> {
     const data = await this.cache.get<SessionData>(this.buildKey(userId, jti));
     return data !== null;

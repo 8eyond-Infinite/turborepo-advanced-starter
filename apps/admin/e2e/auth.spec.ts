@@ -198,6 +198,40 @@ test.describe("Admin authentication boundaries", () => {
     ).not.toBeVisible();
   });
 
+  test("revokes other sessions without ending the current browser session", async ({
+    page,
+    request,
+  }) => {
+    await loginByApi(request, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await loginInBrowser(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await page.goto("/sessions");
+
+    await expect(page.getByText("Phiên hiện tại")).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /Hủy tất cả phiên khác/i }),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: /Hủy tất cả phiên khác/i }).click();
+    const revokeResponse = page.waitForResponse(
+      (response) =>
+        response.url() === `${API_URL}/auth/sessions/revoke-others` &&
+        response.request().method() === "POST",
+    );
+    await page
+      .getByRole("button", { name: "Xác nhận đăng xuất toàn bộ" })
+      .click();
+    expect((await revokeResponse).ok()).toBeTruthy();
+
+    await expect(page.getByRole("alertdialog")).not.toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /Hủy tất cả phiên khác/i }),
+    ).not.toBeVisible();
+
+    await page.reload();
+    await expect(page).toHaveURL(/\/sessions$/);
+    await expect(page.getByText("Phiên hiện tại")).toBeVisible();
+  });
+
   test("deactivating a connected user forces logout through realtime", async ({
     page,
     request,

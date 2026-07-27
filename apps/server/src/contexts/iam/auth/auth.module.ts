@@ -9,6 +9,7 @@ import {
   RegisterHandler,
   LoginCommandHandler,
   RefreshCommandHandler,
+  RevokeOtherSessionsCommandHandler,
 } from './application/commands/handlers';
 import { GetActiveSessionsQueryHandler } from './application/queries/handlers';
 import { UsersModule } from '../users/users.module';
@@ -36,6 +37,7 @@ import { RedisSessionStore } from './infrastructure/stores/redis-session.store';
     LogoutCommandHandler,
     LogoutAllCommandHandler,
     RevokeSessionCommandHandler,
+    RevokeOtherSessionsCommandHandler,
     GetActiveSessionsQueryHandler,
     JwtStrategy,
     JwtRefreshStrategy,

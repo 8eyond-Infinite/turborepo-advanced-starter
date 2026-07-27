@@ -1,5 +1,6 @@
 import { PERMISSIONS } from "@repo/contracts";
 import { render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAuthStore } from "@/features/auth";
 import { SessionsManagement } from "./SessionsManagement";
@@ -24,6 +25,13 @@ const setPermissions = (permissions: string[]) => {
   });
 };
 
+const renderSessions = (initialEntry = "/sessions") =>
+  render(
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <SessionsManagement />
+    </MemoryRouter>,
+  );
+
 describe("<SessionsManagement /> permissions", () => {
   beforeEach(() => {
     useSessions.mockReturnValue({
@@ -33,6 +41,7 @@ describe("<SessionsManagement /> permissions", () => {
           ip: "10.0.0.1",
           userAgent: "Mozilla/5.0 Windows Chrome",
           createdAt: "2026-07-27T00:00:00.000Z",
+          isCurrent: true,
         },
         {
           jti: "session-2",
@@ -56,12 +65,14 @@ describe("<SessionsManagement /> permissions", () => {
       revokeSession: vi.fn(),
       revokeAllSessions: vi.fn(),
       isRevokingAll: false,
+      isRevoking: false,
+      revokingSessionId: null,
     });
   });
 
   it("shows session data without revoke controls to a read-only principal", () => {
     setPermissions([PERMISSIONS.SESSION.READ]);
-    render(<SessionsManagement />);
+    renderSessions();
 
     expect(screen.getByText("IP: 10.0.0.1")).toBeInTheDocument();
     expect(
@@ -76,15 +87,28 @@ describe("<SessionsManagement /> permissions", () => {
 
   it("exposes individual and bulk revoke controls with delete permission", () => {
     setPermissions([PERMISSIONS.SESSION.DELETE]);
-    render(<SessionsManagement />);
+    renderSessions();
 
     expect(
       screen.getByRole("button", {
-        name: "Đăng xuất thiết bị tại IP 10.0.0.1",
+        name: "Đăng xuất thiết bị tại IP 10.0.0.2",
       }),
     ).toBeInTheDocument();
     expect(
+      screen.queryByRole("button", {
+        name: "Đăng xuất thiết bị tại IP 10.0.0.1",
+      }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Phiên hiện tại")).toBeInTheDocument();
+    expect(
       screen.getByRole("button", { name: /Hủy tất cả phiên khác/i }),
     ).toBeInTheDocument();
+  });
+
+  it("reads pagination from the URL", () => {
+    setPermissions([PERMISSIONS.SESSION.READ]);
+    renderSessions("/sessions?page=3");
+
+    expect(useSessions).toHaveBeenCalledWith({ page: 3, limit: 10 });
   });
 });

@@ -48,6 +48,7 @@ export class RefreshCommandHandler implements ICommandHandler<
       email,
       permissions,
       tokenVersion: user.tokenVersion,
+      jti: newJti,
     };
     const refreshPayload = { sub: userId, email, jti: newJti };
 

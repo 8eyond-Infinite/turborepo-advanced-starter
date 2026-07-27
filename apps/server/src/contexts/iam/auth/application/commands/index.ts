@@ -4,3 +4,4 @@ export * from './refresh.command';
 export * from './logout.command';
 export * from './logout-all.command';
 export * from './revoke-session.command';
+export * from './revoke-other-sessions.command';

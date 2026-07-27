@@ -29,6 +29,7 @@ import {
   LogoutCommand,
   LogoutAllCommand,
   RevokeSessionCommand,
+  RevokeOtherSessionsCommand,
 } from '../../application/commands';
 
 import { GetActiveSessionsQuery } from '../../application/queries';
@@ -180,6 +181,25 @@ export class AuthController {
     return { success: true };
   }
 
+  @UseGuards(JwtRefreshAuthGuard)
+  @Post('sessions/revoke-others')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Revoke every session except the current one' })
+  @AuditLog(
+    'SESSION_REVOKE_OTHERS',
+    () => 'Thu hồi toàn bộ phiên hoạt động ngoại trừ phiên hiện tại',
+  )
+  async revokeOtherSessions(
+    @GetUser('id') userId: string,
+    @GetUser('jti') currentJti: string,
+  ) {
+    const result = await this.commandBus.execute(
+      new RevokeOtherSessionsCommand(userId, currentJti),
+    );
+    result.unwrap();
+    return { success: true };
+  }
+
   @UseGuards(JwtAuthGuard)
   @Get('sessions')
   @HttpCode(HttpStatus.OK)
@@ -189,10 +209,11 @@ export class AuthController {
   })
   async getSessions(
     @GetUser('id') userId: string,
+    @GetUser('jti') currentJti: string | undefined,
     @Query() query: PaginationQueryDto,
   ) {
     const result = await this.queryBus.execute(
-      new GetActiveSessionsQuery(userId, query.page, query.limit),
+      new GetActiveSessionsQuery(userId, query.page, query.limit, currentJti),
     );
     const { sessions, total } = result.unwrap();
     return PaginatedResponsePresenter.toResponse(
