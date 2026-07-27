@@ -60,9 +60,10 @@ export const useSessions = (options?: { page?: number; limit?: number }) => {
     error: sessionsQuery.error,
     refetch: sessionsQuery.refetch,
     isFetching: sessionsQuery.isFetching,
-    revokeSession: revokeSessionMutation.mutate,
-    revokeAllSessions: revokeAllSessionsMutation.mutate,
+    revokeSession: revokeSessionMutation.mutateAsync,
+    revokeAllSessions: revokeAllSessionsMutation.mutateAsync,
     isRevoking: revokeSessionMutation.isPending,
+    revokingSessionId: revokeSessionMutation.variables ?? null,
     isRevokingAll: revokeAllSessionsMutation.isPending,
   };
 };

@@ -67,6 +67,7 @@ export class LoginCommandHandler implements ICommandHandler<
       email: user.email,
       permissions,
       tokenVersion: user.tokenVersion,
+      jti,
     };
     const refreshPayload = { sub: user.id, email: user.email, jti };
 

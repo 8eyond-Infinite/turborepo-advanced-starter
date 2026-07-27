@@ -24,7 +24,7 @@ export class GetActiveSessionsQueryHandler implements IQueryHandler<
   ): Promise<
     Result<{ sessions: SessionData[]; total: number }, DomainException>
   > {
-    const { userId, page, limit } = query;
+    const { userId, page, limit, currentJti } = query;
     const allSessions = await this.sessionStore.getUserSessions(userId);
 
     allSessions.sort(
@@ -34,7 +34,12 @@ export class GetActiveSessionsQueryHandler implements IQueryHandler<
 
     const total = allSessions.length;
     const skip = (page - 1) * limit;
-    const paginatedSessions = allSessions.slice(skip, skip + limit);
+    const paginatedSessions = allSessions
+      .slice(skip, skip + limit)
+      .map((session) => ({
+        ...session,
+        isCurrent: session.jti === currentJti,
+      }));
 
     return Result.ok({ sessions: paginatedSessions, total });
   }

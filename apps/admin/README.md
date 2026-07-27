@@ -201,6 +201,14 @@ Thay đổi checkbox là replace operation: API nhận toàn bộ tập permissi
 
 Nhóm permission được đóng/mở bằng `button` có `aria-expanded`, dùng được bằng bàn phím. Ma trận nằm trong vùng cuộn ngang để số lượng role tăng lên không làm cắt mất cột hoặc phá layout.
 
+### Flow quản lý phiên đăng nhập
+
+Access token mang JTI của refresh session đã sinh ra nó. `GET /auth/sessions` so sánh JTI này với các session trong Redis và trả `isCurrent`, nhờ đó Admin đánh dấu “Phiên hiện tại” và không hiển thị thao tác tự thu hồi phiên đang dùng.
+
+“Hủy tất cả phiên khác” gọi `POST /auth/sessions/revoke-others` bằng refresh cookie HttpOnly. Backend xóa mọi Redis session ngoại trừ JTI hiện tại, không clear cookie và không tăng `tokenVersion`; tab hiện tại vì vậy tiếp tục hoạt động. Endpoint này tuyệt đối không được thay bằng `/auth/logout/global`: global logout xóa toàn bộ session, tăng token version và kết thúc cả tab đang thao tác.
+
+Danh sách Sessions dùng `page` trong URL làm nguồn sự thật. Revoke mutation trả Promise tới `ConfirmDialog`; dialog chỉ đóng sau khi cache session đã invalidate/refetch. Nút của session đang xử lý bị khóa để tránh gửi lặp.
+
 ## 7. Permission model
 
 Permission được kiểm tra ở ba cấp:

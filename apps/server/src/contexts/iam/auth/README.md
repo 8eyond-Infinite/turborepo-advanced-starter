@@ -134,23 +134,24 @@ Rotation là một thao tác atomic trong Redis. `RedisSessionStore.rotateRefres
 
 ## 7. Logout và session management
 
-`LogoutCommand` thu hồi JTI hiện tại. `LogoutAllCommand` xóa mọi key của user. `RevokeSessionCommand` cho phép người dùng thu hồi một thiết bị cụ thể. `GetActiveSessionsQuery` trả danh sách session có phân trang.
+`LogoutCommand` thu hồi JTI hiện tại. `LogoutAllCommand` xóa mọi key của user và tăng `tokenVersion`, vì vậy đây là thao tác đăng xuất toàn cục thật sự. `RevokeOtherSessionsCommand` xóa mọi refresh session ngoại trừ JTI hiện tại và không tăng `tokenVersion`; tab đang thao tác tiếp tục hoạt động. `RevokeSessionCommand` cho phép người dùng thu hồi một thiết bị cụ thể. `GetActiveSessionsQuery` trả danh sách session có phân trang và đánh dấu `isCurrent` bằng JTI nằm trong access token.
 
 Khi cần tìm các key theo mẫu tên, code dùng lệnh Redis `SCAN` (duyệt dần từng nhóm key), không dùng `KEYS`. `KEYS` quét toàn bộ key trong một lần nên có thể làm Redis đứng hình khi số key lớn — không chấp nhận được cho production.
 
-Logout chỉ đảm bảo refresh token không dùng tiếp được. Access token thì hết tác dụng theo hai đường: tự hết hạn, hoặc bị loại vì tokenVersion trong database đã tăng. Global logout hiện chỉ xóa các phiên refresh; nếu sản phẩm yêu cầu access token mất hiệu lực ngay khi global logout, use case đó phải tăng tokenVersion thông qua Users aggregate.
+Logout một phiên hoặc thu hồi các phiên khác chỉ đảm bảo refresh token tương ứng không dùng tiếp được; access token của thiết bị bị thu hồi còn sống tối đa tới TTL 15 phút. Global logout là use case mạnh hơn: vừa xóa toàn bộ refresh session vừa tăng `tokenVersion`, nên mọi access token đã phát bị từ chối ngay.
 
 ## 8. API surface
 
-| Endpoint                     | Guard       | Use case                    |
-| ---------------------------- | ----------- | --------------------------- |
-| `POST /auth/register`        | Public      | Tạo account                 |
-| `POST /auth/login`           | Public      | Xác thực và cấp token       |
-| `POST /auth/refresh`         | Refresh JWT | Rotate token                |
-| `POST /auth/logout`          | Refresh JWT | Revoke current session      |
-| `POST /auth/logout/global`   | Access JWT  | Revoke all refresh sessions |
-| `GET /auth/sessions`         | Access JWT  | Liệt kê active sessions     |
-| `DELETE /auth/sessions/:jti` | Access JWT  | Revoke một session          |
+| Endpoint                            | Guard              | Use case                            |
+| ----------------------------------- | ------------------ | ----------------------------------- |
+| `POST /auth/register`               | Public             | Tạo account                         |
+| `POST /auth/login`                  | Public             | Xác thực và cấp token               |
+| `POST /auth/refresh`                | Refresh JWT        | Rotate token                        |
+| `POST /auth/logout`                 | Refresh JWT        | Revoke current session              |
+| `POST /auth/logout/global`          | Access JWT         | Revoke all refresh sessions         |
+| `POST /auth/sessions/revoke-others` | Refresh JWT cookie | Revoke mọi phiên trừ phiên hiện tại |
+| `GET /auth/sessions`                | Access JWT         | Liệt kê active sessions             |
+| `DELETE /auth/sessions/:jti`        | Access JWT         | Revoke một session                  |
 
 DTO chịu trách nhiệm kiểm tra dữ liệu vào lúc chạy (runtime validation). Controller chỉ làm ba việc: gom input cùng thông tin client (IP, user-agent), gửi command/query vào CQRS bus, rồi mở kết quả ra để trả về HTTP.
 

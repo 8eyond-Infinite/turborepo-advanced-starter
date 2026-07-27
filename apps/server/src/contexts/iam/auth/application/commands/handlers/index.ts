@@ -4,3 +4,4 @@ export * from './register.handler';
 export * from './revoke-session.handler';
 export * from './login.handler';
 export * from './refresh.handler';
+export * from './revoke-other-sessions.handler';
