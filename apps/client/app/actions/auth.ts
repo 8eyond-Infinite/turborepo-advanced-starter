@@ -2,7 +2,8 @@
 
 import { redirect } from "next/navigation";
 import { API_URL } from "@/lib/api";
-import { clearSession, setSession } from "@/lib/session";
+import { clearSession, getSession, setSession } from "@/lib/session";
+import { safeRedirectPath } from "@/lib/safe-redirect";
 
 export interface LoginState {
   error?: string;
@@ -33,10 +34,21 @@ export async function login(
     refreshToken: string;
   };
   await setSession(tokens);
-  redirect(next.startsWith("/") ? next : "/me");
+  redirect(safeRedirectPath(next));
 }
 
 export async function logout(): Promise<void> {
-  await clearSession();
+  const session = await getSession();
+  try {
+    if (session) {
+      await fetch(`${API_URL}/auth/logout`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.refreshToken}` },
+        cache: "no-store",
+      }).catch(() => null);
+    }
+  } finally {
+    await clearSession();
+  }
   redirect("/");
 }

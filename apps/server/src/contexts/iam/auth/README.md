@@ -122,14 +122,15 @@ sequenceDiagram
     Store-->>Strategy: true
     Strategy-->>Handler: Authenticated refresh principal
     Handler->>Users: Load current user/permissions
-    Handler->>Store: Save new JTI
-    Handler->>Store: Revoke old JTI
+    Handler->>Store: rotateRefreshToken(oldJti, newJti)
+    Note over Store: Lua atomic: EXISTS old → DEL old → SET new
+    Store-->>Handler: exactly one request receives true
     Handler-->>Client: New access + refresh tokens
 ```
 
 Xoay vòng token như vậy (rotation) khiến refresh token cũ khó bị đem dùng lại lần nữa (replay). Khi cấp cặp token mới, handler phải đọc lại trạng thái user và tokenVersion hiện tại từ database, không được sao chép mù quáng payload của token cũ.
 
-Code hiện tại ghi session mới xong mới xóa session cũ — hai lệnh Redis chạy nối tiếp, chưa gói thành một transaction/script atomic (hoặc cả hai cùng chạy trọn vẹn, hoặc không lệnh nào chạy). Nếu bước xóa thất bại sau khi bước ghi đã thành công, cả JTI cũ và mới cùng tồn tại cho đến khi hết TTL hoặc được dọn dẹp. Đây là khoảng hở cần bịt lại nếu hệ thống yêu cầu nghiêm ngặt mỗi refresh token chỉ được dùng đúng một lần.
+Rotation là một thao tác atomic trong Redis. `RedisSessionStore.rotateRefreshToken` gọi primitive `RedisService.replaceIfPresent`, primitive này chạy Lua script để kiểm tra key JTI cũ còn tồn tại, xóa nó và tạo key JTI mới trong cùng một lần thực thi. Redis không xen lệnh của request khác vào giữa script. Vì vậy khi hai request cùng dùng một refresh token, đúng một request consume được old JTI; request còn lại nhận lỗi 401 `UNAUTHORIZED`. Không được thay cơ chế này bằng chuỗi `GET → SET → DEL`, vì chuỗi đó mở lại race condition và cho phép một refresh credential sinh nhiều session mới.
 
 ## 7. Logout và session management
 
@@ -155,7 +156,7 @@ DTO chịu trách nhiệm kiểm tra dữ liệu vào lúc chạy (runtime valid
 
 ## 9. Ý nghĩa từng nhóm file
 
-`session-store.port.ts` khai báo interface: tầng application chỉ biết “lưu phiên, tìm phiên, xóa phiên”, không biết dữ liệu nằm ở Redis hay key đặt tên thế nào. `redis-session.store.ts` là nơi duy nhất biết chuyện đó: nó đọc/ghi các key Redis dạng `refresh_token:{userId}:{jti}`.
+`session-store.port.ts` khai báo interface: tầng application chỉ biết “lưu phiên, tìm phiên, rotate atomic, xóa phiên”, không biết dữ liệu nằm ở Redis hay key đặt tên thế nào. `redis-session.store.ts` là nơi duy nhất biết chuyện đó: nó đọc/ghi các key Redis dạng `refresh_token:{userId}:{jti}`. Atomicity là một phần của contract `rotateRefreshToken`, không phải chi tiết tùy chọn của adapter.
 
 Mỗi command file là một gói dữ liệu bất biến mô tả yêu cầu ghi (“hãy đăng nhập với email này, password này”). Handler là nơi làm việc thật: gọi repository, so mật khẩu, ký token, lưu phiên — nhưng không chứa decorator HTTP nào. Query/handler của active sessions là đường đọc, không thay đổi dữ liệu.
 

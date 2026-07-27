@@ -5,6 +5,7 @@ import {
   encryptSession,
   sessionCookieOptions,
 } from "@/lib/session";
+import { refreshSessionSingleFlight } from "@/lib/refresh-session";
 
 const PROTECTED_PREFIXES = ["/me"];
 const REFRESH_THRESHOLD_SECONDS = 60;
@@ -48,16 +49,16 @@ export async function middleware(request: NextRequest) {
   // Làm mới token TẠI ĐÂY, không phải trong lúc render: Next.js chỉ cho ghi
   // cookie ở middleware, Server Action và Route Handler. Nhờ vậy mỗi lần
   // render trang đã chắc chắn có access token còn hạn.
-  const refreshed = await fetch(
-    `${process.env.API_URL ?? "http://localhost:3001"}/auth/refresh`,
-    {
-      method: "POST",
-      headers: { Authorization: `Bearer ${session.refreshToken}` },
-      cache: "no-store",
-    },
-  ).catch(() => null);
+  const refreshed = await refreshSessionSingleFlight(session.refreshToken);
 
-  if (!refreshed?.ok) {
+  if (!refreshed) {
+    // Một replica khác có thể vừa consume cùng refresh token và đang trả về
+    // cookie mới. Khi access token cũ vẫn còn hạn, không ghi cookie xóa ở response
+    // thua cuộc; request hiện tại vẫn dùng được token cũ và response thắng có thể
+    // cập nhật trình duyệt mà không bị ghi đè.
+    if (secondsLeft > 0) {
+      return NextResponse.next();
+    }
     const response = isProtected
       ? NextResponse.redirect(new URL("/login", request.url))
       : NextResponse.next();
@@ -65,16 +66,12 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  const tokens = (await refreshed.json()) as {
-    accessToken: string;
-    refreshToken?: string;
-  };
   const response = NextResponse.next();
   response.cookies.set(
     SESSION_COOKIE,
     await encryptSession({
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken ?? session.refreshToken,
+      accessToken: refreshed.accessToken,
+      refreshToken: refreshed.refreshToken,
     }),
     sessionCookieOptions,
   );

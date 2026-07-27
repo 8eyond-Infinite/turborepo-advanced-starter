@@ -14,6 +14,7 @@ import {
 } from '@iam/users/domain/ports/user.repository';
 import { ConfigService } from '@nestjs/config';
 import { UserNotFoundException } from '@iam/users/domain/exceptions/user-not-found.exception';
+import { RefreshSessionConsumedException } from '../../../domain/exceptions/refresh-session-consumed.exception';
 
 @CommandHandler(RefreshCommand)
 export class RefreshCommandHandler implements ICommandHandler<
@@ -78,13 +79,16 @@ export class RefreshCommandHandler implements ICommandHandler<
       };
     }
 
-    await this.sessionStore.saveRefreshToken(
+    const rotated = await this.sessionStore.rotateRefreshToken(
       userId,
+      oldJti,
       newJti,
       sessionData,
       604800,
     );
-    await this.sessionStore.revokeRefreshToken(userId, oldJti);
+    if (!rotated) {
+      return Result.fail(new RefreshSessionConsumedException());
+    }
 
     return Result.ok({ accessToken, refreshToken });
   }

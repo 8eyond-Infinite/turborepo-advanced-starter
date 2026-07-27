@@ -65,6 +65,33 @@ export class RedisService implements OnModuleInit, OnModuleDestroy, ICachePort {
     await this.client.del(key);
   }
 
+  async replaceIfPresent(
+    sourceKey: string,
+    destinationKey: string,
+    value: unknown,
+    ttlSeconds: number,
+  ): Promise<boolean> {
+    const script = `
+      if redis.call('EXISTS', KEYS[1]) == 0 then
+        return 0
+      end
+      redis.call('DEL', KEYS[1])
+      redis.call('SET', KEYS[2], ARGV[1], 'EX', ARGV[2])
+      return 1
+    `;
+    const serialized =
+      typeof value === 'string' ? value : JSON.stringify(value);
+    const result = await this.client.eval(
+      script,
+      2,
+      sourceKey,
+      destinationKey,
+      serialized,
+      String(ttlSeconds),
+    );
+    return result === 1;
+  }
+
   async ping(): Promise<string> {
     return this.client.ping();
   }

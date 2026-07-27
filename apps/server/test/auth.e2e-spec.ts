@@ -214,6 +214,31 @@ describe('AuthController (E2E)', () => {
       });
   });
 
+  it('/auth/refresh (POST) -> hai request dùng cùng token chỉ có một request rotate thành công', async () => {
+    const loginRes = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({
+        email: testEmail,
+        password: testPassword,
+      })
+      .expect(HttpStatus.OK);
+
+    const refreshToken = loginRes.body.refreshToken as string;
+    const responses = await Promise.all([
+      request(app.getHttpServer())
+        .post('/auth/refresh')
+        .set('Authorization', `Bearer ${refreshToken}`),
+      request(app.getHttpServer())
+        .post('/auth/refresh')
+        .set('Authorization', `Bearer ${refreshToken}`),
+    ]);
+
+    expect(responses.map((response) => response.status).sort()).toEqual([
+      HttpStatus.OK,
+      HttpStatus.UNAUTHORIZED,
+    ]);
+  });
+
   it('/auth/refresh (POST) -> flow HttpOnly cookie: rotate cookie, không lộ refresh token qua body', async () => {
     // Login phải set refresh token vào HttpOnly cookie giới hạn path /auth
     const loginRes = await request(app.getHttpServer())

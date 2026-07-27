@@ -1,5 +1,5 @@
-import { Injectable, Inject } from '@nestjs/common';
-import { CACHE_PORT, ICachePort } from '@shared/application/ports/cache.port';
+import { Injectable } from '@nestjs/common';
+import { RedisService } from '@infrastructure/cache/redis.service';
 import {
   ISessionStore,
   SessionData,
@@ -7,10 +7,7 @@ import {
 
 @Injectable()
 export class RedisSessionStore implements ISessionStore {
-  constructor(
-    @Inject(CACHE_PORT)
-    private readonly cache: ICachePort,
-  ) {}
+  constructor(private readonly cache: RedisService) {}
 
   private buildKey(userId: string, jti: string): string {
     return `refresh_token:${userId}:${jti}`;
@@ -34,6 +31,21 @@ export class RedisSessionStore implements ISessionStore {
 
   async revokeRefreshToken(userId: string, jti: string): Promise<void> {
     await this.cache.del(this.buildKey(userId, jti));
+  }
+
+  async rotateRefreshToken(
+    userId: string,
+    oldJti: string,
+    newJti: string,
+    sessionData: SessionData,
+    ttlSeconds: number,
+  ): Promise<boolean> {
+    return this.cache.replaceIfPresent(
+      this.buildKey(userId, oldJti),
+      this.buildKey(userId, newJti),
+      sessionData,
+      ttlSeconds,
+    );
   }
 
   async revokeAllUserSessions(userId: string): Promise<void> {

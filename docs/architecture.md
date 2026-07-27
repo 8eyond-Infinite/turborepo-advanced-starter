@@ -198,7 +198,7 @@ Cơ chế giao event là at-least-once — một event có thể được xử l
 
 - Access token sống ngắn, được gửi qua header `Authorization: Bearer`.
 - Refresh token đại diện cho một phiên đăng nhập (session) có bản ghi trạng thái lưu trong Redis.
-- Mỗi lần refresh, hệ thống phát cặp token mới và thu hồi token của phiên cũ (refresh rotation) — token cũ không dùng lại được.
+- Mỗi lần refresh, hệ thống phát cặp token mới và thu hồi token của phiên cũ (refresh rotation). Redis thực hiện bước consume old JTI và tạo new JTI bằng một Lua script atomic; hai request dùng cùng token không thể cùng thắng.
 - Mỗi user có số `tokenVersion`; khi trạng thái bảo mật của user thay đổi, tăng số này sẽ vô hiệu hóa mọi access token đã phát trước đó.
 
 Flow login:
@@ -222,6 +222,8 @@ sequenceDiagram
 Route guard xác minh người gọi là ai (identity); permission guard kiểm tra người đó được phép làm gì. Permission guard phía frontend chỉ giúp trải nghiệm người dùng gọn hơn — chốt chặn bảo mật thật nằm ở backend.
 
 Admin giữ access token trong memory; refresh token nằm trong cookie `HttpOnly` giới hạn path `/auth` do server quản lý — JavaScript phía trình duyệt không đọc được, nên XSS không đánh cắp được credential sống dài. Khi client xác thực refresh bằng cookie, body response chỉ chứa access token; refresh token mới được rotate ngay trong cookie. API client/mobile không dùng cookie vẫn gửi refresh token qua `Authorization: Bearer` và nhận đủ cặp token trong body. Khi nhiều request cùng lúc bị trả về 401, API client gom tất cả về chung một lần refresh (một promise duy nhất), rồi thử lại mỗi request đúng một lần; nếu refresh thất bại thì phát tín hiệu logout cho toàn ứng dụng.
+
+Next.js BFF cũng dùng single-flight trong phạm vi từng instance để các request render đồng thời không tự tranh nhau refresh. Đây là tối ưu concurrency/UX, không phải security boundary. Security boundary nằm ở Redis atomic rotation của backend và vẫn đúng khi có nhiều Next replica. Request thua cuộc giữa hai replica không xóa cookie nếu access token cũ vẫn còn hạn, tránh ghi đè `Set-Cookie` của response thắng; khi token thực sự hết hạn, refresh failure mới kết thúc session. Logout BFF phải gọi `/auth/logout` để revoke Redis session trước khi xóa JWE cookie; chỉ xóa cookie không được coi là logout hoàn chỉnh.
 
 ## 8. Audit
 

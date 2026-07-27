@@ -122,32 +122,44 @@ describe("khi token sắp hết hạn (dưới 60 giây)", () => {
     });
   });
 
-  it("refresh thất bại trên trang riêng tư: xóa cookie và về /login", async () => {
+  it("refresh cạnh tranh thất bại khi access token còn hạn: giữ cookie và cho request hiện tại đi tiếp", async () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 401 }));
 
     const response = await middleware(requestFor("/me", await nearExpiry()));
 
-    expect(response.status).toBe(307);
-    expect(new URL(response.headers.get("location")!).pathname).toBe("/login");
-    // Cookie bị xóa = được ghi đè bằng giá trị rỗng đã hết hạn.
-    expect(response.cookies.get(SESSION_COOKIE)?.value).toBe("");
+    expect(response.status).toBe(200);
+    expect(response.cookies.get(SESSION_COOKIE)).toBeUndefined();
   });
 
-  it("refresh thất bại trên trang công khai: vẫn cho qua nhưng xóa cookie", async () => {
+  it("refresh thất bại trên trang công khai khi token còn hạn: cho qua và không ghi đè cookie", async () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 401 }));
 
     const response = await middleware(requestFor("/", await nearExpiry()));
 
     expect(response.status).toBe(200);
-    expect(response.cookies.get(SESSION_COOKIE)?.value).toBe("");
+    expect(response.cookies.get(SESSION_COOKIE)).toBeUndefined();
   });
 
-  it("API sập (fetch ném lỗi) được xử lý như refresh thất bại", async () => {
+  it("API sập khi token còn hạn: cho request hiện tại đi tiếp", async () => {
     fetchMock.mockRejectedValue(new Error("ECONNREFUSED"));
 
     const response = await middleware(requestFor("/me", await nearExpiry()));
 
+    expect(response.status).toBe(200);
+  });
+
+  it("token đã hết hạn và refresh thất bại: xóa cookie rồi về login", async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 401 }));
+    const cookie = await encryptSession({
+      accessToken: tokenExpiringIn(-1),
+      refreshToken: "expired-refresh",
+    });
+
+    const response = await middleware(requestFor("/me", cookie));
+
     expect(response.status).toBe(307);
+    expect(new URL(response.headers.get("location")!).pathname).toBe("/login");
+    expect(response.cookies.get(SESSION_COOKIE)?.value).toBe("");
   });
 });
 
