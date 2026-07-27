@@ -134,6 +134,24 @@ test.describe("Admin authentication boundaries", () => {
       .getByRole("textbox", { name: "Tìm kiếm tài khoản" })
       .fill(identity.email);
     await expect(page.getByText(identity.email, { exact: true })).toBeVisible();
+
+    await page
+      .getByRole("button", {
+        name: `Chỉnh sửa tài khoản ${identity.email}`,
+      })
+      .click();
+    const updatedUsername = `${identity.username}-edited`;
+    await page.locator("#edit-user-username").fill(updatedUsername);
+    const updateResponse = page.waitForResponse(
+      (response) =>
+        response.url().startsWith(`${API_URL}/users/`) &&
+        response.request().method() === "PUT",
+    );
+    await page.getByRole("button", { name: "Lưu thay đổi" }).click();
+    expect((await updateResponse).ok()).toBeTruthy();
+    await expect(
+      page.getByText(updatedUsername, { exact: true }),
+    ).toBeVisible();
   });
 
   test("creates, grants a permission to, and deletes a custom role", async ({

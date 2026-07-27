@@ -125,4 +125,32 @@ describe("useUsers", () => {
     expect(roleApi.getRoles).toHaveBeenCalledOnce();
     expect(result.current.roles).toEqual([{ id: "role-1", name: "USER" }]);
   });
+
+  it("invalidates user data after update, status change and delete", async () => {
+    userApi.update.mockResolvedValue({ id: "user-1" });
+    userApi.toggleStatus.mockResolvedValue({ id: "user-1" });
+    userApi.remove.mockResolvedValue(undefined);
+    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+    const { result } = renderHook(() => useUsers(), { wrapper });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    await act(async () => {
+      await result.current.updateUser({
+        id: "user-1",
+        email: "updated@example.com",
+        username: "updated",
+        roles: ["USER"],
+      });
+      await result.current.toggleStatus("user-1");
+      await result.current.deleteUser("user-1");
+    });
+
+    expect(userApi.update).toHaveBeenCalledOnce();
+    expect(userApi.toggleStatus.mock.calls[0]?.[0]).toBe("user-1");
+    expect(userApi.remove.mock.calls[0]?.[0]).toBe("user-1");
+    expect(invalidate).toHaveBeenCalledTimes(3);
+    expect(invalidate).toHaveBeenNthCalledWith(1, {
+      queryKey: userKeys.all,
+    });
+  });
 });

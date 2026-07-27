@@ -187,11 +187,15 @@ Query screen phải phân biệt bốn trạng thái: loading, error có retry, 
 
 `UserTable` đọc `q` và `page` từ query string rồi truyền chúng vào `useUsers`. Ô tìm kiếm giữ draft cục bộ trong lúc gõ, debounce 300 ms, sau đó cập nhật URL và đưa trang về 1. Vì URL là nguồn sự thật nên đường dẫn có thể bookmark, reload và dùng Back/Forward mà không mất ngữ cảnh danh sách.
 
+`UserTable.tsx` chỉ điều phối URL, capability và dialog. `UsersDataTable.tsx` trình bày loading/error/empty/data cùng row action; `UserSearchInput.tsx` sở hữu search draft và timer; `UserFormFields.tsx` là field set semantic dùng chung cho create/edit. Create và edit vẫn có submit handler riêng vì create bắt buộc password còn edit định danh user và không gửi password. Cách tách này loại markup trùng nhưng không trộn page state, server state và field state.
+
 `useUsers` là application hook của feature. Hook sở hữu query danh sách, mutation tạo/sửa/khóa/xóa và invalidation. Danh sách role chỉ được tải khi principal có quyền mở form tạo hoặc sửa; người dùng read-only không phát sinh request `/roles` trái quyền ở background. Lỗi tải role được hiển thị thành trạng thái retry trong form, không được biến âm thầm thành danh sách rỗng.
 
 Form tạo và sửa validate cùng các bất biến công khai của backend trước khi gửi: email hợp lệ, username dài 3–50 ký tự, mật khẩu tạo mới tối thiểu 6 ký tự và phải chọn role. Đây là lớp phản hồi sớm cho UX; backend vẫn là security/domain boundary cuối cùng. Avatar chỉ nhận JPG, PNG, WEBP hoặc GIF tối đa 5 MB, đồng bộ với giới hạn upload phía server.
 
 Các thao tác phá hủy hoặc đổi trạng thái phải chờ Promise mutation hoàn tất. `ConfirmDialog` giữ dialog mở, khóa nút trong lúc pending, chỉ đóng sau khi mutation và cache invalidation thành công; nếu thất bại dialog giữ nguyên ngữ cảnh để người dùng thử lại. Không được dùng mutation fire-and-forget cho flow cần xác nhận.
+
+Users mutations trả cả pending tổng và identity đang xử lý (`togglingUserId`, `deletingUserId`). Bảng dùng identity để thông báo đúng row; action xung đột vẫn bị khóa trong thời gian command chạy. Form create/edit chỉ đóng sau khi mutation cùng invalidation thành công. Lỗi mutation do hook thông báo, còn draft form được giữ nguyên để sửa hoặc thử lại.
 
 ### Flow quản lý vai trò và quyền
 
@@ -446,7 +450,7 @@ Vitest chạy trong jsdom, kèm Testing Library cho component test (setup ở `s
 12. `src/app/query-client.test.ts` — khóa retry policy: chỉ lỗi tạm thời được retry, có giới hạn; mutation không bao giờ tự phát lại.
 13. `src/routes/route-error-page.test.ts` — bảo đảm route boundary không rò thông điệp kỹ thuật hoặc dữ liệu nhạy cảm ra giao diện.
 
-`pnpm test` chạy kèm coverage và fail nếu tụt dưới sàn khai báo trong `vitest.config.ts` (hiện là 58% statements, 55% branches, 49% functions và 60% lines). Quy tắc ratchet: phủ thêm test thì nâng sàn lên theo, không bao giờ hạ sàn để cho qua.
+`pnpm test` chạy kèm coverage và fail nếu tụt dưới sàn khai báo trong `vitest.config.ts` (hiện là 62% statements, 61% branches, 53% functions và 63% lines). Quy tắc ratchet: phủ thêm test thì nâng sàn lên theo, không bao giờ hạ sàn để cho qua.
 
 Test mới nên đặt cạnh source khi test một unit hoặc module nhỏ. Integration test của một feature có thể đặt trong thư mục feature. Ưu tiên test behavior nhìn thấy từ public API thay vì private implementation.
 
