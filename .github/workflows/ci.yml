@@ -117,11 +117,86 @@ jobs:
       - name: Run backend E2E
         run: pnpm --filter=server test:e2e
 
+  admin-browser-e2e:
+    name: Admin browser E2E
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: admin_browser_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/admin_browser_e2e?schema=public
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6379
+      SEED_ADMIN_EMAIL: admin.e2e@example.com
+      SEED_ADMIN_PASSWORD: AdminE2EPassword123!
+      E2E_ADMIN_EMAIL: admin.e2e@example.com
+      E2E_ADMIN_PASSWORD: AdminE2EPassword123!
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter=@repo/database db:generate
+
+      - name: Build server workspace dependencies
+        run: pnpm turbo run build --filter=server^...
+
+      - name: Prepare browser test database
+        run: |
+          pnpm --filter=@repo/database db:deploy
+          pnpm --filter=@repo/database db:seed
+
+      - name: Install Chromium
+        run: pnpm --filter=admin exec playwright install --with-deps chromium
+
+      - name: Run Admin browser E2E
+        run: pnpm --filter=admin e2e
+
+      - name: Upload Playwright artifacts
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-playwright-report
+          path: |
+            apps/admin/playwright-report
+            apps/admin/test-results
+          if-no-files-found: ignore
+          retention-days: 7
+
   image:
     name: Build image, SBOM, vulnerability scan
     runs-on: ubuntu-latest
     # Chỉ publish khi code đã qua đủ quality gate và E2E
-    needs: [quality, e2e]
+    needs: [quality, e2e, admin-browser-e2e]
     permissions:
       contents: read
       packages: write

@@ -20,6 +20,8 @@
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo run check-types",
     "test": "turbo run test",
+    "e2e:admin:prepare": "node scripts/prepare-admin-e2e.mjs",
+    "e2e:admin": "pnpm e2e:admin:prepare && pnpm --filter=admin e2e",
     "prepare": "husky"
   },
   "devDependencies": {

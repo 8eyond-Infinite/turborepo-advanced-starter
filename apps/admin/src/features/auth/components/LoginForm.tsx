@@ -49,7 +49,7 @@ export const LoginForm = () => {
             <Shield className="h-5 w-5 text-primary" />
           </div>
           <CardTitle className="text-xl font-bold tracking-tight text-foreground">
-            Administrator Login
+            <h1>Administrator Login</h1>
           </CardTitle>
           <CardDescription className="text-sm text-muted-foreground text-center">
             Nhập tài khoản để tiếp tục vào trang quản trị

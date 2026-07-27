@@ -87,6 +87,13 @@ Sau đó:
 pnpm dev          # chạy cả 3 app
 ```
 
+Browser E2E của Admin chạy trên database dùng xong bỏ, không sửa dữ liệu development:
+
+```powershell
+pnpm --filter=admin exec playwright install chromium # lần đầu
+pnpm e2e:admin
+```
+
 ### Làm từng bước bằng tay (khi muốn hiểu bootstrap làm gì)
 
 ```powershell

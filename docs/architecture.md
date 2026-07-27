@@ -278,6 +278,8 @@ Feature khác chỉ được import qua `index.ts` công khai, không được i
 
 Realtime là một application boundary độc lập trong `src/app/realtime`: client adapter tạo Socket.IO connection và chỉ truyền access token qua handshake auth; event-handler adapter chuyển transport event thành logout, toast hoặc query invalidation; `RealtimeProvider` sở hữu vòng đời socket theo auth state và cập nhật credential khi HTTP client refresh token. Việc tách boundary khỏi `ProtectedRoute` giữ routing thuần về access control, đồng thời bảo đảm chỉ có một nơi mở, đăng ký listener và cleanup kết nối realtime.
 
+Kiến trúc này được kiểm tra ở hai tầng. Vitest cô lập store, route guard, client adapter và event handler để phản hồi nhanh. Playwright chạy Chromium với NestJS, Vite, PostgreSQL và Redis thật để kiểm tra các seam xuyên process: redirect chưa đăng nhập, HttpOnly refresh sau reload, RBAC route và `force_logout` đi từ user deactivation qua outbox/realtime gateway tới browser. Browser suite dùng database `admin_browser_e2e` có thể xóa bỏ, không dùng chung database development.
+
 Chi tiết đầy đủ nằm trong [Admin handbook](../apps/admin/README.md).
 
 ## 10. Next.js client architecture
