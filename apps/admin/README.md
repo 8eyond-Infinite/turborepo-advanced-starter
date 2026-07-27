@@ -197,6 +197,8 @@ Array trong semantic map mang nghĩa `any`: chỉ cần người dùng có ít n
 
 Kiểm tra permission ở frontend chỉ phục vụ trải nghiệm người dùng. Nó không phải hàng rào bảo mật; backend vẫn phải từ chối request trái quyền.
 
+Màn hình nghiệp vụ phải có integration test với ít nhất một principal read-only và các tổ hợp mutation permission quan trọng. Test query control bằng accessible name để đồng thời khóa permission visibility và khả năng sử dụng bằng assistive technology; icon-only action như sửa hoặc xóa bắt buộc có `aria-label`.
+
 ## 8. Realtime flow
 
 `hooks/useWebSocket.ts` tạo một Socket.IO client sau khi authenticated. Access token được gửi trong `auth` và query để tương thích gateway hiện tại.
@@ -378,7 +380,7 @@ Vitest chạy trong jsdom, kèm Testing Library cho component test (setup ở `s
 5. `src/routes/protected-route.test.tsx` — phân biệt đúng bootstrap pending, unauthenticated redirect và authenticated outlet.
 6. `src/app/auth-cache-boundary.test.ts` — bảo đảm cache server bị xóa khi principal đăng xuất nhưng không bị xóa bởi update auth state không liên quan.
 
-`pnpm test` chạy kèm coverage và fail nếu tụt dưới sàn khai báo trong `vitest.config.ts` (~18% hiện tại). Quy tắc ratchet: phủ thêm test thì nâng sàn lên theo, không bao giờ hạ sàn để cho qua.
+`pnpm test` chạy kèm coverage và fail nếu tụt dưới sàn khai báo trong `vitest.config.ts` (~25% hiện tại). Quy tắc ratchet: phủ thêm test thì nâng sàn lên theo, không bao giờ hạ sàn để cho qua.
 
 Test mới nên đặt cạnh source khi test một unit hoặc module nhỏ. Integration test của một feature có thể đặt trong thư mục feature. Ưu tiên test behavior nhìn thấy từ public API thay vì private implementation.
 
