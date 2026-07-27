@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const adminUrl = "http://127.0.0.1:5173";
-const apiUrl = "http://127.0.0.1:3001";
+const adminUrl = "http://127.0.0.1:5174";
+const apiUrl = "http://127.0.0.1:3101";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -33,7 +33,7 @@ export default defineConfig({
       timeout: 120_000,
     },
     {
-      command: "pnpm dev --host 127.0.0.1",
+      command: "pnpm dev --host 127.0.0.1 --port 5174",
       cwd: ".",
       env: {
         VITE_API_URL: apiUrl,

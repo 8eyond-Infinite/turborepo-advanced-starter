@@ -1,6 +1,6 @@
-import { lazy, Suspense } from "react";
 import { useDashboardStats } from "../hooks/useDashboardStats";
 import { useSystemHealth } from "../hooks/useSystemHealth";
+import { DashboardCharts } from "./DashboardCharts";
 import { useAuditLogs } from "@/features/audit";
 import { formatDistanceToNow } from "date-fns";
 import { vi } from "date-fns/locale";
@@ -20,25 +20,33 @@ import {
   XCircle,
   RefreshCw,
   Loader2,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { QueryErrorState } from "@/components";
 
-const DashboardCharts = lazy(() =>
-  import("./DashboardCharts").then((m) => ({ default: m.DashboardCharts })),
-);
+type InfrastructureStatus = "checking" | "up" | "down" | "unknown";
 
-// undefined = đang kiểm tra, true = up, false = down
-const InfraBadge = ({ up }: { up?: boolean }) => {
-  if (up === undefined) {
+const InfraBadge = ({ status }: { status: InfrastructureStatus }) => {
+  if (status === "checking") {
     return (
       <Badge variant="secondary" className="text-xs">
         Đang kiểm tra…
       </Badge>
     );
   }
-  return up ? (
+  if (status === "unknown") {
+    return (
+      <Badge
+        variant="outline"
+        className="flex items-center gap-1 border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+      >
+        <AlertTriangle className="h-3 w-3" /> Không xác định
+      </Badge>
+    );
+  }
+  return status === "up" ? (
     <Badge
       variant="outline"
       className="flex items-center gap-1 border-emerald-500/20 bg-emerald-500/10 text-emerald-500 dark:text-emerald-400"
@@ -56,20 +64,52 @@ const InfraBadge = ({ up }: { up?: boolean }) => {
 };
 
 export const DashboardOverview = () => {
-  const { stats, isLoading, isError, error, refetch, isFetching } =
-    useDashboardStats();
-  const { health } = useSystemHealth();
-  const { logs: auditLogs, isLoading: isAuditLoading } = useAuditLogs({
-    page: 1,
-    limit: 5,
-  });
+  const {
+    stats,
+    isLoading,
+    isError,
+    error,
+    refetch: refetchStats,
+    isFetching: isStatsFetching,
+  } = useDashboardStats();
+  const {
+    health,
+    isLoading: isHealthLoading,
+    isError: isHealthError,
+    refetch: refetchHealth,
+    isFetching: isHealthFetching,
+  } = useSystemHealth();
+  const {
+    logs: auditLogs,
+    isLoading: isAuditLoading,
+    isError: isAuditError,
+    error: auditError,
+    refetch: refetchAudit,
+    isFetching: isAuditFetching,
+  } = useAuditLogs({ page: 1, limit: 5 });
 
-  const databaseUp = health ? health.checks.database === "up" : undefined;
-  const redisUp = health ? health.checks.redis === "up" : undefined;
+  const getInfrastructureStatus = (
+    service: "database" | "redis",
+  ): InfrastructureStatus => {
+    if (isHealthLoading) return "checking";
+    if (isHealthError || !health) return "unknown";
+    return health.checks[service];
+  };
+
+  const databaseStatus = getInfrastructureStatus("database");
+  const redisStatus = getInfrastructureStatus("redis");
+  const isRefreshing = isStatsFetching || isHealthFetching || isAuditFetching;
+  const refreshDashboard = () => {
+    void Promise.all([refetchStats(), refetchHealth(), refetchAudit()]);
+  };
 
   if (isLoading) {
     return (
-      <div className="flex h-96 items-center justify-center gap-2 text-muted-foreground text-sm">
+      <div
+        className="flex h-96 items-center justify-center gap-2 text-sm text-muted-foreground"
+        role="status"
+        aria-label="Đang tải tổng quan hệ thống"
+      >
         <Loader2 className="h-5 w-5 animate-spin text-primary" />
         <span>Đang tải thông số hệ thống...</span>
       </div>
@@ -80,8 +120,8 @@ export const DashboardOverview = () => {
     return (
       <QueryErrorState
         error={error}
-        onRetry={() => void refetch()}
-        isRetrying={isFetching}
+        onRetry={() => void refetchStats()}
+        isRetrying={isStatsFetching}
         className="min-h-96"
         title="Không thể tải tổng quan hệ thống"
       />
@@ -103,13 +143,27 @@ export const DashboardOverview = () => {
     },
     {
       title: "Cơ sở dữ liệu (PostgreSQL)",
-      value: databaseUp === undefined ? "…" : databaseUp ? "Online" : "Offline",
+      value:
+        databaseStatus === "checking"
+          ? "…"
+          : databaseStatus === "up"
+            ? "Online"
+            : databaseStatus === "down"
+              ? "Offline"
+              : "Unknown",
       description: "Đo trực tiếp từ /health/ready, làm mới mỗi 30 giây",
       icon: Database,
     },
     {
       title: "Hạ tầng Redis Cache",
-      value: redisUp === undefined ? "…" : redisUp ? "Connected" : "Down",
+      value:
+        redisStatus === "checking"
+          ? "…"
+          : redisStatus === "up"
+            ? "Connected"
+            : redisStatus === "down"
+              ? "Down"
+              : "Unknown",
       description: "Đo trực tiếp từ /health/ready, làm mới mỗi 30 giây",
       icon: Cpu,
     },
@@ -120,25 +174,25 @@ export const DashboardOverview = () => {
       {/* Page Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-xl font-bold tracking-tight text-foreground">
+          <h1 className="text-xl font-bold tracking-tight text-foreground">
             Tổng quan hệ thống
-          </h2>
+          </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             Theo dõi hoạt động hạ tầng và người dùng thời gian thực
           </p>
         </div>
         <Button
-          onClick={() => refetch()}
-          disabled={isFetching}
+          onClick={refreshDashboard}
+          disabled={isRefreshing}
           title="Tải lại dữ liệu"
           variant="outline"
           size="sm"
           className="self-start sm:self-auto"
         >
           <RefreshCw
-            className={`h-4 w-4 mr-1.5 ${isFetching ? "animate-spin" : ""}`}
+            className={`mr-1.5 h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
           />
-          Tải lại
+          {isRefreshing ? "Đang tải lại" : "Tải lại"}
         </Button>
       </div>
 
@@ -170,15 +224,7 @@ export const DashboardOverview = () => {
         })}
       </div>
 
-      <Suspense
-        fallback={
-          <div className="flex h-72 items-center justify-center gap-2 rounded-xl border border-border/60 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" /> Đang tải biểu đồ…
-          </div>
-        }
-      >
-        <DashboardCharts stats={stats} />
-      </Suspense>
+      <DashboardCharts stats={stats} />
       {/* Detail Layout */}
       <div className="grid gap-6 md:grid-cols-2">
         {/* Tech Stack Stats */}
@@ -204,7 +250,7 @@ export const DashboardOverview = () => {
                   </p>
                 </div>
               </div>
-              <InfraBadge up={databaseUp} />
+              <InfraBadge status={databaseStatus} />
             </div>
 
             <div className="flex items-center justify-between p-4 rounded-xl border border-border bg-muted/10">
@@ -219,7 +265,7 @@ export const DashboardOverview = () => {
                   </p>
                 </div>
               </div>
-              <InfraBadge up={redisUp} />
+              <InfraBadge status={redisStatus} />
             </div>
           </CardContent>
         </Card>
@@ -236,10 +282,21 @@ export const DashboardOverview = () => {
           </CardHeader>
           <CardContent className="max-h-72 overflow-y-auto space-y-4">
             {isAuditLoading ? (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <div
+                className="flex items-center gap-2 text-xs text-muted-foreground"
+                role="status"
+              >
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 Đang tải nhật ký…
               </div>
+            ) : isAuditError ? (
+              <QueryErrorState
+                error={auditError}
+                onRetry={() => void refetchAudit()}
+                isRetrying={isAuditFetching}
+                title="Không thể tải nhật ký gần đây"
+                className="min-h-52"
+              />
             ) : auditLogs.length === 0 ? (
               <p className="text-xs text-muted-foreground">
                 Chưa có hoạt động quản trị nào được ghi nhận.

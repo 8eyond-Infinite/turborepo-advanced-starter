@@ -5,7 +5,7 @@ import {
   type Page,
 } from "@playwright/test";
 
-const API_URL = "http://127.0.0.1:3001";
+const API_URL = "http://127.0.0.1:3101";
 const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? "admin.e2e@example.com";
 const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? "AdminE2EPassword123!";
 

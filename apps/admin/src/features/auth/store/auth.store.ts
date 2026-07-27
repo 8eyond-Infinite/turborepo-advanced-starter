@@ -134,8 +134,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         {},
         { skipAuth: true, skipRefresh: true },
       );
-    } catch (error) {
-      console.error("[AuthStore Single Logout Error]", error);
+    } catch {
+      // Logout là best effort: session có thể đã bị server thu hồi trước
+      // (force logout/deactivate). Local cleanup bên dưới vẫn phải hoàn tất.
     } finally {
       get().clearAuth();
     }
