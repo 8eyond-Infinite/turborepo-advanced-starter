@@ -136,6 +136,68 @@ test.describe("Admin authentication boundaries", () => {
     await expect(page.getByText(identity.email, { exact: true })).toBeVisible();
   });
 
+  test("creates, grants a permission to, and deletes a custom role", async ({
+    page,
+  }) => {
+    const roleName = `E2E_${Date.now()}`;
+    await loginInBrowser(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await page.goto("/roles");
+
+    await page.getByRole("button", { name: "Thêm vai trò mới" }).click();
+    await page.locator("#role-name").fill(roleName);
+    await page
+      .locator("#role-description")
+      .fill("Role managed by the browser acceptance test");
+
+    const createResponse = page.waitForResponse(
+      (response) =>
+        response.url() === `${API_URL}/roles` &&
+        response.request().method() === "POST",
+    );
+    await page.getByRole("button", { name: "Tạo vai trò" }).click();
+    expect((await createResponse).ok()).toBeTruthy();
+    await expect(page.getByText(roleName, { exact: true })).toBeVisible();
+
+    const permissionCheckbox = page
+      .getByRole("checkbox", {
+        name: new RegExp(`Cấp quyền .+ cho vai trò ${roleName}`),
+      })
+      .first();
+    const grantLabel = await permissionCheckbox.getAttribute("aria-label");
+    expect(grantLabel).toBeTruthy();
+    const updateResponse = page.waitForResponse(
+      (response) =>
+        response.url().includes("/roles/") &&
+        response.url().endsWith("/permissions") &&
+        response.request().method() === "PUT",
+    );
+    await permissionCheckbox.click();
+    expect((await updateResponse).ok()).toBeTruthy();
+    await expect(
+      page.getByRole("checkbox", {
+        name: grantLabel!.replace(/^Cấp quyền/, "Thu hồi quyền"),
+        exact: true,
+      }),
+    ).toBeChecked();
+
+    const deleteTrigger = page.getByRole("button", {
+      name: `Xóa vai trò ${roleName}`,
+    });
+    await deleteTrigger.hover();
+    await deleteTrigger.click();
+    const deleteResponse = page.waitForResponse(
+      (response) =>
+        response.url().includes("/roles/") &&
+        response.request().method() === "DELETE",
+    );
+    await page.getByRole("button", { name: "Xác nhận xóa" }).click();
+    expect((await deleteResponse).ok()).toBeTruthy();
+    await expect(page.getByRole("alertdialog")).not.toBeVisible();
+    await expect(
+      page.getByRole("button", { name: `Xóa vai trò ${roleName}` }),
+    ).not.toBeVisible();
+  });
+
   test("deactivating a connected user forces logout through realtime", async ({
     page,
     request,

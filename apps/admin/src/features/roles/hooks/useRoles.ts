@@ -1,16 +1,15 @@
-import { useState } from "react";
+import { useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { getFriendlyErrorMessage } from "@/lib/error-handler";
 import { roleApi } from "../api/role.api";
 import { roleKeys } from "../api/role.keys";
 import { isSystemRole } from "@repo/contracts";
+import type { CreateRoleInput } from "../api/role.api";
 
 export const useRoles = () => {
   const queryClient = useQueryClient();
-  const [newRoleName, setNewRoleName] = useState("");
-  const [newRoleDesc, setNewRoleDesc] = useState("");
-  const [isAdding, setIsAdding] = useState(false);
+  const permissionMutationLock = useRef(false);
 
   const rolesQuery = useQuery({
     queryKey: roleKeys.list(),
@@ -31,9 +30,6 @@ export const useRoles = () => {
     mutationFn: roleApi.create,
     onSuccess: async (newRole) => {
       await queryClient.invalidateQueries({ queryKey: roleKeys.all });
-      setNewRoleName("");
-      setNewRoleDesc("");
-      setIsAdding(false);
       toast.success(`Đã tạo vai trò "${newRole.name}" thành công!`);
     },
     onError: (error: unknown) => {
@@ -41,13 +37,8 @@ export const useRoles = () => {
     },
   });
 
-  const createRole = () => {
-    if (!newRoleName.trim()) return;
-    createRoleMutation.mutate({
-      name: newRoleName.trim(),
-      description: newRoleDesc.trim() || undefined,
-    });
-  };
+  const createRole = (input: CreateRoleInput) =>
+    createRoleMutation.mutateAsync(input);
 
   const deleteRoleMutation = useMutation({
     mutationFn: roleApi.remove,
@@ -60,12 +51,12 @@ export const useRoles = () => {
     },
   });
 
-  const deleteRole = (roleId: string, roleName: string) => {
+  const deleteRole = async (roleId: string, roleName: string) => {
     if (isSystemRole(roleName)) {
       toast.error(`Không thể xóa vai trò mặc định "${roleName}"!`);
       return;
     }
-    deleteRoleMutation.mutate(roleId);
+    await deleteRoleMutation.mutateAsync(roleId);
   };
 
   const updatePermissionsMutation = useMutation({
@@ -81,7 +72,12 @@ export const useRoles = () => {
     },
   });
 
-  const toggleRolePermission = (roleId: string, permissionName: string) => {
+  const toggleRolePermission = async (
+    roleId: string,
+    permissionName: string,
+  ) => {
+    if (permissionMutationLock.current) return;
+
     const role = roles.find((r) => r.id === roleId);
     if (!role) return;
 
@@ -90,18 +86,20 @@ export const useRoles = () => {
       ? role.permissions.filter((p) => p !== permissionName)
       : [...role.permissions, permissionName];
 
-    updatePermissionsMutation.mutate({ roleId, permissions: newPermissions });
+    permissionMutationLock.current = true;
+    try {
+      await updatePermissionsMutation.mutateAsync({
+        roleId,
+        permissions: newPermissions,
+      });
+    } finally {
+      permissionMutationLock.current = false;
+    }
   };
 
   return {
     roles,
     systemPermissions,
-    newRoleName,
-    setNewRoleName,
-    newRoleDesc,
-    setNewRoleDesc,
-    isAdding,
-    setIsAdding,
     createRole,
     deleteRole,
     toggleRolePermission,

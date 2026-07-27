@@ -191,6 +191,16 @@ Form tạo và sửa validate cùng các bất biến công khai của backend t
 
 Các thao tác phá hủy hoặc đổi trạng thái phải chờ Promise mutation hoàn tất. `ConfirmDialog` giữ dialog mở, khóa nút trong lúc pending, chỉ đóng sau khi mutation và cache invalidation thành công; nếu thất bại dialog giữ nguyên ngữ cảnh để người dùng thử lại. Không được dùng mutation fire-and-forget cho flow cần xác nhận.
 
+### Flow quản lý vai trò và quyền
+
+Màn hình Roles ghép hai server query độc lập: danh sách role và catalog permission. Chỉ khi cả hai nguồn thành công mới có thể dựng ma trận chính xác; lỗi của một nguồn đưa màn hình về error state có retry cả hai. Permission được nhóm theo `module` để người vận hành đọc ma trận theo bounded capability thay vì một danh sách phẳng.
+
+Form tạo role là UI state của `RolesManagement`; `useRoles` chỉ nhận command đã chuẩn hóa và quản lý mutation/cache. Form phản chiếu constraint backend: tên dài 2–50 ký tự, mô tả tối đa 255 ký tự. Hai role hệ thống `ADMIN` và `USER` không bao giờ hiển thị thao tác xóa; backend vẫn kiểm tra lại invariant này.
+
+Thay đổi checkbox là replace operation: API nhận toàn bộ tập permission mới của role, không phải một delta đơn lẻ. Vì mỗi tập mới được tính từ snapshot hiện tại, các update song song có thể ghi đè lẫn nhau. Frontend vì vậy dùng mutation lock và khóa ma trận cho tới khi request cùng cache refetch hoàn tất. Đây là quy tắc concurrency bắt buộc cho mọi UI thực hiện read-modify-write trên một collection.
+
+Nhóm permission được đóng/mở bằng `button` có `aria-expanded`, dùng được bằng bàn phím. Ma trận nằm trong vùng cuộn ngang để số lượng role tăng lên không làm cắt mất cột hoặc phá layout.
+
 ## 7. Permission model
 
 Permission được kiểm tra ở ba cấp:
