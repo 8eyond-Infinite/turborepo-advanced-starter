@@ -18,10 +18,10 @@ export default defineConfig({
       // Sàn hiện tại (thực đo ~13%) — chỉ nâng dần khi phủ thêm test,
       // không bao giờ hạ xuống.
       thresholds: {
-        statements: 12,
-        branches: 11,
-        functions: 11,
-        lines: 12,
+        statements: 15,
+        branches: 13,
+        functions: 14,
+        lines: 15,
       },
     },
   },

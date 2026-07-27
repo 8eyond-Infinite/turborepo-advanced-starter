@@ -115,6 +115,8 @@ Authentication state thuộc `features/auth/store/auth.store.ts`. Zustand store 
 
 `LoginForm` gọi `authStore.login()`. Store gửi credentials tới `/auth/login`, lưu token pair, sau đó gọi `/users/me`. Chỉ khi lấy được user thành công store mới chuyển sang authenticated.
 
+Login là một transition nguyên khối ở phía client: nếu `/auth/login` thành công nhưng `/users/me` thất bại, store xóa access token, giữ trạng thái unauthenticated và gọi `/auth/logout` theo best effort để thu hồi refresh session vừa tạo. Lỗi profile ban đầu vẫn được trả về UI; lỗi cleanup không được phép che mất nguyên nhân chính.
+
 ### Khôi phục phiên sau reload
 
 Access token biến mất khi reload vì nó chỉ nằm trong memory. `initialize()` đọc refresh token, gọi `/auth/refresh` để đổi lấy cặp token mới (rotate), rồi tải `/users/me`. Nếu bất kỳ bước nào thất bại, local token bị xóa và ứng dụng trở về trạng thái chưa đăng nhập.
@@ -155,6 +157,8 @@ Refresh token nằm trong cookie `HttpOnly` (`Secure` ở production, `SameSite=
 ## 6. Server state và UI state
 
 TanStack Query sở hữu dữ liệu đến từ server: users, roles, permissions, sessions, audit logs, dashboard stats và notifications. Zustand chỉ sở hữu authentication state có phạm vi toàn ứng dụng. State ngắn hạn như modal đang mở, search input và current page nằm trong component.
+
+Cache server được xem là dữ liệu thuộc về principal đang đăng nhập, không phải cache dùng chung cho cả tab. `app/auth-cache-boundary.ts` theo dõi transition từ authenticated sang unauthenticated và gọi `QueryClient.clear()`. Vì vậy logout, force logout hoặc refresh token hết hạn đều loại bỏ dữ liệu của phiên cũ trước khi một tài khoản khác đăng nhập trong cùng tab.
 
 Quy tắc ownership:
 
@@ -363,13 +367,16 @@ Navigation phải dùng cùng permission với route — nếu không sẽ hiệ
 
 ## 11. Testing
 
-Vitest chạy trong jsdom, kèm Testing Library cho component test (setup ở `src/test/setup.ts`). Ba nhóm test hiện có:
+Vitest chạy trong jsdom, kèm Testing Library cho component test (setup ở `src/test/setup.ts`). Các nhóm test nền tảng hiện có:
 
 1. `src/lib/api-client.test.ts` — khóa chặt hành vi refresh: hai request 401 đồng thời chỉ tạo một refresh request; refresh thất bại phải xóa session và phát logout; retry vẫn 401 không được refresh lặp vô hạn.
 2. `src/hooks/usePermission.test.tsx` — render `<Can>` với các tổ hợp quyền: có quyền thì hiện, thiếu thì hiện fallback, `all`/`any` đúng ngữ nghĩa, và hành vi fail-open khi route không khai báo permission.
 3. `src/features/auth/components/LoginForm.test.tsx` — submit gọi `login` đúng credentials và điều hướng khi thành công; lỗi hiển thị thông báo thân thiện và ở lại trang; nút ẩn/hiện mật khẩu có accessible name.
+4. `src/features/auth/store/auth.store.test.ts` — khóa transition login, rollback/revoke khi profile không tải được và local cleanup khi logout gặp lỗi mạng.
+5. `src/routes/protected-route.test.tsx` — phân biệt đúng bootstrap pending, unauthenticated redirect và authenticated outlet.
+6. `src/app/auth-cache-boundary.test.ts` — bảo đảm cache server bị xóa khi principal đăng xuất nhưng không bị xóa bởi update auth state không liên quan.
 
-`pnpm test` chạy kèm coverage và fail nếu tụt dưới sàn khai báo trong `vitest.config.ts` (~13% hiện tại). Quy tắc ratchet: phủ thêm test thì nâng sàn lên theo, không bao giờ hạ sàn để cho qua.
+`pnpm test` chạy kèm coverage và fail nếu tụt dưới sàn khai báo trong `vitest.config.ts` (~16% hiện tại). Quy tắc ratchet: phủ thêm test thì nâng sàn lên theo, không bao giờ hạ sàn để cho qua.
 
 Test mới nên đặt cạnh source khi test một unit hoặc module nhỏ. Integration test của một feature có thể đặt trong thư mục feature. Ưu tiên test behavior nhìn thấy từ public API thay vì private implementation.
 
@@ -396,6 +403,6 @@ Dashboard lấy trạng thái hạ tầng thật từ `/health/ready` (làm mớ
 
 Vendor đã được tách theo nhịp thay đổi (`react-vendor`, `data-vendor`, `i18n-vendor`, `realtime-vendor`) để deploy code ứng dụng không làm hỏng cache của thư viện. Muốn đo lại trước khi chỉnh tiếp: `ANALYZE=1 pnpm --filter=admin build` rồi mở `dist/stats.html`. Ngưỡng cảnh báo kích thước chunk đặt ở 350 kB để chunk phình lên là biết ngay.
 
-Authentication nên được nâng cấp sang HttpOnly refresh cookie như đã nêu. Khi thực hiện, cần viết migration note và test cả CSRF/CORS/cookie behavior.
+Authentication đã dùng HttpOnly refresh cookie, access token trong memory, single-flight refresh và rollback cho login dở dang. Phần cần bổ sung tiếp theo là browser-level test cho CORS/cookie behavior trên topology triển khai thật.
 
-Test suite hiện bảo vệ API client, bộ kiểm tra permission và tính nhất quán của cache key, nhưng chưa bao phủ ba nhóm: guard chặn route, việc ẩn/hiện UI theo permission và các mutation của feature. Đây là ba nhóm integration test nên được bổ sung tiếp theo.
+Test suite đã bảo vệ API client, auth store, route guard, permission evaluator, cache boundary và tính nhất quán của query key. Khoảng trống ưu tiên tiếp theo là permission visibility trên màn hình thật và mutation/invalidation của từng feature.
