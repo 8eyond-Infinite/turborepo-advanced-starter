@@ -33,6 +33,7 @@ import { useRoles } from "../hooks/useRoles";
 import { Can, usePermissions } from "@/hooks/usePermission";
 import { isSystemRole, PERMISSIONS } from "@repo/contracts";
 import type { PermissionRecord } from "@repo/types";
+import { validateRoleForm, type RoleFormErrors } from "./role-form.validation";
 
 const groupPermissions = (perms: PermissionRecord[]) => {
   const groups: Record<string, PermissionRecord[]> = {};
@@ -59,12 +60,6 @@ export const RolesManagement = () => {
   const {
     roles,
     systemPermissions,
-    newRoleName,
-    setNewRoleName,
-    newRoleDesc,
-    setNewRoleDesc,
-    isAdding,
-    setIsAdding,
     createRole,
     deleteRole,
     toggleRolePermission,
@@ -74,6 +69,8 @@ export const RolesManagement = () => {
     refetch,
     isFetching,
     isSaving,
+    isCreating,
+    isDeleting,
   } = useRoles();
 
   const access = usePermissions({
@@ -85,6 +82,10 @@ export const RolesManagement = () => {
   const [collapsedCategories, setCollapsedCategories] = useState<
     Record<string, boolean>
   >({});
+  const [isAdding, setIsAdding] = useState(false);
+  const [newRoleName, setNewRoleName] = useState("");
+  const [newRoleDesc, setNewRoleDesc] = useState("");
+  const [formErrors, setFormErrors] = useState<RoleFormErrors>({});
 
   const toggleCategory = (categoryKey: string) => {
     setCollapsedCategories((prev) => ({
@@ -93,9 +94,27 @@ export const RolesManagement = () => {
     }));
   };
 
-  const handleCreateRoleSubmit = (e: React.FormEvent) => {
+  const handleCreateRoleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    createRole();
+    const nextErrors = validateRoleForm({
+      name: newRoleName,
+      description: newRoleDesc,
+    });
+    setFormErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
+
+    try {
+      await createRole({
+        name: newRoleName.trim(),
+        description: newRoleDesc.trim() || undefined,
+      });
+      setNewRoleName("");
+      setNewRoleDesc("");
+      setFormErrors({});
+      setIsAdding(false);
+    } catch {
+      // The mutation hook owns the domain error toast.
+    }
   };
 
   if (isLoading) {
@@ -155,7 +174,11 @@ export const RolesManagement = () => {
                 trực tiếp trên bảng ma trận.
               </CardDescription>
             </CardHeader>
-            <form onSubmit={handleCreateRoleSubmit} className="space-y-3.5">
+            <form
+              onSubmit={handleCreateRoleSubmit}
+              className="space-y-3.5"
+              noValidate
+            >
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <label
@@ -170,8 +193,19 @@ export const RolesManagement = () => {
                     onChange={(e) => setNewRoleName(e.target.value)}
                     placeholder="Ví dụ: Moderator, Support..."
                     className="mt-1 bg-transparent border-input"
-                    required
+                    aria-invalid={Boolean(formErrors.name)}
+                    aria-describedby={
+                      formErrors.name ? "role-name-error" : undefined
+                    }
                   />
+                  {formErrors.name && (
+                    <p
+                      id="role-name-error"
+                      className="mt-1 text-xs text-destructive"
+                    >
+                      {formErrors.name}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label
@@ -186,7 +220,21 @@ export const RolesManagement = () => {
                     onChange={(e) => setNewRoleDesc(e.target.value)}
                     placeholder="Ví dụ: Hỗ trợ duyệt bài viết..."
                     className="mt-1 bg-transparent border-input"
+                    aria-invalid={Boolean(formErrors.description)}
+                    aria-describedby={
+                      formErrors.description
+                        ? "role-description-error"
+                        : undefined
+                    }
                   />
+                  {formErrors.description && (
+                    <p
+                      id="role-description-error"
+                      className="mt-1 text-xs text-destructive"
+                    >
+                      {formErrors.description}
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="flex gap-2 justify-end pt-2 border-t border-border">
@@ -195,12 +243,25 @@ export const RolesManagement = () => {
                   onClick={() => setIsAdding(false)}
                   variant="ghost"
                   size="sm"
+                  disabled={isCreating}
                   className="cursor-pointer"
                 >
                   Hủy
                 </Button>
-                <Button type="submit" size="sm" className="cursor-pointer">
-                  Tạo vai trò
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={isCreating}
+                  className="cursor-pointer"
+                >
+                  {isCreating ? (
+                    <>
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                      Đang tạo...
+                    </>
+                  ) : (
+                    "Tạo vai trò"
+                  )}
                 </Button>
               </div>
             </form>
@@ -218,7 +279,7 @@ export const RolesManagement = () => {
             checkbox để lập tức cấp hoặc thu hồi quyền hạn.
           </CardDescription>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent className="p-0 overflow-x-auto">
           <Table>
             <TableHeader className="bg-muted/5">
               <TableRow>
@@ -249,6 +310,7 @@ export const RolesManagement = () => {
                                 variant="ghost"
                                 size="icon"
                                 className="h-6 w-6 mt-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
+                                disabled={isDeleting}
                                 aria-label={`Xóa vai trò ${role.name}`}
                                 title={`Xóa vai trò ${role.name}`}
                               >
@@ -264,6 +326,7 @@ export const RolesManagement = () => {
                               </span>
                             }
                             confirmText="Xác nhận xóa"
+                            pendingText="Đang xóa..."
                             variant="destructive"
                             onConfirm={() => deleteRole(role.id, role.name)}
                           />
@@ -290,15 +353,14 @@ export const RolesManagement = () => {
                   return (
                     <React.Fragment key={group.category}>
                       {/* Collapsible Category Header Row */}
-                      <TableRow
-                        onClick={() => toggleCategory(group.category)}
-                        className="bg-muted/15 hover:bg-muted/25 transition-colors cursor-pointer border-y border-border select-none group"
-                      >
-                        <TableCell
-                          colSpan={roles.length + 1}
-                          className="py-3 pl-6 pr-4"
-                        >
-                          <div className="flex items-center gap-2.5">
+                      <TableRow className="bg-muted/15 hover:bg-muted/25 transition-colors border-y border-border select-none group">
+                        <TableCell colSpan={roles.length + 1} className="p-0">
+                          <button
+                            type="button"
+                            aria-expanded={!isCollapsed}
+                            onClick={() => toggleCategory(group.category)}
+                            className="flex w-full items-center gap-2.5 py-3 pl-6 pr-4 text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                          >
                             <div className="flex items-center justify-center h-5 w-5 rounded bg-muted/30 text-muted-foreground group-hover:text-foreground transition-colors">
                               {isCollapsed ? (
                                 <ChevronRight className="h-4 w-4" />
@@ -319,7 +381,7 @@ export const RolesManagement = () => {
                             <span className="text-[11px] font-medium text-muted-foreground bg-muted/40 px-2 py-0.5 rounded-full">
                               {group.permissions.length} quyền
                             </span>
-                          </div>
+                          </button>
                         </TableCell>
                       </TableRow>
                       {!isCollapsed &&
@@ -355,10 +417,14 @@ export const RolesManagement = () => {
                                       checked={isChecked}
                                       aria-label={`${isChecked ? "Thu hồi" : "Cấp"} quyền ${perm.name} cho vai trò ${role.name}`}
                                       disabled={
-                                        !access.canManageRolePermissions
+                                        !access.canManageRolePermissions ||
+                                        isSaving
                                       }
                                       onCheckedChange={() =>
-                                        toggleRolePermission(role.id, perm.id)
+                                        void toggleRolePermission(
+                                          role.id,
+                                          perm.id,
+                                        )
                                       }
                                     />
                                   </div>
