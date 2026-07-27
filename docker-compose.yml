@@ -36,13 +36,18 @@ services:
     working_dir: /app
     volumes:
       - .:/app:delegated
-      - /app/node_modules
-      - /app/apps/server/node_modules
-      - /app/apps/client/node_modules
-      - /app/apps/admin/node_modules
-      - /app/packages/database/node_modules
-      - /app/packages/eslint-config/node_modules
-      - /app/packages/typescript-config/node_modules
+      # Keep Linux dependencies outside the Windows bind mount. Named volumes
+      # are reused when the container is recreated; anonymous volumes here
+      # would accumulate several GB on every recreate.
+      - root_node_modules:/app/node_modules
+      - server_node_modules:/app/apps/server/node_modules
+      - client_node_modules:/app/apps/client/node_modules
+      - admin_node_modules:/app/apps/admin/node_modules
+      - contracts_node_modules:/app/packages/contracts/node_modules
+      - database_node_modules:/app/packages/database/node_modules
+      - eslint_config_node_modules:/app/packages/eslint-config/node_modules
+      - types_node_modules:/app/packages/types/node_modules
+      - typescript_config_node_modules:/app/packages/typescript-config/node_modules
     command: sh -c "corepack enable pnpm && pnpm install && npx prisma generate --schema=packages/database/prisma/schema.prisma && cd apps/server && pnpm run dev"
     ports:
       - '3002:3002'
@@ -68,3 +73,12 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  root_node_modules:
+  server_node_modules:
+  client_node_modules:
+  admin_node_modules:
+  contracts_node_modules:
+  database_node_modules:
+  eslint_config_node_modules:
+  types_node_modules:
+  typescript_config_node_modules:

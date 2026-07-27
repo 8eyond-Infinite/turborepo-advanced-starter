@@ -200,25 +200,26 @@ prisma migrate deploy
 
 Nên chạy lệnh này như một bước riêng trong đợt phát hành (release job), trước khi triển khai bản ứng dụng mới. Không để mọi bản sao API (replica) tự chạy migration lúc khởi động — nhiều bản cùng chạy sẽ giẫm lên nhau.
 
-## 6. Vấn đề Docker Compose hiện tại
+## 6. Chiến lược volume của Docker Compose
 
-Service `api` đang:
+Workflow mặc định vẫn là chạy application trên host và chỉ chạy Postgres, Redis, Maildev bằng Docker. Service `api` là workflow tùy chọn, nằm sau profile `container-dev`.
 
-- bind mount toàn repository vào `/app`;
-- chạy `pnpm install` mỗi lần start;
-- tạo anonymous volume cho một số `node_modules`;
-- thiếu volume cho `packages/types` và `packages/contracts`;
-- chạy watch mode;
-- chưa được đặt trong profile.
+`api` bind mount repository vào `/app` để watch source code. Dependency Linux không được ghi vào bind mount của Windows: mỗi thư mục `node_modules` được che bởi một **named volume** ổn định. Compose tái sử dụng các volume này khi recreate container thay vì sinh anonymous volume mới.
 
-Trên Windows, container đã tạo Linux reparse/symlink trong:
+Các mount được quản lý gồm root workspace, ba app và năm shared package:
 
 ```text
-packages/types/node_modules
-packages/contracts/node_modules
+/app/node_modules
+/app/apps/{server,client,admin}/node_modules
+/app/packages/{contracts,database,eslint-config,types,typescript-config}/node_modules
 ```
 
-Sau đó `pnpm install` trên host gặp lỗi `EACCES`, bước build của package không tìm được `@repo/typescript-config/base.json`, và Turbo hủy toàn bộ chuỗi task đang chạy.
+Việc che đủ mọi `node_modules` có hai mục đích:
+
+1. pnpm trong container không tạo symlink Linux vào filesystem Windows;
+2. recreate `starter-api-dev` không để lại thêm nhiều GB anonymous volume.
+
+Named volume là cache dependency, không phải dữ liệu nghiệp vụ. `postgres_data` và `redis_data` mới là volume hạ tầng có dữ liệu cần bảo vệ.
 
 ### Khôi phục workspace bị lỗi
 
@@ -238,27 +239,9 @@ pnpm install --frozen-lockfile
 
 Nếu file đang bị khóa, đóng IDE/terminal/container giữ handle rồi thử lại. Không xóa root hoặc dùng biến/glob không kiểm tra.
 
-## 7. Compose mục tiêu
+## 7. Vận hành và kiểm soát dung lượng Compose
 
 Compose mặc định chỉ chứa infrastructure. Application container nằm trong profile `container-dev`.
-
-```yaml
-services:
-  postgres:
-    image: postgres:16-alpine
-
-  redis:
-    image: redis:7-alpine
-
-  maildev:
-    image: maildev/maildev:2.1.0
-
-  api:
-    profiles: ['container-dev']
-    build:
-      context: .
-      dockerfile: apps/server/Dockerfile.dev
-```
 
 Host workflow:
 
@@ -273,7 +256,22 @@ Container-dev workflow:
 docker compose --profile container-dev up api
 ```
 
-Khi dùng bind mount, khai báo named volume cho mọi thư mục `node_modules` trong workspace, bao gồm cả `contracts` và `types`. Trong lúc container-dev đang là bên sở hữu cây dependency, không chạy pnpm trên host vào cùng workspace đó.
+Không chạy đồng thời pnpm trên host và `api` container vào cùng workspace. Hai workflow có dependency tree riêng và chỉ chia sẻ source code.
+
+Kiểm tra dung lượng định kỳ:
+
+```bash
+docker system df
+docker system df -v
+```
+
+`docker compose down` xóa container và network của project nhưng giữ mọi named volume. Không thêm `--volumes` nếu muốn giữ database local.
+
+Khi cần reset riêng cache dependency của container-dev, dừng và xóa container trước, sau đó chỉ xóa các named volume có hậu tố `_node_modules`. Không xóa `turborepo-advanced-starter_postgres_data` hoặc `turborepo-advanced-starter_redis_data`.
+
+`docker volume prune` tác động đến mọi unused volume trên máy, kể cả volume của repository khác. Chỉ dùng sau khi đã xem `docker system df -v` và xác nhận dữ liệu không còn cần thiết. Tương tự, build cache có thể dọn bằng `docker builder prune`; lần build kế tiếp sẽ chậm hơn vì phải dựng lại layer.
+
+Trên Docker Desktop/WSL2, file virtual disk có thể chưa co lại ngay sau cleanup dù Docker đã báo dung lượng được giải phóng. Hãy kiểm tra số liệu trong `docker system df` trước; việc compact virtual disk là bước riêng của Docker Desktop/WSL, không phải lý do để xóa thêm volume.
 
 Nếu team muốn full-container development thường xuyên trên Windows, đặt repository trong WSL2 filesystem thay vì ổ `D:` bind mount sang Linux.
 
