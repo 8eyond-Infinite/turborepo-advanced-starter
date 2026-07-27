@@ -257,6 +257,30 @@ test.describe("Admin authentication boundaries", () => {
     await expect(page.getByText(new RegExp(roleName))).toBeVisible();
   });
 
+  test("keeps the shared shell usable on a mobile viewport", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await loginInBrowser(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await page.goto("/audit-logs");
+
+    await expect(
+      page.getByText("Nhật ký hoạt động", { exact: true }).last(),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Mở danh sách thông báo" }).click();
+    await expect(
+      page.getByRole("heading", { name: "Thông báo" }),
+    ).toBeVisible();
+
+    const layoutWidth = await page.evaluate(() => ({
+      scrollWidth: document.documentElement.scrollWidth,
+      clientWidth: document.documentElement.clientWidth,
+    }));
+    expect(layoutWidth.scrollWidth).toBeLessThanOrEqual(
+      layoutWidth.clientWidth,
+    );
+  });
+
   test("deactivating a connected user forces logout through realtime", async ({
     page,
     request,

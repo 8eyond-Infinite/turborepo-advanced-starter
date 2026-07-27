@@ -4,6 +4,7 @@ import { ApiClient } from "@/lib/api-client";
 export interface NotificationListResponse {
   items: Notification[];
   total: number;
+  unreadCount: number;
   page: number;
   limit: number;
 }

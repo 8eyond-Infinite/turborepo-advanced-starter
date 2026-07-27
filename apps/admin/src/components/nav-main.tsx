@@ -40,7 +40,9 @@ export function NavMain({
         {items.map((item) => {
           // Check if any sub-item is active to open the collapsible menu by default
           const hasActiveSubItem = item.items?.some(
-            (sub) => location.pathname === sub.url,
+            (sub) =>
+              location.pathname === sub.url ||
+              (sub.url !== "/" && location.pathname.startsWith(`${sub.url}/`)),
           );
 
           return (
@@ -61,7 +63,10 @@ export function NavMain({
                 <CollapsibleContent>
                   <SidebarMenuSub>
                     {item.items?.map((subItem) => {
-                      const isSubActive = location.pathname === subItem.url;
+                      const isSubActive =
+                        location.pathname === subItem.url ||
+                        (subItem.url !== "/" &&
+                          location.pathname.startsWith(`${subItem.url}/`));
 
                       return (
                         <SidebarMenuSubItem key={subItem.title}>

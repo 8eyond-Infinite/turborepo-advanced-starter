@@ -20,6 +20,7 @@ export interface NotificationItem {
 export interface NotificationPage {
   items: NotificationItem[];
   total: number;
+  unreadCount: number;
   page: number;
   limit: number;
 }
@@ -45,10 +46,11 @@ export class GetNotificationsHandler implements IQueryHandler<
     );
 
     try {
-      const { items, total } = await this.notificationRepository.findByUserId(
-        userId,
-        { page, limit },
-      );
+      const { items, total, unreadCount } =
+        await this.notificationRepository.findByUserId(userId, {
+          page,
+          limit,
+        });
 
       const formattedItems = items.map((n) => ({
         id: n.id,
@@ -63,6 +65,7 @@ export class GetNotificationsHandler implements IQueryHandler<
       return Result.ok({
         items: formattedItems,
         total,
+        unreadCount,
         page,
         limit,
       });

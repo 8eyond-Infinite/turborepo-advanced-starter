@@ -1,16 +1,5 @@
-import React from "react";
 import { useNotifications } from "@/features/notifications";
-import {
-  Bell,
-  Check,
-  CheckCheck,
-  Info,
-  AlertTriangle,
-  AlertCircle,
-  CheckCircle,
-} from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
-import { vi } from "date-fns/locale/vi";
+import { Bell, CheckCheck } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -18,8 +7,9 @@ import {
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { getFriendlyErrorMessage } from "@/lib/error-handler";
+import { NotificationItemButton } from "./NotificationItemButton";
 
-export const NotificationBell: React.FC = () => {
+export const NotificationBell = () => {
   const {
     notifications,
     unreadCount,
@@ -30,33 +20,9 @@ export const NotificationBell: React.FC = () => {
     error,
     isFetching,
     refetch,
+    isMarkingAllAsRead,
+    markingNotificationId,
   } = useNotifications();
-
-  const getIcon = (type: string) => {
-    const iconClass = "w-4 h-4 mr-2 shrink-0";
-    switch (type.toUpperCase()) {
-      case "SUCCESS":
-        return <CheckCircle className={`${iconClass} text-green-500`} />;
-      case "WARNING":
-        return <AlertTriangle className={`${iconClass} text-amber-500`} />;
-      case "ERROR":
-      case "DANGER":
-        return <AlertCircle className={`${iconClass} text-red-500`} />;
-      default:
-        return <Info className={`${iconClass} text-blue-500`} />;
-    }
-  };
-
-  const formatTime = (dateStr: string) => {
-    try {
-      return formatDistanceToNow(new Date(dateStr), {
-        addSuffix: true,
-        locale: vi,
-      });
-    } catch {
-      return "vừa xong";
-    }
-  };
 
   return (
     <Popover>
@@ -66,6 +32,7 @@ export const NotificationBell: React.FC = () => {
           size="icon"
           className="relative rounded-full cursor-pointer"
           aria-label="Mở danh sách thông báo"
+          aria-description={`${unreadCount} thông báo chưa đọc`}
           title="Thông báo"
         >
           <Bell className="w-5 h-5" />
@@ -89,11 +56,12 @@ export const NotificationBell: React.FC = () => {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => markAllAsRead()}
+              disabled={isMarkingAllAsRead}
+              onClick={() => void markAllAsRead()}
               className="h-auto p-0 text-xs text-primary hover:text-primary/80 hover:bg-transparent flex items-center gap-1 font-semibold transition-colors duration-200 cursor-pointer"
             >
               <CheckCheck className="w-3.5 h-3.5" />
-              Đọc tất cả
+              {isMarkingAllAsRead ? "Đang cập nhật..." : "Đọc tất cả"}
             </Button>
           )}
         </div>
@@ -128,40 +96,13 @@ export const NotificationBell: React.FC = () => {
               Không có thông báo nào.
             </div>
           ) : (
-            notifications.map((n) => (
-              <div
-                key={n.id}
-                onClick={() => !n.isRead && markAsRead(n.id)}
-                className={`p-4 text-left transition-all duration-200 cursor-pointer ${
-                  n.isRead
-                    ? "opacity-60 hover:bg-accent/50"
-                    : "bg-accent/20 hover:bg-accent"
-                }`}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center">
-                    {getIcon(n.type)}
-                    <h5 className="font-semibold text-xs text-foreground truncate max-w-[180px]">
-                      {n.title}
-                    </h5>
-                  </div>
-                  {!n.isRead && (
-                    <span className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
-                  )}
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground line-clamp-3 leading-relaxed pl-6">
-                  {n.content}
-                </p>
-                <div className="mt-2 text-[10px] text-muted-foreground flex items-center justify-between pl-6">
-                  <span>{formatTime(n.createdAt)}</span>
-                  {!n.isRead && (
-                    <span className="text-[9px] text-primary flex items-center gap-0.5 hover:underline">
-                      <Check className="w-2.5 h-2.5" />
-                      Đánh dấu đọc
-                    </span>
-                  )}
-                </div>
-              </div>
+            notifications.map((notification) => (
+              <NotificationItemButton
+                key={notification.id}
+                notification={notification}
+                isPending={markingNotificationId === notification.id}
+                onMarkAsRead={markAsRead}
+              />
             ))
           )}
         </div>

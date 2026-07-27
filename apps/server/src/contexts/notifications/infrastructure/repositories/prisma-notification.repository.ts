@@ -53,11 +53,15 @@ export class PrismaNotificationRepository implements NotificationRepository {
   async findByUserId(
     userId: string,
     options: { page: number; limit: number },
-  ): Promise<{ items: NotificationEntity[]; total: number }> {
+  ): Promise<{
+    items: NotificationEntity[];
+    total: number;
+    unreadCount: number;
+  }> {
     const { page, limit } = options;
     const skip = (page - 1) * limit;
 
-    const [raws, total] = await Promise.all([
+    const [raws, total, unreadCount] = await Promise.all([
       this.prisma.notification.findMany({
         where: { userId },
         orderBy: { createdAt: 'desc' },
@@ -67,11 +71,15 @@ export class PrismaNotificationRepository implements NotificationRepository {
       this.prisma.notification.count({
         where: { userId },
       }),
+      this.prisma.notification.count({
+        where: { userId, isRead: false },
+      }),
     ]);
 
     return {
       items: raws.map((raw) => NotificationMapper.toDomain(raw)),
       total,
+      unreadCount,
     };
   }
 
