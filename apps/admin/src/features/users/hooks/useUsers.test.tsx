@@ -102,4 +102,27 @@ describe("useUsers", () => {
     expect(invalidate).not.toHaveBeenCalled();
     expect(toast.error).toHaveBeenCalledOnce();
   });
+
+  it("does not request roles for a read-only user list", async () => {
+    const { result } = renderHook(() => useUsers({ loadRoles: false }), {
+      wrapper,
+    });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(roleApi.getRoles).not.toHaveBeenCalled();
+    expect(result.current.roles).toEqual([]);
+  });
+
+  it("loads roles only when a mutation form needs them", async () => {
+    roleApi.getRoles.mockResolvedValue([{ id: "role-1", name: "USER" }]);
+    const { result } = renderHook(() => useUsers({ loadRoles: true }), {
+      wrapper,
+    });
+
+    await waitFor(() => expect(result.current.isRolesLoading).toBe(false));
+
+    expect(roleApi.getRoles).toHaveBeenCalledOnce();
+    expect(result.current.roles).toEqual([{ id: "role-1", name: "USER" }]);
+  });
 });

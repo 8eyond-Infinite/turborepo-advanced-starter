@@ -258,15 +258,19 @@ Component
 
 ### State ownership
 
-| State                                | Owner           |
-| ------------------------------------ | --------------- |
-| API/server data                      | TanStack Query  |
-| Authenticated user/session state     | Zustand         |
-| Route/navigation                     | React Router    |
-| Modal, filter input, local selection | React component |
-| Theme                                | Theme provider  |
+| State                               | Owner           |
+| ----------------------------------- | --------------- |
+| API/server data                     | TanStack Query  |
+| Authenticated user/session state    | Zustand         |
+| Route, shareable filter, pagination | React Router    |
+| Modal, form draft, local selection  | React component |
+| Theme                               | Theme provider  |
 
 Query-key factory định nghĩa "địa chỉ" của từng mẩu dữ liệu trong cache. Sau mỗi mutation, cache của cả feature bị đánh dấu là cũ (invalidate root key) để dữ liệu được tải lại. Mỗi màn hình phân biệt rõ bốn trạng thái: đang tải, lỗi có thể thử lại, không có dữ liệu, và thành công.
+
+Danh sách nghiệp vụ dùng URL làm nguồn sự thật cho filter và pagination khi trạng thái đó cần bookmark, reload hoặc Back/Forward. Ví dụ Users ánh xạ `?q=member&page=2` vào tham số query của `useUsers`; draft tìm kiếm chỉ tồn tại cục bộ trong 300 ms debounce. Dữ liệu phụ thuộc quyền như danh sách role được query có điều kiện, chỉ khi principal có capability tạo hoặc sửa user.
+
+Mutation cần xác nhận trả về Promise tới component. Shared `ConfirmDialog` giữ pending state và chỉ đóng sau khi mutation cùng cache invalidation hoàn tất; lỗi giữ dialog mở để retry. Validation phía form phản chiếu các constraint công khai để phản hồi sớm, nhưng không thay thế validation và authorization ở backend.
 
 ### Module boundary
 

@@ -20,10 +20,10 @@ export default defineConfig({
       // chỉ nâng dần khi phủ thêm test,
       // không bao giờ hạ xuống.
       thresholds: {
-        statements: 40,
-        branches: 41,
-        functions: 32,
-        lines: 40,
+        statements: 44,
+        branches: 42,
+        functions: 34,
+        lines: 44,
       },
     },
   },

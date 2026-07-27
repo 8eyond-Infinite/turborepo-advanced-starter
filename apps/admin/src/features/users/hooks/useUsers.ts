@@ -9,6 +9,7 @@ export const useUsers = (options?: {
   page?: number;
   limit?: number;
   search?: string;
+  loadRoles?: boolean;
 }) => {
   const queryClient = useQueryClient();
   const params = {
@@ -33,11 +34,13 @@ export const useUsers = (options?: {
     currentPage: params.page,
   };
 
-  const { data: roles = [] } = useQuery({
+  const rolesQuery = useQuery({
     queryKey: roleKeys.list(),
     queryFn: roleApi.getRoles,
     staleTime: 60000,
+    enabled: options?.loadRoles ?? false,
   });
+  const roles = rolesQuery.data ?? [];
 
   const createUserMutation = useMutation({
     mutationFn: userApi.create,
@@ -96,8 +99,8 @@ export const useUsers = (options?: {
     roles,
     createUser: createUserMutation.mutateAsync,
     updateUser: updateUserMutation.mutateAsync,
-    toggleStatus: toggleStatusMutation.mutate,
-    deleteUser: deleteUserMutation.mutate,
+    toggleStatus: toggleStatusMutation.mutateAsync,
+    deleteUser: deleteUserMutation.mutateAsync,
     isLoading: usersQuery.isLoading,
     isError: usersQuery.isError,
     error: usersQuery.error,
@@ -106,6 +109,12 @@ export const useUsers = (options?: {
     isCreating: createUserMutation.isPending,
     isUpdating: updateUserMutation.isPending,
     isToggling: toggleStatusMutation.isPending,
+    togglingUserId: toggleStatusMutation.variables ?? null,
     isDeleting: deleteUserMutation.isPending,
+    deletingUserId: deleteUserMutation.variables ?? null,
+    isRolesLoading: rolesQuery.isLoading,
+    isRolesError: rolesQuery.isError,
+    rolesError: rolesQuery.error,
+    refetchRoles: rolesQuery.refetch,
   };
 };

@@ -34,6 +34,7 @@ export const SearchInput = ({
       {value && (
         <button
           type="button"
+          aria-label="Xóa nội dung tìm kiếm"
           onClick={() => {
             onChange("");
             if (onClear) onClear();

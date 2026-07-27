@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { SingleSelect } from "@/components";
+import { QueryErrorState, SingleSelect } from "@/components";
 import { AvatarUpload } from "./AvatarUpload";
 import { Loader2 } from "lucide-react";
 import {
@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 
 import type { Role, User } from "@repo/types";
+import { validateUserForm, type UserFormErrors } from "./user-form.validation";
 
 interface UpdateUserInput {
   id: string;
@@ -28,6 +29,10 @@ interface EditUserModalProps {
   onUpdateUser: (data: UpdateUserInput) => Promise<unknown>;
   isUpdating: boolean;
   roles: Role[];
+  isRolesLoading: boolean;
+  isRolesError: boolean;
+  rolesError: unknown;
+  onRetryRoles: () => void;
 }
 
 export const EditUserModal: React.FC<EditUserModalProps> = ({
@@ -36,15 +41,25 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({
   onUpdateUser,
   isUpdating,
   roles,
+  isRolesLoading,
+  isRolesError,
+  rolesError,
+  onRetryRoles,
 }) => {
   const [email, setEmail] = useState(user.email);
   const [username, setUsername] = useState(user.username);
   const [avatar, setAvatar] = useState<string | null>(user.avatar || null);
   const [role, setRole] = useState(user.roles[0] || "USER");
+  const [errors, setErrors] = useState<UserFormErrors>({});
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !username.trim()) return;
+    const nextErrors = validateUserForm(
+      { email, username, role },
+      { requirePassword: false },
+    );
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
 
     try {
       await onUpdateUser({
@@ -71,7 +86,7 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({
             Cập nhật email và vai trò truy cập của người dùng trên hệ thống.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <AvatarUpload
             value={avatar}
             onChange={setAvatar}
@@ -91,8 +106,19 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               className="mt-1 bg-transparent border-input"
-              required
+              aria-invalid={Boolean(errors.username)}
+              aria-describedby={
+                errors.username ? "edit-user-username-error" : undefined
+              }
             />
+            {errors.username && (
+              <p
+                id="edit-user-username-error"
+                className="mt-1 text-xs text-destructive"
+              >
+                {errors.username}
+              </p>
+            )}
           </div>
           <div>
             <label
@@ -107,8 +133,19 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="mt-1 bg-transparent border-input"
-              required
+              aria-invalid={Boolean(errors.email)}
+              aria-describedby={
+                errors.email ? "edit-user-email-error" : undefined
+              }
             />
+            {errors.email && (
+              <p
+                id="edit-user-email-error"
+                className="mt-1 text-xs text-destructive"
+              >
+                {errors.email}
+              </p>
+            )}
           </div>
           <div className="space-y-2 max-w-xs">
             <label
@@ -125,8 +162,21 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({
               onChange={setRole}
               placeholder="Chọn vai trò"
               className="w-full bg-card"
+              disabled={isRolesLoading || isRolesError}
             />
+            {errors.role && (
+              <p className="text-xs text-destructive">{errors.role}</p>
+            )}
           </div>
+
+          {isRolesError && (
+            <QueryErrorState
+              error={rolesError}
+              onRetry={onRetryRoles}
+              title="Không thể tải danh sách vai trò"
+              className="min-h-40"
+            />
+          )}
 
           <div className="flex justify-end gap-2 pt-2 border-t border-border/50">
             <Button
@@ -141,13 +191,18 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({
             <Button
               type="submit"
               size="sm"
-              disabled={isUpdating}
+              disabled={
+                isUpdating ||
+                isRolesLoading ||
+                isRolesError ||
+                roles.length === 0
+              }
               className="cursor-pointer text-xs"
             >
-              {isUpdating ? (
+              {isUpdating || isRolesLoading ? (
                 <>
                   <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                  Đang lưu...
+                  {isUpdating ? "Đang lưu..." : "Đang tải vai trò..."}
                 </>
               ) : (
                 "Lưu thay đổi"

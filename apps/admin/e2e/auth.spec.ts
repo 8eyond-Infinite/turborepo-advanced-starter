@@ -109,6 +109,33 @@ test.describe("Admin authentication boundaries", () => {
     await expect(page).toHaveURL(/\/roles$/);
   });
 
+  test("creates a user through the management UI", async ({ page }) => {
+    const identity = uniqueIdentity("managed");
+    await loginInBrowser(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await page.goto("/users");
+
+    await page.getByRole("button", { name: "Thêm người dùng mới" }).click();
+    await page.locator("#create-user-username").fill(identity.username);
+    await page.locator("#create-user-email").fill(identity.email);
+    await page.locator("#create-user-password").fill(identity.password);
+
+    const createResponse = page.waitForResponse(
+      (response) =>
+        response.url() === `${API_URL}/users` &&
+        response.request().method() === "POST",
+    );
+    await page
+      .locator("form")
+      .getByRole("button", { name: "Tạo người dùng" })
+      .click();
+    expect((await createResponse).ok()).toBeTruthy();
+
+    await page
+      .getByRole("textbox", { name: "Tìm kiếm tài khoản" })
+      .fill(identity.email);
+    await expect(page.getByText(identity.email, { exact: true })).toBeVisible();
+  });
+
   test("deactivating a connected user forces logout through realtime", async ({
     page,
     request,
