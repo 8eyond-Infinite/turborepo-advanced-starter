@@ -372,6 +372,12 @@ Nếu dữ liệu quan trọng, đừng để PostgreSQL production sống chế
 
 Bản build Vite của Admin chỉ là các file tĩnh, có thể phục vụ qua CDN hoặc static host. Next.js cần một tiến trình Node đang chạy nếu dùng render động (dynamic rendering); chỉ xuất ra file tĩnh (static export) được khi hành vi của sản phẩm cho phép.
 
+### Render topology cho backend
+
+Backend được codify tại `render.yaml` thành bốn resource cùng region: Docker web service cho API, Docker background worker dùng cùng image, managed PostgreSQL và managed Key Value. API/worker nhận `DATABASE_URL` và `REDIS_URL` qua private connection string; datastore không mở public inbound. API chạy migration bằng `node scripts/migrate.mjs` ở pre-deploy, trước rollout, còn worker không chạy migration.
+
+Đọc [Triển khai backend trên Render](render-deployment.md) trước khi tạo Blueprint. Tài liệu đó là checklist đầy đủ cho plan, secret, CORS, cookie topology, smoke test và rollback. Không tái tạo topology này bằng các field thủ công rời rạc trong dashboard.
+
 ### Vercel topology cho hai frontend
 
 Repository chỉ có hai frontend deployable: project **Admin** trỏ Root Directory `apps/admin`, project **Client** trỏ Root Directory `apps/client`. Không tạo project `web` và không trỏ một Vercel project vào repository root; làm vậy khiến Vercel tự đoán sai framework/build target trong monorepo.

@@ -332,7 +332,13 @@ shared/config/             # validated environment
 
 Không sao chép kiến trúc của Admin SPA một cách máy móc. Next.js có ranh giới server/client, cách cache và cách render khác hẳn; quyết định fetch dữ liệu ở đâu phải dựa trên nơi dữ liệu được dùng và yêu cầu bảo mật.
 
-## 11. Database và migration
+## 11. Production process topology
+
+Backend production không phải một process duy nhất. API và BullMQ worker được build từ cùng Docker image để giữ cùng code/version, nhưng deploy thành hai Render service có lifecycle độc lập. API sở hữu HTTP, Socket.IO, outbox polling và queue producer; worker chỉ sở hữu queue consumer. PostgreSQL và Redis là managed datastore trên private network.
+
+Migration là release step chạy một lần trước API rollout, không nằm trong startup của API/worker. `render.yaml` là deployment composition root; `apps/server/Dockerfile` là runtime artifact boundary; `scripts/migrate.mjs` là migration entrypoint. Chi tiết vận hành nằm tại [Render deployment](render-deployment.md).
+
+## 12. Database và migration
 
 Prisma schema mô tả trạng thái hiện tại mà database phải có (khai báo "nó phải trông thế này"); migrations là lịch sử từng bước thay đổi để đi đến trạng thái đó.
 
@@ -349,7 +355,7 @@ schema change
 
 Database local đã được đánh dấu "các migration này coi như đã chạy" một cách có chủ đích (baseline bằng `prisma migrate resolve --applied` cho toàn bộ chain), và chuỗi migration đã được xác nhận là dựng lại được đầy đủ schema trên một database trống. Môi trường mới dựng bằng `prisma migrate deploy`; `db push` chỉ còn dành cho database test dùng xong bỏ.
 
-## 12. Runtime topology
+## 13. Runtime topology
 
 Local mặc định:
 
@@ -377,7 +383,7 @@ Browser xác thực Socket.IO bằng access token trong `handshake.auth.token`; 
 
 Container dùng cho development không phải là image dùng cho production. Container production không mount source code từ máy ngoài vào (bind mount), không chạy chế độ theo dõi file (watch mode) và không cài dependency lúc khởi động.
 
-## 13. Failure handling và observability
+## 14. Failure handling và observability
 
 Hệ thống đã có:
 
@@ -396,7 +402,7 @@ Hệ thống còn cần:
 - giới hạn tần suất và giãn dần nhịp ghi log khi hạ tầng lỗi liên tục, để log không bị spam;
 - chọn và cấu hình telemetry provider production, sampling/rate limit, source map upload và retention policy cho frontend incident.
 
-## 14. Kiểm thử
+## 15. Kiểm thử
 
 Backend test pyramid:
 
@@ -411,7 +417,7 @@ Admin hiện có unit test chống thoái lui (regression) cho luồng refresh c
 
 Client chưa có business tests vì chưa có business behavior.
 
-## 15. Cách đánh giá một thay đổi kiến trúc
+## 16. Cách đánh giá một thay đổi kiến trúc
 
 Một abstraction chỉ nên được thêm khi nó:
 

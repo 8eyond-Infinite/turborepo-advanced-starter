@@ -5,6 +5,7 @@ const SUPPORTED_NODE_ENVIRONMENTS = [
 ] as const;
 
 type NodeEnvironment = (typeof SUPPORTED_NODE_ENVIRONMENTS)[number];
+type RefreshCookieSameSite = 'lax' | 'none';
 const SUPPORTED_NODE_ENVIRONMENT_SET = new Set<string>(
   SUPPORTED_NODE_ENVIRONMENTS,
 );
@@ -16,6 +17,7 @@ export interface EnvironmentVariables extends Record<string, unknown> {
   JWT_ACCESS_SECRET: string;
   JWT_REFRESH_SECRET: string;
   CORS_ORIGINS: string;
+  REFRESH_COOKIE_SAME_SITE: RefreshCookieSameSite;
 }
 
 const requireString = (
@@ -53,6 +55,16 @@ export const validateEnvironment = (
 
   const accessSecret = requireString(config, 'JWT_ACCESS_SECRET');
   const refreshSecret = requireString(config, 'JWT_REFRESH_SECRET');
+  const refreshCookieSameSite =
+    typeof config.REFRESH_COOKIE_SAME_SITE === 'string'
+      ? config.REFRESH_COOKIE_SAME_SITE.trim().toLowerCase()
+      : 'lax';
+
+  if (refreshCookieSameSite !== 'lax' && refreshCookieSameSite !== 'none') {
+    throw new Error(
+      'Environment variable REFRESH_COOKIE_SAME_SITE must be lax or none',
+    );
+  }
 
   if (
     nodeEnvironment === 'production' &&
@@ -70,6 +82,7 @@ export const validateEnvironment = (
     DATABASE_URL: requireString(config, 'DATABASE_URL'),
     JWT_ACCESS_SECRET: accessSecret,
     JWT_REFRESH_SECRET: refreshSecret,
+    REFRESH_COOKIE_SAME_SITE: refreshCookieSameSite,
     CORS_ORIGINS:
       typeof config.CORS_ORIGINS === 'string' &&
       config.CORS_ORIGINS.trim().length > 0

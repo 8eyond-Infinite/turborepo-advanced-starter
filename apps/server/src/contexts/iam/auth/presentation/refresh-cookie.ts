@@ -11,7 +11,10 @@ const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 const baseOptions = () => ({
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
-  sameSite: 'lax' as const,
+  sameSite:
+    process.env.REFRESH_COOKIE_SAME_SITE === 'none'
+      ? ('none' as const)
+      : ('lax' as const),
   path: COOKIE_PATH,
 });
 

@@ -55,6 +55,10 @@ COPY --from=prod-deps /prod/server ./
 # dist bị .gitignore nên pnpm deploy không mang theo — copy thẳng từ builder.
 COPY --from=builder /app/apps/server/dist ./dist
 COPY --from=builder /app/apps/server/public ./public
+# Migration is an explicit pre-deploy process, never part of API startup.
+COPY --from=builder /app/apps/server/scripts ./scripts
+COPY --from=builder /app/packages/database/prisma ./database/prisma
+COPY --from=builder /app/packages/database/prisma.config.ts ./database/prisma.config.ts
 
 USER app
 EXPOSE 3001

@@ -15,6 +15,7 @@ describe('environment configuration', () => {
         NODE_ENV: 'test',
         PORT: 3001,
         DATABASE_URL: validConfig.DATABASE_URL,
+        REFRESH_COOKIE_SAME_SITE: 'lax',
       }),
     );
   });
@@ -39,6 +40,15 @@ describe('environment configuration', () => {
     expect(() =>
       validateEnvironment({ ...validConfig, NODE_ENV: 'production' }),
     ).toThrow('at least 32 characters');
+  });
+
+  it('rejects an unsupported refresh cookie policy', () => {
+    expect(() =>
+      validateEnvironment({
+        ...validConfig,
+        REFRESH_COOKIE_SAME_SITE: 'strict',
+      }),
+    ).toThrow('REFRESH_COOKIE_SAME_SITE must be lax or none');
   });
 
   it('parses a CORS allowlist', () => {

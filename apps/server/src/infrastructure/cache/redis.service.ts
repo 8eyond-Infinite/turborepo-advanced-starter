@@ -7,6 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 import { ICachePort } from '@shared/application/ports/cache.port';
+import { buildRedisConnection } from './redis-connection';
 
 @Injectable()
 export class RedisService implements OnModuleInit, OnModuleDestroy, ICachePort {
@@ -16,19 +17,12 @@ export class RedisService implements OnModuleInit, OnModuleDestroy, ICachePort {
   constructor(private readonly configService: ConfigService) {}
 
   onModuleInit() {
-    const host = this.configService.get<string>('REDIS_HOST', 'localhost');
-    const port = Number(this.configService.get<number>('REDIS_PORT', 6380));
-    const password = this.configService.get<string>('REDIS_PASSWORD');
-
-    this.client = new Redis({
-      host,
-      port,
-      password: password || undefined,
-    });
+    const connection = buildRedisConnection(this.configService);
+    this.client = new Redis(connection);
 
     this.client.on('connect', () => {
       this.logger.log(
-        `Connected successfully to Redis server at ${host}:${port}`,
+        `Connected successfully to Redis server at ${connection.host}:${connection.port}`,
       );
     });
 
