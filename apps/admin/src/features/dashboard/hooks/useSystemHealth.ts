@@ -14,5 +14,9 @@ export const useSystemHealth = () => {
   return {
     health: query.data,
     isLoading: query.isLoading,
+    isError: query.isError,
+    error: query.error,
+    isFetching: query.isFetching,
+    refetch: query.refetch,
   };
 };

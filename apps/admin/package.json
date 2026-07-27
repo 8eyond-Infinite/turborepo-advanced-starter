@@ -33,7 +33,6 @@
     "react-dom": "^19.2.7",
     "react-i18next": "^17.0.10",
     "react-router-dom": "^7.18.1",
-    "recharts": "^3.9.2",
     "socket.io-client": "^4.8.3",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.6.0",

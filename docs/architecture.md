@@ -280,6 +280,8 @@ Realtime là một application boundary độc lập trong `src/app/realtime`: c
 
 Kiến trúc này được kiểm tra ở hai tầng. Vitest cô lập store, route guard, client adapter và event handler để phản hồi nhanh. Playwright chạy Chromium với NestJS, Vite, PostgreSQL và Redis thật để kiểm tra các seam xuyên process: redirect chưa đăng nhập, HttpOnly refresh sau reload, RBAC route và `force_logout` đi từ user deactivation qua outbox/realtime gateway tới browser. Browser suite dùng database `admin_browser_e2e` có thể xóa bỏ, không dùng chung database development.
 
+Dashboard là composition của ba query độc lập: business stats là boundary chặn toàn trang; health và recent audit là widget phụ có loading/error/empty state riêng. Partial failure không được biến thành empty state và không che dữ liệu từ nguồn còn hoạt động. Biểu đồ đơn giản được render bằng SVG/CSS nội bộ có semantic text/meter thay vì kéo một chart runtime lớn; route vẫn là đơn vị lazy-load duy nhất.
+
 Chi tiết đầy đủ nằm trong [Admin handbook](../apps/admin/README.md).
 
 ## 10. Next.js client architecture

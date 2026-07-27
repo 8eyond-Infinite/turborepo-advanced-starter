@@ -393,8 +393,10 @@ Vitest chạy trong jsdom, kèm Testing Library cho component test (setup ở `s
 7. `src/app/realtime/realtime-client.test.ts` — khóa chặt việc token chỉ đi qua Socket.IO auth payload và có thể được thay sau HTTP refresh.
 8. `src/app/realtime/realtime-event-handlers.test.ts` — xác nhận event được ánh xạ đúng sang logout, toast, cache invalidation và mọi listener đều được tháo.
 9. `src/app/realtime/realtime-provider.test.tsx` — xác nhận socket chỉ sống trong phiên authenticated, nhận token mới và được cleanup khi provider unmount.
+10. `src/features/dashboard/components/DashboardCharts.test.tsx` — bảo đảm biểu đồ có tên accessible, giá trị chính xác có thể đọc mà không cần nhìn màu/hình và zero dataset có empty state rõ ràng.
+11. `src/features/dashboard/components/DashboardOverview.test.tsx` — khóa blocking loading state, partial failure của health/audit và hành vi refresh đồng thời ba nguồn dữ liệu độc lập.
 
-`pnpm test` chạy kèm coverage và fail nếu tụt dưới sàn khai báo trong `vitest.config.ts` (hiện là 35% statements, 34% branches, 26% functions và 35% lines). Quy tắc ratchet: phủ thêm test thì nâng sàn lên theo, không bao giờ hạ sàn để cho qua.
+`pnpm test` chạy kèm coverage và fail nếu tụt dưới sàn khai báo trong `vitest.config.ts` (hiện là 40% statements, 41% branches, 32% functions và 40% lines). Quy tắc ratchet: phủ thêm test thì nâng sàn lên theo, không bao giờ hạ sàn để cho qua.
 
 Test mới nên đặt cạnh source khi test một unit hoặc module nhỏ. Integration test của một feature có thể đặt trong thư mục feature. Ưu tiên test behavior nhìn thấy từ public API thay vì private implementation.
 
@@ -425,13 +427,15 @@ pnpm --filter=admin verify
 
 Dev server mặc định chạy ở `http://localhost:5173`. Backend URL lấy từ `VITE_API_URL`, fallback về `http://localhost:3001`.
 
-`verify` là quality gate nhanh: lint, unit/integration test, TypeScript build và Vite production build. `pnpm e2e:admin` là gate xuyên hệ thống: lệnh bật Postgres/Redis, tái tạo database E2E, migrate, seed, rồi Playwright tự quản lý API và Admin dev server. Lần chạy đầu cần tải Chromium bằng `pnpm --filter=admin exec playwright install chromium`.
+`verify` là quality gate nhanh: lint, unit/integration test, TypeScript build và Vite production build. `pnpm e2e:admin` là gate xuyên hệ thống: lệnh bật Postgres/Redis, tái tạo database E2E, migrate, seed, rồi Playwright tự quản lý API `3101` và Admin dev server `5174`. Cổng E2E riêng ngăn reuse nhầm process development `3001/5173`. Lần chạy đầu cần tải Chromium bằng `pnpm --filter=admin exec playwright install chromium`.
 
 Trên CI, browser E2E chạy thành job riêng với PostgreSQL/Redis disposable và upload trace, screenshot, video, HTML report khi cần chẩn đoán. Job build/publish image chỉ được chạy sau quality, backend E2E và Admin browser E2E.
 
 ## 13. Những điểm cần tiếp tục cải thiện
 
-Dashboard lấy trạng thái hạ tầng thật từ `/health/ready` (làm mới mỗi 30 giây), hiển thị audit trail thật, và biểu đồ (recharts, ~378 kB) đã được tách sang `DashboardCharts` nạp trễ — mở trang thấy ngay số liệu và nhật ký, biểu đồ tới sau.
+Dashboard lấy ba nguồn độc lập: thống kê nghiệp vụ, `/health/ready` làm mới mỗi 30 giây và audit trail gần đây. Thống kê là boundary chính nên lỗi của nó hiển thị full-page retry; health hoặc audit lỗi chỉ làm widget tương ứng chuyển sang unknown/retry, không che dữ liệu còn dùng được. Nút tải lại refetch cả ba nguồn.
+
+Hai biểu đồ đơn giản dùng SVG/CSS nội bộ thay cho Recharts. Trước thay đổi, chart lazy chunk là 378.16 kB (107.94 kB gzip); sau thay đổi toàn bộ route Dashboard là 13.34 kB (4.41 kB gzip), không còn chart chunk riêng. SVG có accessible name, giá trị theo ngày hiện bằng text và phân bổ role dùng semantic meter, nên thông tin không phụ thuộc tooltip, chuột hoặc màu sắc.
 
 Vendor đã được tách theo nhịp thay đổi (`react-vendor`, `data-vendor`, `i18n-vendor`, `realtime-vendor`) để deploy code ứng dụng không làm hỏng cache của thư viện. Muốn đo lại trước khi chỉnh tiếp: `ANALYZE=1 pnpm --filter=admin build` rồi mở `dist/stats.html`. Ngưỡng cảnh báo kích thước chunk đặt ở 350 kB để chunk phình lên là biết ngay.
 
