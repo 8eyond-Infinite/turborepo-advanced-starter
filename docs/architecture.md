@@ -232,6 +232,8 @@ Session lifecycle phân biệt hai use case: `logout/global` xóa mọi refresh 
 
 Audit là một bounded context riêng với năng lực application đầy đủ, không phải vài dòng `console.log`. Tầng application gọi audit port; adapter Prisma ghi bản ghi bền vững xuống database, gồm ai làm (actor), làm gì (action), lên đối tượng nào (target), kèm IP, user agent và chi tiết phù hợp.
 
+Admin đọc audit như một read model: URL sở hữu search/pagination, TanStack Query sở hữu response phân trang, còn presentation mapper chuyển action code thành nhãn và severity. Việc tách mapper giúp backend giữ event vocabulary ổn định trong khi UI vẫn có thể địa phương hóa mà không sửa dữ liệu lịch sử.
+
 Khi ghi audit thất bại, mỗi use case phải chọn rõ cách xử lý: ghi được thì tốt (best-effort), hay coi cả thao tác nghiệp vụ là thất bại. Không được lẳng lặng nuốt lỗi nếu audit là yêu cầu tuân thủ (compliance).
 
 ## 9. Admin frontend architecture

@@ -19,7 +19,19 @@ const run = (command, args, options = {}) => {
 };
 
 console.log('Starting isolated Admin E2E infrastructure...');
-run('docker', ['compose', 'up', '-d', 'postgres', 'redis']);
+// `up -d` only means the container process started. `--wait` blocks until the
+// declared healthchecks pass, otherwise a cold Docker Desktop start can race
+// the first dropdb/Redis request.
+run('docker', [
+  'compose',
+  'up',
+  '-d',
+  '--wait',
+  '--wait-timeout',
+  '60',
+  'postgres',
+  'redis',
+]);
 
 // This database is intentionally disposable and never shares data with
 // starter_db. Recreate it on every run so tests cannot depend on old rows,

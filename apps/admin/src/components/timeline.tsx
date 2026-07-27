@@ -6,6 +6,7 @@ export interface TimelineItem {
   title: string;
   description?: React.ReactNode;
   timestamp: string;
+  dateTime?: string;
   icon?: LucideIcon;
   type?: "info" | "success" | "warning" | "error" | "neutral";
 }
@@ -71,7 +72,10 @@ export const Timeline = ({ items, className = "" }: TimelineProps) => {
                 <span className="text-xs font-bold text-foreground group-hover:text-primary transition-colors">
                   {item.title}
                 </span>
-                <time className="text-[10px] text-muted-foreground font-medium shrink-0">
+                <time
+                  dateTime={item.dateTime}
+                  className="text-[10px] text-muted-foreground font-medium shrink-0"
+                >
                   {item.timestamp}
                 </time>
               </div>

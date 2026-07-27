@@ -209,6 +209,14 @@ Access token mang JTI của refresh session đã sinh ra nó. `GET /auth/session
 
 Danh sách Sessions dùng `page` trong URL làm nguồn sự thật. Revoke mutation trả Promise tới `ConfirmDialog`; dialog chỉ đóng sau khi cache session đã invalidate/refetch. Nút của session đang xử lý bị khóa để tránh gửi lặp.
 
+### Flow đọc Audit Logs
+
+Audit là màn hình read-only. `q` và `page` nằm trong URL, vì vậy một cuộc điều tra có thể được bookmark hoặc gửi cho người khác mà vẫn giữ đúng từ khóa và trang. Search draft debounce 300 ms trong `AuditSearchInput`; sau đó component cập nhật URL và reset page. `useAuditLogs` chỉ sở hữu server query/cache, không giữ UI state.
+
+Presentation của audit được tách khỏi query: `audit-log.presentation.ts` ánh xạ action code ổn định sang nhãn, icon và severity; action chưa biết vẫn hiển thị bằng fallback thay vì làm hỏng timeline. `AuditLogDetails` trình bày details, actor, IP và user-agent bằng cấu trúc semantic. Timestamp vừa có chuỗi địa phương hóa để đọc, vừa giữ ISO gốc trong thuộc tính `dateTime`.
+
+Backend hiện bảo đảm search trên action, details và email. UI không cung cấp filter theo ngày/action hoặc export giả lập khi contract chưa hỗ trợ; các khả năng đó phải được thiết kế thành API có phân trang, authorization và giới hạn dữ liệu trước.
+
 ## 7. Permission model
 
 Permission được kiểm tra ở ba cấp:
