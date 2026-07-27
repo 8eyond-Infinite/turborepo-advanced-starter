@@ -15,6 +15,7 @@ Người mới vào repo: bắt đầu từ [Lộ trình học từ đầu](docs
 | [Thư viện dùng để làm gì](docs/tech-stack.md)                  | Mỗi dependency giải quyết việc gì, vì sao chọn, và nằm ở đâu trong code             |
 | [Kiến trúc hệ thống](docs/architecture.md)                     | Hiểu ranh giới app/package, backend layers, frontend layers và flow liên ứng dụng   |
 | [Phát triển và triển khai](docs/development-and-deployment.md) | Cài môi trường, chạy Docker/host, migration, CI và production topology              |
+| [Triển khai backend trên Render](docs/render-deployment.md)    | Blueprint API/worker/Postgres/Redis, migration, secret và smoke test                |
 | [Sổ tay vận hành](docs/operations-runbook.md)                  | Đang có sự cố thì làm gì: triage, ngưỡng cảnh báo, phát hành, rollback, xoay secret |
 | [Quy trình phát hành](docs/release-process.md)                 | Phiên bản tính thế nào, release PR là gì, tag image trên GHCR và cách quay lui      |
 | [Backend handbook](apps/server/README.md)                      | Đọc code NestJS, request flow, CQRS, outbox, auth và testing                        |

@@ -392,6 +392,9 @@ Read endpoint có thể dùng `CacheInterceptor`. Mutation dùng `CacheInvalidat
 
 - `/health/live` xác nhận process còn sống.
 - `/health/ready` kiểm tra PostgreSQL và Redis.
+
+Production managed Redis nên cung cấp một `REDIS_URL` (`redis://` hoặc `rediss://`). `src/infrastructure/cache/redis-connection.ts` là parser dùng chung cho cache, BullMQ và Socket.IO adapter, vì vậy ba consumer không thể lệch credential/TLS. Các biến host/port riêng vẫn được giữ cho local development. Render topology, pre-deploy migration và smoke test được mô tả trong [Render deployment](../../docs/render-deployment.md).
+
 - Nest shutdown hooks đóng resource có trật tự.
 
 Liveness không nên kiểm tra dependency ngoài vì dependency outage không có nghĩa process cần restart. Readiness phải phản ánh application có đủ khả năng nhận traffic hay không.

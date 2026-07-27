@@ -13,6 +13,7 @@ import { createAdapter } from '@socket.io/redis-adapter';
 import Redis from 'ioredis';
 import type { JwtPayload } from '@repo/contracts';
 import { parseCorsOrigins } from '../../config/environment';
+import { buildRedisConnection } from '../cache/redis-connection';
 
 // Decorator options are evaluated at import time; main.ts loads dotenv first
 // so CORS_ORIGINS is available here. Same allowlist as the HTTP layer —
@@ -45,11 +46,7 @@ export class RealtimeGateway
   // Redis adapter cho phép chạy nhiều API instance: emit từ instance này
   // được phát tới socket đang nối vào instance khác qua Redis pub/sub.
   afterInit(server: Server): void {
-    this.pubClient = new Redis({
-      host: this.configService.get<string>('REDIS_HOST', 'localhost'),
-      port: Number(this.configService.get<number>('REDIS_PORT', 6380)),
-      password: this.configService.get<string>('REDIS_PASSWORD') || undefined,
-    });
+    this.pubClient = new Redis(buildRedisConnection(this.configService));
     this.subClient = this.pubClient.duplicate();
     server.adapter(createAdapter(this.pubClient, this.subClient));
     this.logger.log('Socket.IO Redis adapter attached');

@@ -19,6 +19,16 @@ curl -s https://<api-host>/health/ready
 curl -s https://<api-host>/metrics | grep -E "outbox_|http_request_duration_seconds_count"
 ```
 
+Với backend trên Render có thể kiểm tra live, ready và CORS trong một lệnh:
+
+```powershell
+$env:API_URL = "https://<api>.onrender.com"
+$env:ADMIN_ORIGIN = "https://<admin>.vercel.app"
+pnpm verify:render
+```
+
+Topology, biến môi trường và quy trình provision nằm tại [Render deployment](render-deployment.md).
+
 Cách đọc kết quả:
 
 | Kết quả                                                 | Nghĩa là                                  | Đi tiếp tới |

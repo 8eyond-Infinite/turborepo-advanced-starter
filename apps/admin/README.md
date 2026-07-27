@@ -160,7 +160,7 @@ Nếu refresh thất bại, `ApiClient` xóa token và phát event `auth:logout`
 
 ### Thuộc tính bảo mật của mô hình cookie
 
-Refresh token nằm trong cookie `HttpOnly` (`Secure` ở production, `SameSite=Lax`, giới hạn path `/auth`) nên XSS không đọc trộm được credential sống 7 ngày. Giới hạn còn lại: mã độc chạy được trong trang vẫn có thể GỌI `/auth/refresh` (trình duyệt tự đính cookie) để lấy access token ngắn hạn — HttpOnly chặn việc đánh cắp mang đi nơi khác, không chặn session-riding ngay tại tab bị nhiễm. Vì vậy phòng chống XSS (không `dangerouslySetInnerHTML` với dữ liệu chưa sạch, phụ thuộc bên thứ ba được kiểm soát) vẫn là yêu cầu bắt buộc. Lưu ý vận hành: `SameSite=Lax` yêu cầu admin và API cùng site (cùng registrable domain — ví dụ `admin.example.com` và `api.example.com`); nếu triển khai khác site thật sự, phải chuyển sang `SameSite=None; Secure`.
+Refresh token nằm trong cookie `HttpOnly` (`Secure` ở production, giới hạn path `/auth`) nên XSS không đọc trộm được credential sống 7 ngày. Giới hạn còn lại: mã độc chạy được trong trang vẫn có thể GỌI `/auth/refresh` (trình duyệt tự đính cookie) để lấy access token ngắn hạn — HttpOnly chặn việc đánh cắp mang đi nơi khác, không chặn session-riding ngay tại tab bị nhiễm. Vì vậy phòng chống XSS (không `dangerouslySetInnerHTML` với dữ liệu chưa sạch, phụ thuộc bên thứ ba được kiểm soát) vẫn là yêu cầu bắt buộc. Backend dùng `REFRESH_COOKIE_SAME_SITE=lax` khi Admin/API cùng site; staging Vercel/Render cross-site dùng `none` cùng `Secure`, nhưng vẫn chịu chính sách chặn third-party cookie của browser. Production nên dùng custom subdomain cùng registrable domain.
 
 ## 6. Server state và UI state
 
