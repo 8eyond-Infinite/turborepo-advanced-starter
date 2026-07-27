@@ -105,6 +105,8 @@ URL
 
 `ProtectedRoute` đồng thời quyết định thời điểm mở và đóng kết nối realtime. Khi nhánh route bảo vệ được mount, `useWebSocket` tạo kết nối; khi đăng xuất hoặc rời lifecycle này, socket được disconnect.
 
+Access token của Socket.IO chỉ đi trong `handshake.auth.token`, không nằm trong query string để tránh URL hoặc proxy log ghi lại bearer credential. Khi HTTP refresh thành công, event `auth:token-refreshed` cập nhật `socket.auth`; lần reconnect kế tiếp luôn dùng token mới.
+
 Khi thêm page mới, cần tạo feature component, lazy import component đó và thêm một entry vào `adminRoutes`. Permission của route phải lấy từ `@repo/contracts`, không viết string trực tiếp.
 
 ## 5. Authentication và token lifecycle
@@ -380,7 +382,7 @@ Vitest chạy trong jsdom, kèm Testing Library cho component test (setup ở `s
 5. `src/routes/protected-route.test.tsx` — phân biệt đúng bootstrap pending, unauthenticated redirect và authenticated outlet.
 6. `src/app/auth-cache-boundary.test.ts` — bảo đảm cache server bị xóa khi principal đăng xuất nhưng không bị xóa bởi update auth state không liên quan.
 
-`pnpm test` chạy kèm coverage và fail nếu tụt dưới sàn khai báo trong `vitest.config.ts` (~25% hiện tại). Quy tắc ratchet: phủ thêm test thì nâng sàn lên theo, không bao giờ hạ sàn để cho qua.
+`pnpm test` chạy kèm coverage và fail nếu tụt dưới sàn khai báo trong `vitest.config.ts` (~29% hiện tại). Quy tắc ratchet: phủ thêm test thì nâng sàn lên theo, không bao giờ hạ sàn để cho qua.
 
 Test mới nên đặt cạnh source khi test một unit hoặc module nhỏ. Integration test của một feature có thể đặt trong thư mục feature. Ưu tiên test behavior nhìn thấy từ public API thay vì private implementation.
 

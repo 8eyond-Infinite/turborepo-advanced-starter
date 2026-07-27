@@ -335,6 +335,8 @@ external mail provider
 
 API và worker là hai process tách biệt build từ cùng một image: API nhận HTTP/WebSocket và đẩy job vào queue; worker (`src/worker.module.ts`) chỉ tiêu thụ job — email gửi chậm không chiếm event loop của API. Realtime emit theo room `user:{id}` qua `@socket.io/redis-adapter`, nên sự kiện phát từ instance này tới được socket đang nối vào instance khác.
 
+Browser xác thực Socket.IO bằng access token trong `handshake.auth.token`; token không được đưa vào query string vì URL có thể bị proxy hoặc access log ghi lại. Gateway vẫn đọc query token như compatibility fallback cho client cũ, nhưng frontend hiện tại không sử dụng đường này. HTTP token rotation cập nhật `socket.auth`, nên mọi reconnect sau đó dùng access token mới.
+
 Container dùng cho development không phải là image dùng cho production. Container production không mount source code từ máy ngoài vào (bind mount), không chạy chế độ theo dõi file (watch mode) và không cài dependency lúc khởi động.
 
 ## 13. Failure handling và observability

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { io, Socket } from "socket.io-client";
+import { io, type Socket } from "socket.io-client";
 import { useAuthStore } from "@/features/auth";
 import { ApiClient } from "@/lib/api-client";
 import { toast } from "sonner";
@@ -28,9 +28,6 @@ export const useWebSocket = () => {
     const socket = io(baseUrl, {
       auth: {
         token: accessToken,
-      },
-      query: {
-        token: accessToken || "",
       },
       transports: ["websocket"],
       autoConnect: true,
@@ -92,7 +89,6 @@ export const useWebSocket = () => {
     const handleTokenRefresh = (event: Event) => {
       const token = (event as CustomEvent<string>).detail;
       socket.auth = { token };
-      socket.io.opts.query = { token };
     };
     window.addEventListener("auth:token-refreshed", handleTokenRefresh);
 
