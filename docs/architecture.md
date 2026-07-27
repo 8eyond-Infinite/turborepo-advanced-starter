@@ -279,6 +279,8 @@ Policy server-state nằm tại `src/app/query-client.ts`, không nằm rải r�
 
 Danh sách nghiệp vụ dùng URL làm nguồn sự thật cho filter và pagination khi trạng thái đó cần bookmark, reload hoặc Back/Forward. Ví dụ Users ánh xạ `?q=member&page=2` vào tham số query của `useUsers`; draft tìm kiếm chỉ tồn tại cục bộ trong 300 ms debounce. Dữ liệu phụ thuộc quyền như danh sách role được query có điều kiện, chỉ khi principal có capability tạo hoặc sửa user.
 
+Users là mẫu page orchestration của Admin: page sở hữu URL/capability/dialog, data table sở hữu presentation của danh sách, shared form fields sở hữu semantic field markup, còn feature hook sở hữu query/mutation/cache. Create và edit dùng chung field set nhưng giữ submit contract riêng vì create có password bắt buộc còn edit định danh user và không gửi password. Mutation failure không xóa form draft; dialog chỉ đóng sau command và cache invalidation thành công.
+
 Mutation cần xác nhận trả về Promise tới component. Shared `ConfirmDialog` giữ pending state và chỉ đóng sau khi mutation cùng cache invalidation hoàn tất; lỗi giữ dialog mở để retry. Validation phía form phản chiếu các constraint công khai để phản hồi sớm, nhưng không thay thế validation và authorization ở backend.
 
 Với mutation kiểu read-modify-write, component không được gửi đồng thời nhiều bản cập nhật được tính từ cùng một cache snapshot. Ma trận Roles là ví dụ: endpoint thay thế toàn bộ tập permission, nên `useRoles` tuần tự hóa thao tác checkbox và giữ chúng disabled cho tới khi invalidate/refetch hoàn tất. Nếu cần throughput cao hơn trong tương lai, contract phải đổi sang add/remove delta hoặc backend phải có optimistic concurrency token; chỉ bỏ khóa ở frontend là không an toàn.
