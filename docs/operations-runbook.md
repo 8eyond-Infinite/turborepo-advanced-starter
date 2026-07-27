@@ -110,7 +110,8 @@ Theo mức độ leo thang:
 1. **Thu hồi một phiên cụ thể:** trang Sessions trong Admin, hoặc `DELETE /auth/sessions/:jti`.
 2. **Đá tài khoản khỏi mọi thiết bị:** `POST /auth/logout/global` — vừa xóa phiên refresh trong Redis, vừa tăng `tokenVersion` nên access token đang lưu hành chết ngay lập tức, không phải chờ hết 15 phút.
 3. **Khóa hẳn tài khoản:** `PATCH /users/:id/deactivate` — chặn đăng nhập, thu hồi phiên và đẩy sự kiện ép đăng xuất qua realtime.
-4. **Nghi ngờ toàn hệ thống bị lộ:** xoay vòng JWT secret (mục 5) — mọi token hiện có lập tức vô hiệu, tất cả người dùng phải đăng nhập lại.
+
+Refresh token là single-use. Rotation dùng Lua script atomic trong Redis; nếu log xuất hiện 401 với thông điệp “already been used, revoked, or expired”, trước tiên kiểm tra client có gửi đồng thời cùng refresh token từ nhiều replica/tab hay không. Không sửa sự cố bằng cách quay lại chuỗi `GET → SET → DEL`, vì thao tác không atomic sẽ cho phép replay sinh nhiều session. BFF đã gom request trong từng Next instance; khi chạy nhiều replica, một request cạnh tranh có thể bị từ chối và đây là behavior an toàn mặc định. 4. **Nghi ngờ toàn hệ thống bị lộ:** xoay vòng JWT secret (mục 5) — mọi token hiện có lập tức vô hiệu, tất cả người dùng phải đăng nhập lại.
 
 Sau mọi thao tác: đối chiếu `/audit-logs` để dựng lại dòng thời gian kẻ tấn công đã làm gì.
 

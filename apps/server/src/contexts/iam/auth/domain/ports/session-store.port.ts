@@ -18,6 +18,13 @@ export interface ISessionStore {
     userId: string,
     jti: string,
   ): Promise<SessionData | null>;
+  rotateRefreshToken(
+    userId: string,
+    oldJti: string,
+    newJti: string,
+    sessionData: SessionData,
+    ttlSeconds: number,
+  ): Promise<boolean>;
   revokeRefreshToken(userId: string, jti: string): Promise<void>;
   revokeAllUserSessions(userId: string): Promise<void>;
   isRefreshTokenValid(userId: string, jti: string): Promise<boolean>;

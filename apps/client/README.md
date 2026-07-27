@@ -47,7 +47,7 @@ sequenceDiagram
     N-->>U: HTML đã có sẵn dữ liệu
 ```
 
-Điểm mấu chốt về việc làm mới token: **Next.js chỉ cho ghi cookie ở middleware, Server Action và Route Handler — không cho ghi trong lúc render trang**. Vì vậy việc làm mới nằm ở [`middleware.ts`](middleware.ts): nó đọc trường `exp` của access token (không xác minh chữ ký — việc đó là của API), và nếu còn dưới 60 giây thì gọi `/auth/refresh` rồi gắn cookie mới vào response. Nhờ vậy mọi lần render trang đều chắc chắn có token còn hạn.
+Điểm mấu chốt về việc làm mới token: **Next.js chỉ cho ghi cookie ở middleware, Server Action và Route Handler — không cho ghi trong lúc render trang**. Vì vậy việc làm mới nằm ở [`middleware.ts`](middleware.ts): nó đọc trường `exp` của access token (không xác minh chữ ký — việc đó là của API), và nếu còn dưới 60 giây thì gọi `/auth/refresh` rồi gắn cookie mới vào response. `lib/refresh-session.ts` giữ một single-flight map theo refresh token: các request đồng thời trong cùng một Next.js instance dùng chung một Promise và chỉ tạo một HTTP refresh. Backend vẫn là chốt bảo mật cuối cùng: Redis consume old JTI bằng Lua script atomic, nên dù request đến từ nhiều Next instance thì một refresh credential cũng chỉ rotate thành công đúng một lần.
 
 ## 3. Cấu trúc
 
@@ -62,6 +62,8 @@ apps/client/
 │   └── actions/auth.ts       # Server Action: login, logout
 ├── lib/
 │   ├── session.ts            # Đọc/ghi cookie phiên (server-only)
+│   ├── refresh-session.ts    # Single-flight refresh trong một Next instance
+│   ├── safe-redirect.ts      # Chỉ cho phép redirect tới path nội bộ
 │   └── api.ts                # Gọi API kèm bearer token (server-only)
 └── middleware.ts             # Chặn route riêng tư + làm mới token
 ```
@@ -112,7 +114,11 @@ Cookie `client_session` chứa cả access token lẫn refresh token, được *
 
 Giới hạn còn lại đúng bằng bản chất của mọi session cookie: kẻ trộm được **nguyên vẹn** cookie thì vẫn dùng được phiên. Chống chuyện đó là việc của `HttpOnly` (XSS không đọc được), `Secure` (không đi qua HTTP thường) và `SameSite=Lax`. Nếu cần thu hồi từng phiên một, hướng nâng cấp là session store phía server (Redis) và chỉ đặt session id vào cookie.
 
-Một giới hạn nữa: khi nhiều tab cùng làm mới token gần như đồng thời, cơ chế rotation có thể khiến một tab dùng phải token vừa bị thu hồi và bị đăng xuất. Ngưỡng làm mới sớm 60 giây khiến tình huống này hiếm, nhưng chưa loại bỏ hoàn toàn.
+Khi nhiều tab cùng làm mới token gần như đồng thời trong cùng một Next instance, single-flight gom chúng thành một request. Nếu hệ thống chạy nhiều Next replica, hai request vẫn có thể đến hai instance khác nhau; Redis atomic rotation đảm bảo chỉ một request thắng và request kia nhận 401. Nếu access token cũ của request thua vẫn còn hạn, middleware không xóa hoặc ghi đè cookie: request đó được đi tiếp bằng access token cũ, còn response thắng có thể cập nhật cookie mới. Chỉ khi access token đã thực sự hết hạn và refresh vẫn thất bại thì middleware mới clear session và chuyển về login. Muốn mọi replica cùng nhận chính xác một refresh result vẫn cần distributed single-flight hoặc idempotency record TTL ngắn; security invariant “old token chỉ dùng một lần” không phụ thuộc nâng cấp đó.
+
+Logout không chỉ xóa cookie BFF. Server Action đọc refresh token trong session, gọi `POST /auth/logout` để revoke JTI trong Redis, rồi luôn xóa cookie trong `finally`. Nếu API tạm thời không truy cập được, cookie phía trình duyệt vẫn bị xóa để người dùng thoát khỏi thiết bị hiện tại; session Redis sẽ hết TTL hoặc được operator/user thu hồi sau.
+
+Tham số `next` sau login chỉ được nhận khi là path nội bộ bắt đầu bằng đúng một dấu `/`. URL tuyệt đối, URL dạng protocol-relative `//host` và giá trị encode thành `//host` đều bị đưa về `/me`; invariant này ngăn open redirect/phishing.
 
 ## 6. Mở rộng tiếp theo
 
