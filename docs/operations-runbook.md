@@ -129,6 +129,21 @@ SELECT type, status, occurred_at FROM outbox_events WHERE correlation_id = '<id>
 
 Job nền hoặc script chạy ngoài request HTTP sẽ có `correlation_id` rỗng — đó là bình thường, không phải lỗi.
 
+### 3.7 Lần theo lỗi từ Admin Portal
+
+Admin Portal chuyển lỗi không dự kiến qua `src/lib/observability.ts`. Mỗi report có `id`, `occurredAt`, `source`, `operation` và route. Nếu lỗi là response API, report có thêm `correlationId` lấy từ header `x-correlation-id`; dùng giá trị này để nối incident trình duyệt với backend log theo quy trình mục 3.6.
+
+Trong development, structured report xuất hiện dưới nhãn `[AdminObservability]`. Reporter đồng thời phát browser event `admin:observability-error`. Production integration đăng ký một sink qua `configureObservabilitySink` và chuyển report tới provider đã chọn. Boundary không được import trực tiếp SDK Sentry/OpenTelemetry vì việc đó làm policy redact, sampling và failure isolation bị phân tán.
+
+Payload đã loại bearer token, JWT và các assignment nhạy cảm phổ biến. Đây là lớp phòng thủ cuối, không phải lý do để đính kèm request body, cookie, authorization header hay toàn bộ auth store. Khi điều tra:
+
+1. Tìm incident theo `id` hoặc thời điểm, route và operation.
+2. Nếu có `correlationId`, lọc backend structured log bằng đúng giá trị đó.
+3. Theo correlation ID sang audit log, outbox event hoặc worker job nếu flow có side effect bất đồng bộ.
+4. Nếu telemetry provider đang lỗi, ứng dụng vẫn hoạt động; kiểm tra provider health riêng, không coi telemetry outage là application outage.
+
+Trước production go-live phải chọn provider, cấu hình sampling/rate limit, upload source map riêng tư và chốt retention/access policy. Không public source map trên CDN.
+
 ## 4. Quy trình phát hành
 
 Cách phiên bản được đánh số, release PR là gì và image nhận tag `1.x.y` lúc nào — xem [Quy trình phát hành](release-process.md). Phần dưới đây là góc nhìn vận hành: đưa một bản đã phát hành lên môi trường chạy thật.

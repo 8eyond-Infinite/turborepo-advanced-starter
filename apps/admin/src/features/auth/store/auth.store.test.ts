@@ -1,6 +1,10 @@
 import type { User } from "@repo/types";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiClient } from "@/lib/api-client";
+import {
+  configureObservabilitySink,
+  type ErrorReport,
+} from "@/lib/observability";
 import { useAuthStore } from "./auth.store";
 
 const user: User = {
@@ -83,5 +87,32 @@ describe("auth store", () => {
       isAuthenticated: false,
     });
     expect(ApiClient.setToken).toHaveBeenLastCalledWith(null);
+  });
+
+  it("reports a failed global logout without blocking local cleanup", async () => {
+    const sink = vi.fn<(report: ErrorReport) => void>();
+    const restoreSink = configureObservabilitySink(sink);
+    vi.spyOn(ApiClient, "post").mockRejectedValue(
+      new Error("Global logout unavailable"),
+    );
+    useAuthStore.setState({ user, isAuthenticated: true });
+
+    try {
+      await useAuthStore.getState().logoutGlobal();
+    } finally {
+      restoreSink();
+    }
+
+    expect(sink).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "auth",
+        operation: "logout-global",
+        message: "Global logout unavailable",
+      }),
+    );
+    expect(useAuthStore.getState()).toMatchObject({
+      user: null,
+      isAuthenticated: false,
+    });
   });
 });

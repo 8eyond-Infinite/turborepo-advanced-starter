@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { ApiClient } from "@/lib/api-client";
+import { reportError } from "@/lib/observability";
 
 import type { User } from "@repo/types";
 
@@ -145,7 +146,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       await ApiClient.post("/auth/logout/global");
     } catch (error) {
-      console.error("[AuthStore Global Logout Error]", error);
+      reportError(error, {
+        source: "auth",
+        route: window.location.pathname,
+        operation: "logout-global",
+      });
     } finally {
       get().clearAuth();
     }

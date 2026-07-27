@@ -3,13 +3,18 @@ import { AlertTriangle, ArrowLeft, RefreshCw } from "lucide-react";
 import { useNavigate, useRouteError } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { getRouteErrorMessage } from "./route-error.presentation";
+import { reportError } from "@/lib/observability";
 
 export const RouteErrorPage = () => {
   const error = useRouteError();
   const navigate = useNavigate();
 
   useEffect(() => {
-    console.error("[RouteErrorBoundary]", error);
+    reportError(error, {
+      source: "route",
+      route: window.location.pathname,
+      operation: "render-route",
+    });
   }, [error]);
 
   return (

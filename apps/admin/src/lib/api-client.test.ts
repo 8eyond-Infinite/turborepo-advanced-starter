@@ -92,4 +92,27 @@ describe("ApiClient token refresh", () => {
     await expect(ApiClient.get("/users")).rejects.toBeInstanceOf(ApiError);
     expect(refreshRequestCount).toBe(1);
   });
+
+  it("keeps the backend correlation ID on API errors", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ message: "Unavailable" }), {
+            status: 503,
+            headers: {
+              "Content-Type": "application/json",
+              "x-correlation-id": "correlation-123",
+            },
+          }),
+      ),
+    );
+
+    await expect(
+      ApiClient.get("/health", { skipAuth: true }),
+    ).rejects.toMatchObject({
+      status: 503,
+      correlationId: "correlation-123",
+    });
+  });
 });

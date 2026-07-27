@@ -373,12 +373,13 @@ Hệ thống đã có:
 - health checks;
 - audit được ghi bền vững xuống database;
 - bảng outbox lưu số lần thử (attempts) và lỗi gần nhất của từng event;
-- frontend có giao diện thử lại khi query lỗi, cùng error boundary ở mức toàn ứng dụng và từng route.
+- frontend có giao diện thử lại khi query lỗi, cùng error boundary ở mức toàn ứng dụng và từng route;
+- frontend observability adapter tạo structured incident, redact credential, giữ `x-correlation-id` của API error và tách boundary khỏi SDK của telemetry vendor.
 
 Hệ thống còn cần:
 
 - giới hạn tần suất và giãn dần nhịp ghi log khi hạ tầng lỗi liên tục, để log không bị spam;
-- một adapter gửi lỗi frontend về hệ thống theo dõi lỗi, thay vì chỉ `console.error`.
+- chọn và cấu hình telemetry provider production, sampling/rate limit, source map upload và retention policy cho frontend incident.
 
 ## 14. Kiểm thử
 
