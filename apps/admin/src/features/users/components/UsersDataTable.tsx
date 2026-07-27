@@ -18,6 +18,7 @@ import {
   QueryErrorState,
   TablePagination,
 } from "@/components";
+import { adminEnvironment } from "@/config/environment";
 
 interface UsersDataTableProps {
   users: User[];
@@ -44,8 +45,7 @@ interface UsersDataTableProps {
 const getAvatarUrl = (avatarPath?: string | null) => {
   if (!avatarPath) return undefined;
   if (avatarPath.startsWith("http")) return avatarPath;
-  const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:3001";
-  return `${baseUrl}${avatarPath}`;
+  return `${adminEnvironment.apiUrl}${avatarPath}`;
 };
 
 export const UsersDataTable = ({

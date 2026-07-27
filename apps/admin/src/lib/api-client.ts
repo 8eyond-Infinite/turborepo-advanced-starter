@@ -1,4 +1,6 @@
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
+import { adminEnvironment } from "@/config/environment";
+
+const API_URL = adminEnvironment.apiUrl;
 
 type JsonObject = Record<string, unknown>;
 

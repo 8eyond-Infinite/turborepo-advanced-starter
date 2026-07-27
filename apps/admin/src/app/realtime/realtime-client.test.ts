@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { adminEnvironment } from "@/config/environment";
 import { createRealtimeSocket, updateRealtimeToken } from "./realtime-client";
 
 const { io, socket } = vi.hoisted(() => {
@@ -18,7 +19,7 @@ describe("realtime client", () => {
     createRealtimeSocket("access-token");
 
     expect(io).toHaveBeenCalledWith(
-      "http://localhost:3001",
+      adminEnvironment.apiUrl,
       expect.objectContaining({ auth: { token: "access-token" } }),
     );
     expect(io.mock.calls[0]?.[1]).not.toHaveProperty("query");

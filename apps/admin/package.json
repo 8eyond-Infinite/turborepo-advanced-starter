@@ -13,6 +13,7 @@
     "test:watch": "vitest",
     "e2e": "playwright test",
     "e2e:report": "playwright show-report",
+    "verify:production": "pnpm run build && node scripts/verify-production-build.mjs",
     "verify": "pnpm run lint && pnpm run test && pnpm run build"
   },
   "dependencies": {

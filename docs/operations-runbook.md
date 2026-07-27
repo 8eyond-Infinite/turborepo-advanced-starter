@@ -164,6 +164,16 @@ merge vào main
 
 Thứ tự quan trọng: **migration chạy trước** và phải tương thích ngược, vì trong lúc triển khai luân phiên sẽ có cả code cũ lẫn code mới cùng nói chuyện với một database.
 
+Với Admin trên Vercel, sau khi deployment báo Ready:
+
+1. Mở trực tiếp `/users` và `/roles` trong tab mới; cả hai phải trả SPA, không phải Vercel 404.
+2. Kiểm tra response có `nosniff`, frame deny, referrer policy, permissions policy và COOP.
+3. Kiểm tra HTML có CSP với đúng API HTTPS và WebSocket WSS origin.
+4. Login, reload protected route, tải avatar và xác nhận realtime reconnect không bị CSP chặn.
+5. Kiểm tra asset hashed có cache immutable, HTML không cache, và deployment không phục vụ file `.map`.
+
+Nếu browser console báo CSP violation, không sửa bằng `default-src *`, `connect-src https:` hoặc thêm `unsafe-eval`. Xác định resource mới thuộc directive nào, thêm đúng origin vào generator `createContentSecurityPolicy`, bổ sung test rồi deploy lại. Nếu direct route 404, kiểm tra project Root Directory có đúng `apps/admin` và deployment có đọc `apps/admin/vercel.json` hay không.
+
 ### 4.2 Quay lui (rollback)
 
 ```bash

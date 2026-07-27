@@ -453,7 +453,7 @@ Vitest chạy trong jsdom, kèm Testing Library cho component test (setup ở `s
 12. `src/app/query-client.test.ts` — khóa retry policy: chỉ lỗi tạm thời được retry, có giới hạn; mutation không bao giờ tự phát lại.
 13. `src/routes/route-error-page.test.ts` — bảo đảm route boundary không rò thông điệp kỹ thuật hoặc dữ liệu nhạy cảm ra giao diện.
 
-`pnpm test` chạy kèm coverage và fail nếu tụt dưới sàn khai báo trong `vitest.config.ts` (hiện là 62% statements, 61% branches, 53% functions và 63% lines). Quy tắc ratchet: phủ thêm test thì nâng sàn lên theo, không bao giờ hạ sàn để cho qua.
+`pnpm test` chạy kèm coverage và fail nếu tụt dưới sàn khai báo trong `vitest.config.ts` (hiện là 63% statements, 62% branches, 54% functions và 64% lines). Quy tắc ratchet: phủ thêm test thì nâng sàn lên theo, không bao giờ hạ sàn để cho qua.
 
 Test mới nên đặt cạnh source khi test một unit hoặc module nhỏ. Integration test của một feature có thể đặt trong thư mục feature. Ưu tiên test behavior nhìn thấy từ public API thay vì private implementation.
 
@@ -482,9 +482,27 @@ pnpm --filter=admin build
 pnpm --filter=admin verify
 ```
 
-Dev server mặc định chạy ở `http://localhost:5173`. Backend URL lấy từ `VITE_API_URL`, fallback về `http://localhost:3001`.
+Dev server mặc định chạy ở `http://localhost:5173`. Backend URL lấy từ `VITE_API_URL`. Chỉ mode `development` và `test` được fallback về `http://localhost:3001`; production build thiếu biến, dùng URL sai định dạng, protocol khác HTTP(S), hoặc trỏ localhost đều fail ngay. Copy `.env.example` thành `.env.local` cho local override. Mọi biến `VITE_*` được đóng vào browser bundle nên chỉ chứa public configuration, tuyệt đối không chứa token, key hoặc secret.
 
 `verify` là quality gate nhanh: lint, unit/integration test, TypeScript build và Vite production build. `pnpm e2e:admin` là gate xuyên hệ thống: lệnh bật Postgres/Redis, tái tạo database E2E, migrate, seed, rồi Playwright tự quản lý API `3101` và Admin dev server `5174`. Cổng E2E riêng ngăn reuse nhầm process development `3001/5173`. Lần chạy đầu cần tải Chromium bằng `pnpm --filter=admin exec playwright install chromium`.
+
+`VITE_API_URL=https://api.example.com pnpm --filter=admin verify:production` build artifact rồi kiểm tra CSP, absence của localhost/source map, Vercel output directory, SPA rewrite và security-header contract. CI chạy cùng verifier sau monorepo build.
+
+### Vercel deployment contract
+
+Admin và Client là hai Vercel project độc lập. Admin project đặt **Root Directory** là `apps/admin`; framework là Vite; output là `dist`. Không tạo project `web` hoặc project ở repository root. Git integration tự build preview/production; `apps/admin/vercel.json` sở hữu SPA rewrite và browser headers.
+
+Mỗi Vercel environment phải có `VITE_API_URL` riêng:
+
+| Vercel scope | Giá trị                                              |
+| ------------ | ---------------------------------------------------- |
+| Development  | API local hoặc development                           |
+| Preview      | API staging/preview có CORS cho preview Admin origin |
+| Production   | API HTTPS production; không localhost                |
+
+Vite sinh CSP meta từ origin này: `connect-src` chỉ cho chính Admin origin, API HTTP(S) và Socket.IO WS(S); `img-src` cho API origin để hiển thị avatar. `vercel.json` bổ sung `nosniff`, frame deny, referrer policy, permissions policy, COOP, cache immutable cho hashed assets và no-cache cho HTML. CSP không có `unsafe-eval`; `unsafe-inline` chỉ còn ở `style-src` vì UI primitives dùng inline style. Khi thêm external font/image/telemetry endpoint phải sửa generator và test, không nới thành `https:` hoặc `*`.
+
+Direct navigation tới `/users`, `/roles` và các route SPA khác được rewrite về `index.html`; static assets vẫn do Vercel filesystem phục vụ. Production source maps bị tắt và verifier cấm file `.map` trong artifact.
 
 Trên CI, browser E2E chạy thành job riêng với PostgreSQL/Redis disposable và upload trace, screenshot, video, HTML report khi cần chẩn đoán. Job build/publish image chỉ được chạy sau quality, backend E2E và Admin browser E2E.
 
