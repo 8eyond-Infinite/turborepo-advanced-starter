@@ -28,8 +28,8 @@ export const useRoles = () => {
 
   const createRoleMutation = useMutation({
     mutationFn: roleApi.create,
-    onSuccess: (newRole) => {
-      queryClient.invalidateQueries({ queryKey: roleKeys.all });
+    onSuccess: async (newRole) => {
+      await queryClient.invalidateQueries({ queryKey: roleKeys.all });
       setNewRoleName("");
       setNewRoleDesc("");
       setIsAdding(false);
@@ -50,8 +50,8 @@ export const useRoles = () => {
 
   const deleteRoleMutation = useMutation({
     mutationFn: roleApi.remove,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: roleKeys.all });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: roleKeys.all });
       toast.success("Xóa vai trò thành công!");
     },
     onError: (error: unknown) => {
@@ -71,8 +71,8 @@ export const useRoles = () => {
 
   const updatePermissionsMutation = useMutation({
     mutationFn: roleApi.updatePermissions,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: roleKeys.all });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: roleKeys.all });
       toast.success("Đồng bộ quyền hạn vai trò thành công!");
     },
     onError: (error: unknown) => {

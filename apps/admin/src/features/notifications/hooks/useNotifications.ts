@@ -21,8 +21,8 @@ export const useNotifications = () => {
   // Mutation to mark a notification as read
   const markAsReadMutation = useMutation({
     mutationFn: notificationApi.markAsRead,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: notificationKeys.all });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: notificationKeys.all });
     },
     onError: (error: unknown) => {
       toast.error(
@@ -34,8 +34,8 @@ export const useNotifications = () => {
   // Mutation to mark all as read
   const markAllAsReadMutation = useMutation({
     mutationFn: notificationApi.markAllAsRead,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: notificationKeys.all });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: notificationKeys.all });
       toast.success("Đã đánh dấu đọc tất cả thông báo!");
     },
     onError: (error: unknown) => {

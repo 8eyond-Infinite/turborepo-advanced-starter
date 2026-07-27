@@ -7,8 +7,8 @@ import { sessionKeys } from "../api/session.keys";
 export const useSessions = (options?: { page?: number; limit?: number }) => {
   const queryClient = useQueryClient();
   const params = {
-    page: options?.page || 1,
-    limit: options?.limit || 10,
+    page: options?.page ?? 1,
+    limit: options?.limit ?? 10,
   };
 
   const sessionsQuery = useQuery({
@@ -28,8 +28,8 @@ export const useSessions = (options?: { page?: number; limit?: number }) => {
 
   const revokeSessionMutation = useMutation({
     mutationFn: sessionApi.revoke,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: sessionKeys.all });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: sessionKeys.all });
       toast.success("Đã thu hồi phiên đăng nhập thành công!");
     },
     onError: (error: unknown) => {
@@ -41,8 +41,8 @@ export const useSessions = (options?: { page?: number; limit?: number }) => {
 
   const revokeAllSessionsMutation = useMutation({
     mutationFn: sessionApi.revokeOthers,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: sessionKeys.all });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: sessionKeys.all });
       toast.success("Đã thu hồi toàn bộ các phiên đăng nhập khác!");
     },
     onError: (error: unknown) => {
