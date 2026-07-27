@@ -136,6 +136,15 @@ Không dùng `localhost` từ bên trong API container để gọi PostgreSQL co
 
 Secret thật không bao giờ được commit. `.env.example` chỉ chứa giá trị giữ chỗ an toàn (placeholder) và phải được cập nhật mỗi khi thêm biến bắt buộc mới.
 
+`apps/server/.env.e2e` là ngoại lệ có chủ đích: file này chỉ chứa secret test local cố định, trỏ duy nhất tới database disposable `admin_browser_e2e` và không được dùng ngoài test. Chạy Admin browser E2E bằng:
+
+```powershell
+pnpm --filter=admin exec playwright install chromium # chỉ cần lần đầu
+pnpm e2e:admin
+```
+
+`e2e:admin:prepare` bật Postgres/Redis rồi drop/recreate đúng database `admin_browser_e2e`, áp migration và seed admin test. Nó không đụng tới `starter_db`. Playwright sau đó khởi động API ở `127.0.0.1:3001` và Admin ở `127.0.0.1:5173`; dùng cùng hostname là bắt buộc để hành vi cookie `SameSite=Lax` phản ánh topology được kiểm tra.
+
 ## 5. Prisma workflow
 
 ### Generate client

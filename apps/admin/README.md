@@ -398,6 +398,17 @@ Vitest chạy trong jsdom, kèm Testing Library cho component test (setup ở `s
 
 Test mới nên đặt cạnh source khi test một unit hoặc module nhỏ. Integration test của một feature có thể đặt trong thư mục feature. Ưu tiên test behavior nhìn thấy từ public API thay vì private implementation.
 
+### Browser E2E
+
+Playwright trong `e2e/` kiểm tra các boundary chỉ xuất hiện khi toàn hệ thống chạy cùng nhau. Suite hiện khởi động NestJS và Vite thật, kết nối PostgreSQL/Redis thật và kiểm tra bằng Chromium:
+
+1. Người chưa xác thực mở protected route bị chuyển về login.
+2. Login admin tạo refresh cookie `HttpOnly`; reload trang gọi `/auth/refresh` và khôi phục phiên.
+3. Principal có role `USER` mở route chỉ dành cho admin nhìn thấy forbidden boundary.
+4. Admin deactivate một user đang kết nối; outbox/realtime gateway phát `force_logout` và browser trở về login.
+
+Test tạo user qua public API thay vì chọc trực tiếp database. Local suite dùng database disposable `admin_browser_e2e`, tách hoàn toàn khỏi `starter_db`; script chuẩn bị luôn drop rồi tạo lại đúng database này để phiên, outbox event và dữ liệu từ lần chạy trước không làm test phụ thuộc thứ tự. `.env.e2e` chỉ chứa credential test local, tuyệt đối không dùng cho staging hoặc production.
+
 ## 12. Lệnh phát triển và quality gate
 
 Chạy từ thư mục gốc monorepo:
@@ -407,13 +418,16 @@ pnpm --filter=admin dev
 pnpm --filter=admin lint
 pnpm --filter=admin check-types
 pnpm --filter=admin test
+pnpm e2e:admin
 pnpm --filter=admin build
 pnpm --filter=admin verify
 ```
 
 Dev server mặc định chạy ở `http://localhost:5173`. Backend URL lấy từ `VITE_API_URL`, fallback về `http://localhost:3001`.
 
-`verify` là quality gate cục bộ: lint, test, TypeScript build và Vite production build đều phải pass trước khi commit.
+`verify` là quality gate nhanh: lint, unit/integration test, TypeScript build và Vite production build. `pnpm e2e:admin` là gate xuyên hệ thống: lệnh bật Postgres/Redis, tái tạo database E2E, migrate, seed, rồi Playwright tự quản lý API và Admin dev server. Lần chạy đầu cần tải Chromium bằng `pnpm --filter=admin exec playwright install chromium`.
+
+Trên CI, browser E2E chạy thành job riêng với PostgreSQL/Redis disposable và upload trace, screenshot, video, HTML report khi cần chẩn đoán. Job build/publish image chỉ được chạy sau quality, backend E2E và Admin browser E2E.
 
 ## 13. Những điểm cần tiếp tục cải thiện
 
@@ -421,6 +435,6 @@ Dashboard lấy trạng thái hạ tầng thật từ `/health/ready` (làm mớ
 
 Vendor đã được tách theo nhịp thay đổi (`react-vendor`, `data-vendor`, `i18n-vendor`, `realtime-vendor`) để deploy code ứng dụng không làm hỏng cache của thư viện. Muốn đo lại trước khi chỉnh tiếp: `ANALYZE=1 pnpm --filter=admin build` rồi mở `dist/stats.html`. Ngưỡng cảnh báo kích thước chunk đặt ở 350 kB để chunk phình lên là biết ngay.
 
-Authentication đã dùng HttpOnly refresh cookie, access token trong memory, single-flight refresh và rollback cho login dở dang. Phần cần bổ sung tiếp theo là browser-level test cho CORS/cookie behavior trên topology triển khai thật.
+Authentication đã dùng HttpOnly refresh cookie, access token trong memory, single-flight refresh và rollback cho login dở dang. Browser E2E đã khóa login, cookie refresh qua reload, RBAC route và force logout qua WebSocket trên topology local/CI thật. Khoảng trống tiếp theo là kiểm thử topology production có TLS và domain/subdomain thật.
 
-Test suite đã bảo vệ API client, auth store, route guard, permission evaluator, cache boundary, realtime boundary, permission visibility của các màn hình quản trị chính và mutation/invalidation của users, roles, sessions và notifications. Khoảng trống ưu tiên tiếp theo là browser-level end-to-end test cho các flow đăng nhập, refresh, phân quyền và force logout chạy qua frontend, API, cookie và WebSocket thật.
+Test suite đã bảo vệ API client, auth store, route guard, permission evaluator, cache boundary, realtime boundary, permission visibility của các màn hình quản trị chính và mutation/invalidation của users, roles, sessions và notifications. Browser suite bảo vệ các flow quan trọng nhất qua frontend, API, cookie, database, Redis và WebSocket thật.

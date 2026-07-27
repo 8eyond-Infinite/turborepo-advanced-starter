@@ -89,6 +89,7 @@ Nguyên tắc thêm dependency mới: phải trả lời được "nếu không 
 | **date-fns**                                       | Định dạng thời gian tương đối kiểu "5 phút trước" theo locale tiếng Việt.                                                                  | `src/components/notification-bell.tsx`, dashboard |
 | **next-themes**                                    | Chuyển giao diện sáng/tối.                                                                                                                 | `src/components/theme-provider.tsx`               |
 | **Vitest + Testing Library**                       | Chạy test trong môi trường jsdom và render component theo cách người dùng nhìn thấy (tìm theo nhãn, vai trò) thay vì theo chi tiết nội bộ. | `src/**/*.test.tsx`, `src/test/setup.ts`          |
+| **Playwright**                                     | Chạy Chromium qua Admin, API, cookie, PostgreSQL, Redis và WebSocket thật; giữ trace/video/screenshot khi flow xuyên hệ thống lỗi.         | `e2e/`, `playwright.config.ts`                    |
 
 ## Client (`apps/client`)
 
