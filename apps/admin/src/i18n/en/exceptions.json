@@ -8,5 +8,12 @@
       "exists": "This email address is already in use."
     }
   },
+  "role": {
+    "system": {
+      "delete": {
+        "forbidden": "The system role \"{{roleName}}\" cannot be deleted."
+      }
+    }
+  },
   "forbidden": "You do not have permission to perform this action."
 }

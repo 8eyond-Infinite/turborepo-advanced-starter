@@ -19,7 +19,14 @@ import {
   PageCard,
   TablePagination,
 } from "@/components";
-import { UserCheck, UserX, UserPlus, Shield, Pencil } from "lucide-react";
+import {
+  UserCheck,
+  UserX,
+  UserPlus,
+  Shield,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useUsers } from "../hooks/useUsers";
 import { AddUserCard } from "./AddUserCard";
@@ -270,6 +277,17 @@ export const UserTable = () => {
 
                         <Can I={PERMISSIONS.USER.DELETE}>
                           <ConfirmDialog
+                            trigger={
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-muted-foreground hover:text-destructive cursor-pointer"
+                                aria-label={`Xóa tài khoản ${user.email}`}
+                                title={`Xóa ${user.email}`}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            }
                             title="Xác nhận xóa tài khoản?"
                             description={
                               <>

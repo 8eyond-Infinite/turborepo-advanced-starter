@@ -31,7 +31,7 @@ import {
 } from "lucide-react";
 import { useRoles } from "../hooks/useRoles";
 import { Can, usePermissions } from "@/hooks/usePermission";
-import { PERMISSIONS } from "@repo/contracts";
+import { isSystemRole, PERMISSIONS } from "@repo/contracts";
 import type { PermissionRecord } from "@repo/types";
 
 const groupPermissions = (perms: PermissionRecord[]) => {
@@ -241,7 +241,7 @@ export const RolesManagement = () => {
                       >
                         {role.description || "Không có mô tả"}
                       </span>
-                      {role.name !== "ADMIN" && role.name !== "USER" && (
+                      {!isSystemRole(role.name) && (
                         <Can I={PERMISSIONS.ROLE.DELETE}>
                           <ConfirmDialog
                             trigger={
@@ -249,6 +249,7 @@ export const RolesManagement = () => {
                                 variant="ghost"
                                 size="icon"
                                 className="h-6 w-6 mt-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
+                                aria-label={`Xóa vai trò ${role.name}`}
                                 title={`Xóa vai trò ${role.name}`}
                               >
                                 <Trash2 className="h-3 w-3" />
@@ -352,6 +353,7 @@ export const RolesManagement = () => {
                                   <div className="flex items-center justify-center">
                                     <Checkbox
                                       checked={isChecked}
+                                      aria-label={`${isChecked ? "Thu hồi" : "Cấp"} quyền ${perm.name} cho vai trò ${role.name}`}
                                       disabled={
                                         !access.canManageRolePermissions
                                       }

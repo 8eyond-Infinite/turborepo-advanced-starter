@@ -8,5 +8,12 @@
       "exists": "Tài khoản email này đã được sử dụng."
     }
   },
+  "role": {
+    "system": {
+      "delete": {
+        "forbidden": "Không thể xóa vai trò hệ thống \"{{roleName}}\"."
+      }
+    }
+  },
   "forbidden": "Bạn không có quyền thực hiện hành động này."
 }

@@ -274,7 +274,9 @@ Feature khác chỉ được import qua `index.ts` công khai, không được i
 
 ### Runtime composition
 
-`main.tsx` render `App`. `App` khởi động phần auth, rồi tạo QueryClient, theme, router, toaster và error boundary cho toàn ứng dụng. Route registry chỉ tải code của trang khi người dùng mở đến trang đó (lazy-load). `ProtectedRoute` chặn người chưa đăng nhập và quản lý vòng đời kết nối WebSocket. `PermissionGuard` bảo vệ route/action theo quyền.
+`main.tsx` render `App`. `App` khởi động phần auth, rồi lắp QueryClient, theme, realtime provider, router, toaster và error boundary cho toàn ứng dụng. Route registry chỉ tải code của trang khi người dùng mở đến trang đó (lazy-load). `ProtectedRoute` chỉ chặn người chưa đăng nhập; `PermissionGuard` bảo vệ route/action theo quyền.
+
+Realtime là một application boundary độc lập trong `src/app/realtime`: client adapter tạo Socket.IO connection và chỉ truyền access token qua handshake auth; event-handler adapter chuyển transport event thành logout, toast hoặc query invalidation; `RealtimeProvider` sở hữu vòng đời socket theo auth state và cập nhật credential khi HTTP client refresh token. Việc tách boundary khỏi `ProtectedRoute` giữ routing thuần về access control, đồng thời bảo đảm chỉ có một nơi mở, đăng ký listener và cleanup kết nối realtime.
 
 Chi tiết đầy đủ nằm trong [Admin handbook](../apps/admin/README.md).
 
@@ -334,6 +336,8 @@ external mail provider
 ```
 
 API và worker là hai process tách biệt build từ cùng một image: API nhận HTTP/WebSocket và đẩy job vào queue; worker (`src/worker.module.ts`) chỉ tiêu thụ job — email gửi chậm không chiếm event loop của API. Realtime emit theo room `user:{id}` qua `@socket.io/redis-adapter`, nên sự kiện phát từ instance này tới được socket đang nối vào instance khác.
+
+Browser xác thực Socket.IO bằng access token trong `handshake.auth.token`; token không được đưa vào query string vì URL có thể bị proxy hoặc access log ghi lại. Gateway vẫn đọc query token như compatibility fallback cho client cũ, nhưng frontend hiện tại không sử dụng đường này. HTTP token rotation cập nhật `socket.auth`, nên mọi reconnect sau đó dùng access token mới.
 
 Container dùng cho development không phải là image dùng cho production. Container production không mount source code từ máy ngoài vào (bind mount), không chạy chế độ theo dõi file (watch mode) và không cài dependency lúc khởi động.
 

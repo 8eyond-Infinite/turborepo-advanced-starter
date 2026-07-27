@@ -44,6 +44,11 @@ export const Errors = {
     translationKey: 'exceptions.role.not.found',
     statusCode: 404,
   },
+  SYSTEM_ROLE_DELETE_FORBIDDEN: {
+    code: 'SYSTEM_ROLE_DELETE_FORBIDDEN',
+    translationKey: 'exceptions.role.system.delete.forbidden',
+    statusCode: 409,
+  },
 
   // Validation
   INVALID_EMAIL: {

@@ -15,13 +15,14 @@ export default defineConfig({
       provider: "v8",
       include: ["src/**/*.{ts,tsx}"],
       exclude: ["src/components/ui/**", "src/**/*.test.*", "src/test/**"],
-      // Sàn hiện tại (thực đo ~13%) — chỉ nâng dần khi phủ thêm test,
+      // Sàn thấp hơn kết quả thực đo khoảng một điểm để tránh dao động nhỏ;
+      // chỉ nâng dần khi phủ thêm test,
       // không bao giờ hạ xuống.
       thresholds: {
-        statements: 12,
-        branches: 11,
-        functions: 11,
-        lines: 12,
+        statements: 35,
+        branches: 34,
+        functions: 26,
+        lines: 35,
       },
     },
   },

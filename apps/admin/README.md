@@ -29,10 +29,13 @@ flowchart LR
 
 Code nghiệp vụ được tổ chức theo feature; phần dùng chung được tổ chức theo lớp kỹ thuật (layer).
 
-`features` chứa các vertical slice như users, roles và sessions. Mỗi feature đặt component màn hình cạnh hook truy cập dữ liệu của chính nó. `components` chứa UI dùng lại giữa nhiều feature. `lib` chứa client hạ tầng không phụ thuộc một màn hình cụ thể. `routes` là composition root (điểm lắp ráp duy nhất) của điều hướng: mọi route và permission đi kèm đều được khai báo tại đây. `hooks` chứa hành vi dùng chung gắn với React như kiểm tra permission, theo dõi kích thước màn hình và quản lý vòng đời kết nối WebSocket.
+`features` chứa các vertical slice như users, roles và sessions. Mỗi feature đặt component màn hình cạnh hook truy cập dữ liệu của chính nó. `components` chứa UI dùng lại giữa nhiều feature. `lib` chứa client hạ tầng không phụ thuộc một màn hình cụ thể. `routes` là composition root (điểm lắp ráp duy nhất) của điều hướng: mọi route và permission đi kèm đều được khai báo tại đây. `app` chứa các boundary có vòng đời toàn ứng dụng, hiện gồm auth-cache boundary và realtime provider. `hooks` chỉ chứa hành vi React dùng chung không thuộc một feature hay boundary cụ thể, như kiểm tra permission và theo dõi kích thước màn hình.
 
 ```text
 src/
+├── app/
+│   ├── auth-cache-boundary.ts # Xóa server cache khi principal thay đổi
+│   └── realtime/              # Socket client, event handlers và lifecycle provider
 ├── components/
 │   ├── layout/                 # Shell sau đăng nhập
 │   ├── ui/                     # UI primitive, không chứa nghiệp vụ
@@ -45,7 +48,7 @@ src/
 │   ├── sessions/               # Phiên đăng nhập và thu hồi
 │   ├── audit/                  # Nhật ký quản trị
 │   └── notifications/          # Query và mutation thông báo
-├── hooks/                      # Permission, WebSocket, responsive hooks
+├── hooks/                      # Permission và responsive hooks dùng chung
 ├── i18n/                       # Translation resource cho lỗi
 ├── lib/                        # API client, error mapping, utilities
 ├── routes/                     # Route tree và protected route
@@ -103,7 +106,9 @@ URL
   → Feature page
 ```
 
-`ProtectedRoute` đồng thời quyết định thời điểm mở và đóng kết nối realtime. Khi nhánh route bảo vệ được mount, `useWebSocket` tạo kết nối; khi đăng xuất hoặc rời lifecycle này, socket được disconnect.
+`ProtectedRoute` chỉ có một trách nhiệm: quyết định người dùng đã đăng nhập hay chưa. Vòng đời realtime thuộc `RealtimeProvider` tại composition root của ứng dụng, không phụ thuộc route cụ thể. Provider chỉ mở socket khi auth store đã authenticated và có access token; khi logout hoặc provider unmount, nó gỡ listener rồi disconnect socket.
+
+Access token của Socket.IO chỉ đi trong `handshake.auth.token`, không nằm trong query string để tránh URL hoặc proxy log ghi lại bearer credential. Khi HTTP refresh thành công, event `auth:token-refreshed` cập nhật `socket.auth`; lần reconnect kế tiếp luôn dùng token mới.
 
 Khi thêm page mới, cần tạo feature component, lazy import component đó và thêm một entry vào `adminRoutes`. Permission của route phải lấy từ `@repo/contracts`, không viết string trực tiếp.
 
@@ -114,6 +119,8 @@ Authentication state thuộc `features/auth/store/auth.store.ts`. Zustand store 
 ### Đăng nhập
 
 `LoginForm` gọi `authStore.login()`. Store gửi credentials tới `/auth/login`, lưu token pair, sau đó gọi `/users/me`. Chỉ khi lấy được user thành công store mới chuyển sang authenticated.
+
+Login là một transition nguyên khối ở phía client: nếu `/auth/login` thành công nhưng `/users/me` thất bại, store xóa access token, giữ trạng thái unauthenticated và gọi `/auth/logout` theo best effort để thu hồi refresh session vừa tạo. Lỗi profile ban đầu vẫn được trả về UI; lỗi cleanup không được phép che mất nguyên nhân chính.
 
 ### Khôi phục phiên sau reload
 
@@ -146,7 +153,7 @@ sequenceDiagram
 
 Request retry được đánh dấu `skipRefresh`, do đó một response 401 tiếp theo sẽ trở thành `ApiError` thay vì tạo vòng lặp vô hạn.
 
-Nếu refresh thất bại, `ApiClient` xóa token và phát event `auth:logout`. `App` nhận event, dọn auth store và điều hướng về `/login`. Nếu refresh thành công, client phát `auth:token-refreshed`; `useWebSocket` cập nhật token dùng cho lần reconnect tiếp theo.
+Nếu refresh thất bại, `ApiClient` xóa token và phát event `auth:logout`. `App` nhận event, dọn auth store và điều hướng về `/login`. Nếu refresh thành công, client phát `auth:token-refreshed`; `RealtimeProvider` cập nhật `socket.auth` để lần reconnect tiếp theo dùng token mới.
 
 ### Thuộc tính bảo mật của mô hình cookie
 
@@ -155,6 +162,8 @@ Refresh token nằm trong cookie `HttpOnly` (`Secure` ở production, `SameSite=
 ## 6. Server state và UI state
 
 TanStack Query sở hữu dữ liệu đến từ server: users, roles, permissions, sessions, audit logs, dashboard stats và notifications. Zustand chỉ sở hữu authentication state có phạm vi toàn ứng dụng. State ngắn hạn như modal đang mở, search input và current page nằm trong component.
+
+Cache server được xem là dữ liệu thuộc về principal đang đăng nhập, không phải cache dùng chung cho cả tab. `app/auth-cache-boundary.ts` theo dõi transition từ authenticated sang unauthenticated và gọi `QueryClient.clear()`. Vì vậy logout, force logout hoặc refresh token hết hạn đều loại bỏ dữ liệu của phiên cũ trước khi một tài khoản khác đăng nhập trong cùng tab.
 
 Quy tắc ownership:
 
@@ -167,6 +176,8 @@ Quy tắc ownership:
 | Theme              | Theme provider | light/dark/system           |
 
 Mỗi feature có query-key factory, ví dụ `userKeys.list({ page, limit, search })`. Factory bảo đảm cùng một loại dữ liệu luôn dùng cùng một key trong cache, và cung cấp root key như `userKeys.all` để khi mutation cần làm mới cache, mọi biến thể phân trang đều được làm mới mà không phải lặp lại chuỗi key ở nhiều nơi.
+
+Mutation thành công phải `await queryClient.invalidateQueries(...)`. Promise mutation chỉ resolve sau khi cache liên quan đã được đánh dấu stale và các active query hoàn tất refetch; form không được báo hoàn thành trong khi màn hình vẫn còn dữ liệu cũ. Mutation thất bại hiển thị lỗi nhưng không invalidate dữ liệu đang hợp lệ.
 
 Query screen phải phân biệt bốn trạng thái: loading, error có retry, empty và success. `components/query-error-state.tsx` là pattern dùng chung để lỗi mạng không bị hiển thị nhầm thành dữ liệu rỗng.
 
@@ -191,9 +202,15 @@ Array trong semantic map mang nghĩa `any`: chỉ cần người dùng có ít n
 
 Kiểm tra permission ở frontend chỉ phục vụ trải nghiệm người dùng. Nó không phải hàng rào bảo mật; backend vẫn phải từ chối request trái quyền.
 
+Màn hình nghiệp vụ phải có integration test với ít nhất một principal read-only và các tổ hợp mutation permission quan trọng. Test query control bằng accessible name để đồng thời khóa permission visibility và khả năng sử dụng bằng assistive technology; icon-only action như sửa hoặc xóa bắt buộc có `aria-label`.
+
 ## 8. Realtime flow
 
-`hooks/useWebSocket.ts` tạo một Socket.IO client sau khi authenticated. Access token được gửi trong `auth` và query để tương thích gateway hiện tại.
+Realtime là một application boundary trong `src/app/realtime`, được tách thành ba phần có trách nhiệm độc lập:
+
+- `realtime-client.ts` biết cách tạo Socket.IO client và cập nhật credential. Access token chỉ được gửi qua `handshake.auth`, không nằm trong URL/query string.
+- `realtime-event-handlers.ts` ánh xạ transport event sang application side effect như logout, toast và invalidation cache.
+- `realtime-provider.tsx` sở hữu lifecycle: đọc auth state, tạo đúng một socket cho phiên authenticated, nghe token refresh và cleanup toàn bộ resource khi phiên kết thúc.
 
 Client xử lý ba nhóm event:
 
@@ -201,28 +218,30 @@ Client xử lý ba nhóm event:
 - `notification_received`: hiển thị toast và invalidate query `["notifications"]`.
 - `notification`: hiển thị toast realtime tổng quát.
 
-Hook chịu trách nhiệm đăng ký và hủy toàn bộ listener trong cùng một effect. Feature component không nên tự tạo socket mới; nếu có domain event mới, mở rộng hook hoặc tách một realtime adapter dùng chung.
+Feature component không được tự tạo socket. Khi thêm event mới, khai báo handler trong `realtime-event-handlers.ts`; nếu event dẫn tới thay đổi server state, handler phải invalidate query bằng query-key factory của feature thay vì lặp chuỗi key. Provider chỉ điều phối lifecycle và không chứa logic trình bày của từng event.
 
 ## 9. Trách nhiệm của các file chính
 
-| File hoặc thư mục                       | Trách nhiệm                                                            |
-| --------------------------------------- | ---------------------------------------------------------------------- |
-| `src/main.tsx`                          | Điểm vào trên trình duyệt: nạp CSS và khởi tạo i18n                    |
-| `src/App.tsx`                           | Lắp ráp các provider, khôi phục phiên đăng nhập, xử lý logout toàn cục |
-| `src/routes/index.tsx`                  | Khai báo mọi route, nạp trang kiểu lazy và gắn permission cho route    |
-| `src/routes/protected-route.tsx`        | Chặn người chưa đăng nhập và mở/đóng kết nối realtime                  |
-| `src/lib/api-client.ts`                 | Gắn header, xử lý JSON, dịch lỗi, tự refresh token và retry request    |
-| `src/lib/error-handler.ts`              | Chuyển lỗi kỹ thuật thành message thân thiện                           |
-| `src/features/auth/store/auth.store.ts` | Đăng nhập, đăng xuất, khôi phục phiên và giữ thông tin user hiện tại   |
-| `src/hooks/usePermission.tsx`           | Kiểm tra permission; cung cấp `Can` và `PermissionGuard`               |
-| `src/hooks/useWebSocket.ts`             | Mở/đóng socket và xử lý các event realtime                             |
-| `src/components/ui`                     | UI primitive; không gọi API và không chứa business rule                |
-| `src/components/*.tsx`                  | Các mẫu giao diện dùng lại giữa nhiều feature                          |
-| `src/features/*/api/*.api.ts`           | Nơi duy nhất của feature biết endpoint backend và kiểu dữ liệu vào/ra  |
-| `src/features/*/api/*.keys.ts`          | Sinh query key để định danh dữ liệu của feature trong cache            |
-| `src/features/*/hooks`                  | Gọi API qua query/mutation và làm mới cache của feature                |
-| `src/features/*/components`             | Giữ trạng thái tương tác và hiển thị màn hình nghiệp vụ                |
-| `src/features/*/index.ts`               | Cổng public duy nhất để code bên ngoài import feature                  |
+| File hoặc thư mục                             | Trách nhiệm                                                           |
+| --------------------------------------------- | --------------------------------------------------------------------- |
+| `src/main.tsx`                                | Điểm vào trên trình duyệt: nạp CSS và khởi tạo i18n                   |
+| `src/App.tsx`                                 | Lắp ráp provider, khôi phục phiên, xử lý logout toàn cục              |
+| `src/app/realtime/realtime-client.ts`         | Tạo socket và cập nhật token cho lần reconnect                        |
+| `src/app/realtime/realtime-event-handlers.ts` | Ánh xạ realtime event sang toast, logout và cache invalidation        |
+| `src/app/realtime/realtime-provider.tsx`      | Sở hữu vòng đời socket theo trạng thái authentication                 |
+| `src/routes/index.tsx`                        | Khai báo mọi route, nạp trang kiểu lazy và gắn permission cho route   |
+| `src/routes/protected-route.tsx`              | Chặn người chưa đăng nhập; không sở hữu hạ tầng realtime              |
+| `src/lib/api-client.ts`                       | Gắn header, xử lý JSON, dịch lỗi, tự refresh token và retry request   |
+| `src/lib/error-handler.ts`                    | Chuyển lỗi kỹ thuật thành message thân thiện                          |
+| `src/features/auth/store/auth.store.ts`       | Đăng nhập, đăng xuất, khôi phục phiên và giữ thông tin user hiện tại  |
+| `src/hooks/usePermission.tsx`                 | Kiểm tra permission; cung cấp `Can` và `PermissionGuard`              |
+| `src/components/ui`                           | UI primitive; không gọi API và không chứa business rule               |
+| `src/components/*.tsx`                        | Các mẫu giao diện dùng lại giữa nhiều feature                         |
+| `src/features/*/api/*.api.ts`                 | Nơi duy nhất của feature biết endpoint backend và kiểu dữ liệu vào/ra |
+| `src/features/*/api/*.keys.ts`                | Sinh query key để định danh dữ liệu của feature trong cache           |
+| `src/features/*/hooks`                        | Gọi API qua query/mutation và làm mới cache của feature               |
+| `src/features/*/components`                   | Giữ trạng thái tương tác và hiển thị màn hình nghiệp vụ               |
+| `src/features/*/index.ts`                     | Cổng public duy nhất để code bên ngoài import feature                 |
 
 ## 10. Cách thêm một feature chuẩn (mini-tutorial)
 
@@ -363,13 +382,19 @@ Navigation phải dùng cùng permission với route — nếu không sẽ hiệ
 
 ## 11. Testing
 
-Vitest chạy trong jsdom, kèm Testing Library cho component test (setup ở `src/test/setup.ts`). Ba nhóm test hiện có:
+Vitest chạy trong jsdom, kèm Testing Library cho component test (setup ở `src/test/setup.ts`). Các nhóm test nền tảng hiện có:
 
 1. `src/lib/api-client.test.ts` — khóa chặt hành vi refresh: hai request 401 đồng thời chỉ tạo một refresh request; refresh thất bại phải xóa session và phát logout; retry vẫn 401 không được refresh lặp vô hạn.
 2. `src/hooks/usePermission.test.tsx` — render `<Can>` với các tổ hợp quyền: có quyền thì hiện, thiếu thì hiện fallback, `all`/`any` đúng ngữ nghĩa, và hành vi fail-open khi route không khai báo permission.
 3. `src/features/auth/components/LoginForm.test.tsx` — submit gọi `login` đúng credentials và điều hướng khi thành công; lỗi hiển thị thông báo thân thiện và ở lại trang; nút ẩn/hiện mật khẩu có accessible name.
+4. `src/features/auth/store/auth.store.test.ts` — khóa transition login, rollback/revoke khi profile không tải được và local cleanup khi logout gặp lỗi mạng.
+5. `src/routes/protected-route.test.tsx` — phân biệt đúng bootstrap pending, unauthenticated redirect và authenticated outlet.
+6. `src/app/auth-cache-boundary.test.ts` — bảo đảm cache server bị xóa khi principal đăng xuất nhưng không bị xóa bởi update auth state không liên quan.
+7. `src/app/realtime/realtime-client.test.ts` — khóa chặt việc token chỉ đi qua Socket.IO auth payload và có thể được thay sau HTTP refresh.
+8. `src/app/realtime/realtime-event-handlers.test.ts` — xác nhận event được ánh xạ đúng sang logout, toast, cache invalidation và mọi listener đều được tháo.
+9. `src/app/realtime/realtime-provider.test.tsx` — xác nhận socket chỉ sống trong phiên authenticated, nhận token mới và được cleanup khi provider unmount.
 
-`pnpm test` chạy kèm coverage và fail nếu tụt dưới sàn khai báo trong `vitest.config.ts` (~13% hiện tại). Quy tắc ratchet: phủ thêm test thì nâng sàn lên theo, không bao giờ hạ sàn để cho qua.
+`pnpm test` chạy kèm coverage và fail nếu tụt dưới sàn khai báo trong `vitest.config.ts` (hiện là 35% statements, 34% branches, 26% functions và 35% lines). Quy tắc ratchet: phủ thêm test thì nâng sàn lên theo, không bao giờ hạ sàn để cho qua.
 
 Test mới nên đặt cạnh source khi test một unit hoặc module nhỏ. Integration test của một feature có thể đặt trong thư mục feature. Ưu tiên test behavior nhìn thấy từ public API thay vì private implementation.
 
@@ -396,6 +421,6 @@ Dashboard lấy trạng thái hạ tầng thật từ `/health/ready` (làm mớ
 
 Vendor đã được tách theo nhịp thay đổi (`react-vendor`, `data-vendor`, `i18n-vendor`, `realtime-vendor`) để deploy code ứng dụng không làm hỏng cache của thư viện. Muốn đo lại trước khi chỉnh tiếp: `ANALYZE=1 pnpm --filter=admin build` rồi mở `dist/stats.html`. Ngưỡng cảnh báo kích thước chunk đặt ở 350 kB để chunk phình lên là biết ngay.
 
-Authentication nên được nâng cấp sang HttpOnly refresh cookie như đã nêu. Khi thực hiện, cần viết migration note và test cả CSRF/CORS/cookie behavior.
+Authentication đã dùng HttpOnly refresh cookie, access token trong memory, single-flight refresh và rollback cho login dở dang. Phần cần bổ sung tiếp theo là browser-level test cho CORS/cookie behavior trên topology triển khai thật.
 
-Test suite hiện bảo vệ API client, bộ kiểm tra permission và tính nhất quán của cache key, nhưng chưa bao phủ ba nhóm: guard chặn route, việc ẩn/hiện UI theo permission và các mutation của feature. Đây là ba nhóm integration test nên được bổ sung tiếp theo.
+Test suite đã bảo vệ API client, auth store, route guard, permission evaluator, cache boundary, realtime boundary, permission visibility của các màn hình quản trị chính và mutation/invalidation của users, roles, sessions và notifications. Khoảng trống ưu tiên tiếp theo là browser-level end-to-end test cho các flow đăng nhập, refresh, phân quyền và force logout chạy qua frontend, API, cookie và WebSocket thật.

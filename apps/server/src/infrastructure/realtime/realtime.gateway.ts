@@ -64,12 +64,19 @@ export class RealtimeGateway
   handleConnection(client: Socket): void {
     try {
       const authHeader = client.handshake.headers.authorization;
+      const authToken =
+        typeof client.handshake.auth?.token === 'string'
+          ? client.handshake.auth.token
+          : undefined;
       const queryToken =
         typeof client.handshake.query.token === 'string'
           ? client.handshake.query.token
           : undefined;
 
-      let token = queryToken;
+      // Browser clients use Socket.IO's auth payload. Header is supported for
+      // non-browser clients; query remains a temporary compatibility fallback.
+      // Never require a bearer token in the URL because proxies may log it.
+      let token = authToken ?? queryToken;
       if (authHeader && authHeader.startsWith('Bearer ')) {
         token = authHeader.split(' ')[1];
       }

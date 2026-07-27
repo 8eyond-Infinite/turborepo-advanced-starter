@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { getFriendlyErrorMessage } from "@/lib/error-handler";
 import { roleApi } from "../api/role.api";
 import { roleKeys } from "../api/role.keys";
+import { isSystemRole } from "@repo/contracts";
 
 export const useRoles = () => {
   const queryClient = useQueryClient();
@@ -28,8 +29,8 @@ export const useRoles = () => {
 
   const createRoleMutation = useMutation({
     mutationFn: roleApi.create,
-    onSuccess: (newRole) => {
-      queryClient.invalidateQueries({ queryKey: roleKeys.all });
+    onSuccess: async (newRole) => {
+      await queryClient.invalidateQueries({ queryKey: roleKeys.all });
       setNewRoleName("");
       setNewRoleDesc("");
       setIsAdding(false);
@@ -50,8 +51,8 @@ export const useRoles = () => {
 
   const deleteRoleMutation = useMutation({
     mutationFn: roleApi.remove,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: roleKeys.all });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: roleKeys.all });
       toast.success("Xóa vai trò thành công!");
     },
     onError: (error: unknown) => {
@@ -60,9 +61,7 @@ export const useRoles = () => {
   });
 
   const deleteRole = (roleId: string, roleName: string) => {
-    const isDefaultRole =
-      roleName === "ADMIN" || roleName === "USER" || roleId === "1";
-    if (isDefaultRole) {
+    if (isSystemRole(roleName)) {
       toast.error(`Không thể xóa vai trò mặc định "${roleName}"!`);
       return;
     }
@@ -71,8 +70,8 @@ export const useRoles = () => {
 
   const updatePermissionsMutation = useMutation({
     mutationFn: roleApi.updatePermissions,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: roleKeys.all });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: roleKeys.all });
       toast.success("Đồng bộ quyền hạn vai trò thành công!");
     },
     onError: (error: unknown) => {

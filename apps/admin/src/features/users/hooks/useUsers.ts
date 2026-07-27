@@ -12,9 +12,9 @@ export const useUsers = (options?: {
 }) => {
   const queryClient = useQueryClient();
   const params = {
-    page: options?.page || 1,
-    limit: options?.limit || 10,
-    search: options?.search || "",
+    page: options?.page ?? 1,
+    limit: options?.limit ?? 10,
+    search: options?.search ?? "",
   };
 
   // 1. Fetch Users List
@@ -41,8 +41,8 @@ export const useUsers = (options?: {
 
   const createUserMutation = useMutation({
     mutationFn: userApi.create,
-    onSuccess: (newUser) => {
-      queryClient.invalidateQueries({ queryKey: userKeys.all });
+    onSuccess: async (newUser) => {
+      await queryClient.invalidateQueries({ queryKey: userKeys.all });
       toast.success(`Đã tạo tài khoản "${newUser.email}" thành công!`);
     },
     onError: (error: unknown) => {
@@ -53,8 +53,8 @@ export const useUsers = (options?: {
   // 4. Toggle User Status Mutation
   const toggleStatusMutation = useMutation({
     mutationFn: userApi.toggleStatus,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: userKeys.all });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: userKeys.all });
       toast.success("Thay đổi trạng thái tài khoản thành công!");
     },
     onError: (error: unknown) => {
@@ -67,8 +67,8 @@ export const useUsers = (options?: {
   // 5. Delete User Mutation
   const deleteUserMutation = useMutation({
     mutationFn: userApi.remove,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: userKeys.all });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: userKeys.all });
       toast.success("Xóa tài khoản thành công!");
     },
     onError: (error: unknown) => {
@@ -79,8 +79,8 @@ export const useUsers = (options?: {
   // 6. Update User Mutation
   const updateUserMutation = useMutation({
     mutationFn: userApi.update,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: userKeys.all });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: userKeys.all });
       toast.success("Cập nhật thông tin tài khoản thành công!");
     },
     onError: (error: unknown) => {

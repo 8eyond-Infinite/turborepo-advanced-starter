@@ -128,9 +128,10 @@ Khi nội dung một role thay đổi, các access token đã cấp có thể v�
 
 ## 7. Delete semantics
 
-Xóa role hiện đi qua command/repository như một thao tác nghiệp vụ, và chỉ đánh dấu xóa mềm (soft-delete) chứ không xóa hẳn khỏi database. Trước khi siết chính sách cho production, cần quyết định rõ:
+Xóa role đi qua command/repository như một thao tác nghiệp vụ và chỉ đánh dấu xóa mềm (soft-delete), không xóa hẳn khỏi database. `ADMIN` và `USER` là hai system role được khai báo tập trung trong `@repo/contracts`; delete handler từ chối chúng bằng `SYSTEM_ROLE_DELETE_FORBIDDEN`. UI ẩn nút xóa để có trải nghiệm đúng, nhưng invariant thực sự nằm ở backend nên gọi thẳng API cũng không thể vượt qua.
 
-- role hệ thống nào không được xóa;
+Các chính sách còn cần quyết định rõ:
+
 - role đang gắn cho user có được xóa không;
 - user mất role sẽ được thay bằng role nào;
 - token của các user liên quan bị thu hồi bằng cách nào.

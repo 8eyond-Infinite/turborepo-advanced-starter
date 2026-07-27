@@ -94,13 +94,36 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // HttpOnly cookie mà server vừa set.
     ApiClient.setToken(tokens.accessToken);
 
-    const user = await ApiClient.get<User>("/users/me");
-    set({
-      user,
-      isAuthenticated: true,
-      isLoading: false,
-      isInitializing: false,
-    });
+    try {
+      const user = await ApiClient.get<User>("/users/me");
+      set({
+        user,
+        isAuthenticated: true,
+        isLoading: false,
+        isInitializing: false,
+      });
+    } catch (error) {
+      // Login chỉ hoàn tất khi profile được tải thành công. Thu hồi session vừa
+      // tạo để UI, access token trong memory và refresh cookie không lệch nhau.
+      ApiClient.setToken(null);
+      set({
+        user: null,
+        isAuthenticated: false,
+        isLoading: false,
+        isInitializing: false,
+      });
+      try {
+        await ApiClient.post(
+          "/auth/logout",
+          {},
+          { skipAuth: true, skipRefresh: true },
+        );
+      } catch {
+        // Giữ nguyên lỗi profile ban đầu; cookie hết hạn vẫn được backend kiểm
+        // tra ở lần initialize tiếp theo.
+      }
+      throw error;
+    }
   },
   logout: async () => {
     try {
