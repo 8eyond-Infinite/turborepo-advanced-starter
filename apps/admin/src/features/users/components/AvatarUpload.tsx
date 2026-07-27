@@ -4,6 +4,7 @@ import { ApiClient } from "@/lib/api-client";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { getFriendlyErrorMessage } from "@/lib/error-handler";
+import { adminEnvironment } from "@/config/environment";
 
 interface AvatarUploadProps {
   value?: string | null;
@@ -22,8 +23,7 @@ const ACCEPTED_AVATAR_TYPES = new Set([
 const getAvatarUrl = (avatarPath?: string | null) => {
   if (!avatarPath) return undefined;
   if (avatarPath.startsWith("http")) return avatarPath;
-  const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:3001";
-  return `${baseUrl}${avatarPath}`;
+  return `${adminEnvironment.apiUrl}${avatarPath}`;
 };
 
 export const AvatarUpload: React.FC<AvatarUploadProps> = ({

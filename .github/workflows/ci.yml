@@ -19,6 +19,8 @@ jobs:
     env:
       # prisma generate chỉ cần URL đúng định dạng, không cần DB sống
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ci_placeholder?schema=public
+      # Admin production build phải có explicit public API origin và không được trỏ localhost.
+      VITE_API_URL: https://api.ci.example.invalid
     steps:
       - uses: actions/checkout@v4
 
@@ -46,6 +48,10 @@ jobs:
 
       - name: Build
         run: pnpm turbo run build
+
+      - name: Verify Admin production artifact
+        working-directory: apps/admin
+        run: node scripts/verify-production-build.mjs
 
   e2e:
     name: Backend E2E

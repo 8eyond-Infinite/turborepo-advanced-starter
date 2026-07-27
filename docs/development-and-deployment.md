@@ -372,11 +372,27 @@ Nếu dữ liệu quan trọng, đừng để PostgreSQL production sống chế
 
 Bản build Vite của Admin chỉ là các file tĩnh, có thể phục vụ qua CDN hoặc static host. Next.js cần một tiến trình Node đang chạy nếu dùng render động (dynamic rendering); chỉ xuất ra file tĩnh (static export) được khi hành vi của sản phẩm cho phép.
 
+### Vercel topology cho hai frontend
+
+Repository chỉ có hai frontend deployable: project **Admin** trỏ Root Directory `apps/admin`, project **Client** trỏ Root Directory `apps/client`. Không tạo project `web` và không trỏ một Vercel project vào repository root; làm vậy khiến Vercel tự đoán sai framework/build target trong monorepo.
+
+Admin dùng Git integration của Vercel. Project Settings cần giữ:
+
+- Framework Preset: Vite;
+- Root Directory: `apps/admin`;
+- Output Directory: `dist` (được khóa lại trong `apps/admin/vercel.json`);
+- Install command: dùng package manager từ repository (`pnpm install`);
+- `VITE_API_URL` được scope riêng cho Development, Preview và Production.
+
+`VITE_API_URL` là public browser config, không phải secret. Preview không được dùng nhầm API production nếu preview origin chưa nằm trong CORS allowlist. Production phải là HTTPS origin và build sẽ từ chối localhost hoặc biến bị thiếu. Vite sinh CSP từ cùng origin; Vercel áp static security headers và SPA rewrite.
+
+Quality CI build với `https://api.ci.example.invalid`, sau đó chạy `scripts/verify-production-build.mjs`. Verifier fail nếu artifact có localhost, source map, thiếu CSP, thiếu header contract hoặc mất catch-all rewrite. Turbo khai báo `VITE_API_URL` trong `globalEnv`, vì output frontend thay đổi theo biến này và không được tái dùng remote cache từ origin khác.
+
 ## 13. CI pipeline
 
 CI chạy trên GitHub Actions với hai workflow đã triển khai:
 
-- `.github/workflows/ci.yml` — job `quality` (install frozen → prisma generate → lint với `--max-warnings=0` → check-types → unit tests → build) và job `e2e` (PostgreSQL/Redis/Maildev service containers, sinh `apps/server/.env.test` với database `starter_test`, chạy `pnpm --filter=server test:e2e`).
+- `.github/workflows/ci.yml` — job `quality` (install frozen → prisma generate → lint với `--max-warnings=0` → check-types → unit tests → build → verify Admin production artifact) và job `e2e` (PostgreSQL/Redis/Maildev service containers, sinh `apps/server/.env.test` với database `starter_test`, chạy `pnpm --filter=server test:e2e`).
 - `.github/workflows/security.yml` — gitleaks secret scan (full history) và `pnpm audit --prod --audit-level=high`, chạy trên push/PR và theo lịch hàng tuần.
 
 Node được pin qua `.nvmrc`, pnpm qua trường `packageManager`. Dependabot cập nhật npm dependencies và GitHub Actions hàng tuần (`.github/dependabot.yml`). Local có husky pre-commit (lint-staged + prettier) và commit-msg (commitlint, conventional commits).
