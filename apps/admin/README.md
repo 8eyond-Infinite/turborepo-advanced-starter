@@ -64,6 +64,8 @@ Entry point là `src/main.tsx`. File này nạp CSS, khởi tạo i18n rồi ren
 
 `App.tsx` là composition root phía client. Nó tạo một `QueryClient`, gắn theme provider, query provider, router và toaster. Ngay khi mount, `App` gọi `authStore.initialize()` để khôi phục phiên trước khi render route tree.
 
+`QueryClient` không được cấu hình trực tiếp trong component. `src/app/query-client.ts` là policy boundary chung của server state. Query đọc dữ liệu được thử lại tối đa hai lần khi lỗi có khả năng tạm thời: lỗi mạng của trình duyệt, HTTP 408, 429 hoặc 5xx. HTTP 4xx còn lại không được retry vì request hoặc quyền truy cập cần được sửa, chờ thêm không làm kết quả thay đổi. Mutation không tự retry vì một command có thể đã thành công ở server dù client chưa nhận được response; gửi lại mù quáng có thể tạo tác dụng phụ hai lần. Feature vẫn chịu trách nhiệm hiển thị error state và cho người dùng chủ động thử lại.
+
 ```mermaid
 sequenceDiagram
     participant Browser
@@ -270,6 +272,7 @@ Feature component không được tự tạo socket. Khi thêm event mới, khai
 | --------------------------------------------- | --------------------------------------------------------------------- |
 | `src/main.tsx`                                | Điểm vào trên trình duyệt: nạp CSS và khởi tạo i18n                   |
 | `src/App.tsx`                                 | Lắp ráp provider, khôi phục phiên, xử lý logout toàn cục              |
+| `src/app/query-client.ts`                     | Policy cache, retry và retry delay dùng chung cho server state        |
 | `src/app/realtime/realtime-client.ts`         | Tạo socket và cập nhật token cho lần reconnect                        |
 | `src/app/realtime/realtime-event-handlers.ts` | Ánh xạ realtime event sang toast, logout và cache invalidation        |
 | `src/app/realtime/realtime-provider.tsx`      | Sở hữu vòng đời socket theo trạng thái authentication                 |
@@ -439,8 +442,10 @@ Vitest chạy trong jsdom, kèm Testing Library cho component test (setup ở `s
 9. `src/app/realtime/realtime-provider.test.tsx` — xác nhận socket chỉ sống trong phiên authenticated, nhận token mới và được cleanup khi provider unmount.
 10. `src/features/dashboard/components/DashboardCharts.test.tsx` — bảo đảm biểu đồ có tên accessible, giá trị chính xác có thể đọc mà không cần nhìn màu/hình và zero dataset có empty state rõ ràng.
 11. `src/features/dashboard/components/DashboardOverview.test.tsx` — khóa blocking loading state, partial failure của health/audit và hành vi refresh đồng thời ba nguồn dữ liệu độc lập.
+12. `src/app/query-client.test.ts` — khóa retry policy: chỉ lỗi tạm thời được retry, có giới hạn; mutation không bao giờ tự phát lại.
+13. `src/routes/route-error-page.test.ts` — bảo đảm route boundary không rò thông điệp kỹ thuật hoặc dữ liệu nhạy cảm ra giao diện.
 
-`pnpm test` chạy kèm coverage và fail nếu tụt dưới sàn khai báo trong `vitest.config.ts` (hiện là 40% statements, 41% branches, 32% functions và 40% lines). Quy tắc ratchet: phủ thêm test thì nâng sàn lên theo, không bao giờ hạ sàn để cho qua.
+`pnpm test` chạy kèm coverage và fail nếu tụt dưới sàn khai báo trong `vitest.config.ts` (hiện là 57% statements, 54% branches, 48% functions và 58% lines). Quy tắc ratchet: phủ thêm test thì nâng sàn lên theo, không bao giờ hạ sàn để cho qua.
 
 Test mới nên đặt cạnh source khi test một unit hoặc module nhỏ. Integration test của một feature có thể đặt trong thư mục feature. Ưu tiên test behavior nhìn thấy từ public API thay vì private implementation.
 
@@ -486,3 +491,5 @@ Vendor đã được tách theo nhịp thay đổi (`react-vendor`, `data-vendor
 Authentication đã dùng HttpOnly refresh cookie, access token trong memory, single-flight refresh và rollback cho login dở dang. Browser E2E đã khóa login, cookie refresh qua reload, RBAC route và force logout qua WebSocket trên topology local/CI thật. Khoảng trống tiếp theo là kiểm thử topology production có TLS và domain/subdomain thật.
 
 Test suite đã bảo vệ API client, auth store, route guard, permission evaluator, cache boundary, realtime boundary, permission visibility của các màn hình quản trị chính và mutation/invalidation của users, roles, sessions và notifications. Browser suite bảo vệ các flow quan trọng nhất qua frontend, API, cookie, database, Redis và WebSocket thật.
+
+Application resilience hiện có ba tầng. Lỗi render vượt khỏi feature được chặn bởi `ApplicationErrorBoundary`; lỗi lazy route/loader được chặn bởi `RouteErrorPage`; lỗi server state dự kiến được feature hiển thị bằng `QueryErrorState`. Boundary không đưa raw `Error.message` ra người dùng vì message kỹ thuật có thể chứa endpoint, identifier hoặc dữ liệu nhạy cảm. Lỗi vẫn được ghi vào console tại boundary để hỗ trợ local diagnosis; production cần nối cùng điểm này vào hệ thống telemetry khi observability provider được chọn.

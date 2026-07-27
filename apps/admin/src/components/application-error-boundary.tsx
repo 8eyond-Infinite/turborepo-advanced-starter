@@ -33,7 +33,10 @@ export class ApplicationErrorBoundary extends Component<
           className="w-full max-w-lg rounded-xl border border-border bg-card p-8 text-center shadow-sm"
           role="alert"
         >
-          <AlertTriangle className="mx-auto mb-4 h-10 w-10 text-destructive" />
+          <AlertTriangle
+            className="mx-auto mb-4 h-10 w-10 text-destructive"
+            aria-hidden="true"
+          />
           <h1 className="text-lg font-bold">Ứng dụng gặp sự cố</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Một lỗi không mong đợi đã xảy ra. Hãy tải lại trang; nếu lỗi tiếp
@@ -44,7 +47,7 @@ export class ApplicationErrorBoundary extends Component<
             className="mt-6"
             onClick={() => window.location.reload()}
           >
-            <RefreshCw className="mr-2 h-4 w-4" />
+            <RefreshCw className="mr-2 h-4 w-4" aria-hidden="true" />
             Tải lại ứng dụng
           </Button>
         </section>

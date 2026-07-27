@@ -275,6 +275,8 @@ Component
 
 Query-key factory định nghĩa "địa chỉ" của từng mẩu dữ liệu trong cache. Sau mỗi mutation, cache của cả feature bị đánh dấu là cũ (invalidate root key) để dữ liệu được tải lại. Mỗi màn hình phân biệt rõ bốn trạng thái: đang tải, lỗi có thể thử lại, không có dữ liệu, và thành công.
 
+Policy server-state nằm tại `src/app/query-client.ts`, không nằm rải rác trong page. Read query chỉ tự retry tối đa hai lần đối với lỗi có khả năng tạm thời: browser network error, HTTP 408, 429 và 5xx; 4xx còn lại dừng ngay. Mutation không tự retry vì command có thể không idempotent và response bị mất không đồng nghĩa server chưa thực thi. Sau khi policy kết thúc retry, feature chuyển sang error state có nút thử lại để quyết định tiếp tục thuộc về người dùng.
+
 Danh sách nghiệp vụ dùng URL làm nguồn sự thật cho filter và pagination khi trạng thái đó cần bookmark, reload hoặc Back/Forward. Ví dụ Users ánh xạ `?q=member&page=2` vào tham số query của `useUsers`; draft tìm kiếm chỉ tồn tại cục bộ trong 300 ms debounce. Dữ liệu phụ thuộc quyền như danh sách role được query có điều kiện, chỉ khi principal có capability tạo hoặc sửa user.
 
 Mutation cần xác nhận trả về Promise tới component. Shared `ConfirmDialog` giữ pending state và chỉ đóng sau khi mutation cùng cache invalidation hoàn tất; lỗi giữ dialog mở để retry. Validation phía form phản chiếu các constraint công khai để phản hồi sớm, nhưng không thay thế validation và authorization ở backend.
@@ -288,6 +290,8 @@ Feature khác chỉ được import qua `index.ts` công khai, không được i
 ### Runtime composition
 
 `main.tsx` render `App`. `App` khởi động phần auth, rồi lắp QueryClient, theme, realtime provider, router, toaster và error boundary cho toàn ứng dụng. Route registry chỉ tải code của trang khi người dùng mở đến trang đó (lazy-load). `ProtectedRoute` chỉ chặn người chưa đăng nhập; `PermissionGuard` bảo vệ route/action theo quyền.
+
+Resilience được chia theo phạm vi lỗi. `QueryErrorState` xử lý lỗi server-state dự kiến và giữ phần còn lại của trang hoạt động; `RouteErrorPage` chặn lỗi lazy route hoặc loader; `ApplicationErrorBoundary` là chốt cuối cho lỗi render không dự kiến. Hai boundary cấp cao ghi lỗi kỹ thuật để chẩn đoán nhưng chỉ hiển thị thông điệp đã kiểm soát, không phản chiếu raw `Error.message` có thể chứa endpoint, identifier hoặc dữ liệu nhạy cảm.
 
 Realtime là một application boundary độc lập trong `src/app/realtime`: client adapter tạo Socket.IO connection và chỉ truyền access token qua handshake auth; event-handler adapter chuyển transport event thành logout, toast hoặc query invalidation; `RealtimeProvider` sở hữu vòng đời socket theo auth state và cập nhật credential khi HTTP client refresh token. Việc tách boundary khỏi `ProtectedRoute` giữ routing thuần về access control, đồng thời bảo đảm chỉ có một nơi mở, đăng ký listener và cleanup kết nối realtime.
 
