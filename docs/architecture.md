@@ -30,6 +30,8 @@ flowchart TB
 
 PostgreSQL lưu dữ liệu nghiệp vụ lâu dài và bảng outbox. Redis lưu các phiên refresh, cache và hạ tầng queue. Access token là JWT sống ngắn; muốn thu hồi ngay một token đã phát thì hệ thống còn phải dựa vào `tokenVersion` và cách quản lý session được mô tả trong Auth handbook.
 
+Notification read model trả cả page items lẫn `unreadCount` trên toàn mailbox. Badge phía client không được suy ra từ page đang tải. Mark-read dùng optimistic cache có rollback, còn realtime chỉ đóng vai trò tín hiệu invalidate vì HTTP/database mới là nguồn sự thật.
+
 ## 2. Monorepo boundary
 
 `apps` chứa những phần chạy được và triển khai được (executable/deployable unit). `packages` chứa code mà các app import lúc biên dịch (compile-time dependency) — tự nó không chạy độc lập.

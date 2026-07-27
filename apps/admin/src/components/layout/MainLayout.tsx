@@ -21,18 +21,19 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 
+const breadcrumbItems = [
+  { path: "/", label: "Tổng quan" },
+  { path: "/users", label: "Quản lý Users" },
+  { path: "/roles", label: "Phân quyền Roles" },
+  { path: "/sessions", label: "Phiên đăng nhập" },
+  { path: "/audit-logs", label: "Nhật ký hoạt động" },
+] as const;
+
 export const MainLayout = () => {
   const location = useLocation();
 
-  const navItems = [
-    { path: "/", label: "Tổng quan" },
-    { path: "/users", label: "Quản lý Users" },
-    { path: "/roles", label: "Phân quyền Roles" },
-    { path: "/sessions", label: "Phiên đăng nhập" },
-  ];
-
   const currentLabel =
-    navItems.find((item) => item.path === location.pathname)?.label ||
+    breadcrumbItems.find((item) => item.path === location.pathname)?.label ||
     "Dashboard";
 
   return (
@@ -41,7 +42,7 @@ export const MainLayout = () => {
         <AppSidebar />
         <SidebarInset className="bg-background text-foreground flex flex-col min-h-screen">
           {/* Header */}
-          <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-border bg-background/60 backdrop-blur px-6">
+          <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-border bg-background/60 px-3 backdrop-blur sm:px-6">
             <div className="flex items-center gap-2">
               <SidebarTrigger className="-ml-1 text-muted-foreground hover:text-foreground cursor-pointer" />
               <Separator
@@ -73,7 +74,7 @@ export const MainLayout = () => {
               <ModeToggle />
             </div>
           </header>
-          <main className="flex-1 p-8 overflow-y-auto bg-background">
+          <main className="flex-1 overflow-y-auto bg-background p-4 sm:p-6 lg:p-8">
             <Outlet />
           </main>
         </SidebarInset>

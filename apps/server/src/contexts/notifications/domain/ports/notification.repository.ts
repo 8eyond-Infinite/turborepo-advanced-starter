@@ -8,6 +8,10 @@ export interface NotificationRepository {
   findByUserId(
     userId: string,
     options: { page: number; limit: number },
-  ): Promise<{ items: NotificationEntity[]; total: number }>;
+  ): Promise<{
+    items: NotificationEntity[];
+    total: number;
+    unreadCount: number;
+  }>;
   markAllAsRead(userId: string): Promise<void>;
 }

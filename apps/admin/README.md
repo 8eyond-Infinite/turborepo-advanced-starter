@@ -217,6 +217,14 @@ Presentation của audit được tách khỏi query: `audit-log.presentation.ts
 
 Backend hiện bảo đảm search trên action, details và email. UI không cung cấp filter theo ngày/action hoặc export giả lập khi contract chưa hỗ trợ; các khả năng đó phải được thiết kế thành API có phân trang, authorization và giới hạn dữ liệu trước.
 
+### Notification lifecycle
+
+Popover tải 50 notification mới nhất nhưng badge dùng `unreadCount` do backend đếm trên toàn bộ mailbox; không được đếm mảng page hiện tại. Mark-one và mark-all cập nhật cache lạc quan để UI phản hồi ngay, giữ snapshot để rollback khi request thất bại, rồi invalidate root key sau thành công.
+
+Mỗi notification chưa đọc là một semantic button có accessible name và dùng được bằng bàn phím. Notification đã đọc bị disabled vì không còn action. Timestamp hiển thị tương đối nhưng giữ ISO gốc trong `dateTime`. Realtime event chỉ invalidate cache và hiển thị toast; HTTP response vẫn là nguồn sự thật.
+
+Shared shell đặt breadcrumb metadata ngoài component để không tạo lại mỗi render, bao gồm đầy đủ route Audit. Header và content padding thay đổi theo breakpoint; active navigation nhận diện cả route con thay vì chỉ exact pathname.
+
 ## 7. Permission model
 
 Permission được kiểm tra ở ba cấp:
