@@ -23,7 +23,7 @@ export default defineConfig([
     files: [
       "src/components/ui/**/*.tsx",
       "src/components/theme-provider.tsx",
-      "src/hooks/usePermission.tsx",
+      "src/app/access/usePermission.tsx",
       "src/routes/index.tsx",
     ],
     rules: {
@@ -31,16 +31,20 @@ export default defineConfig([
     },
   },
   {
-    files: ["src/features/**/*.{ts,tsx}"],
+    files: [
+      "src/app/**/*.{ts,tsx}",
+      "src/features/**/*.{ts,tsx}",
+      "src/routes/**/*.{ts,tsx}",
+    ],
     rules: {
       "no-restricted-imports": [
         "error",
         {
           patterns: [
             {
-              group: ["@/features/*/*"],
+              regex: "^@/features/[^/]+/(?!pages$)",
               message:
-                "Feature khác chỉ được truy cập qua public index của feature đó.",
+                "Feature chỉ được truy cập qua public index hoặc route entry pages.",
             },
           ],
         },
@@ -48,15 +52,20 @@ export default defineConfig([
     },
   },
   {
-    files: ["src/components/ui/**/*.{ts,tsx}"],
+    files: [
+      "src/components/**/*.{ts,tsx}",
+      "src/hooks/**/*.{ts,tsx}",
+      "src/lib/**/*.{ts,tsx}",
+    ],
     rules: {
       "no-restricted-imports": [
         "error",
         {
           patterns: [
             {
-              group: ["@/features/**"],
-              message: "UI primitive không được phụ thuộc feature nghiệp vụ.",
+              group: ["@/app/**", "@/features/**", "@/routes/**"],
+              message:
+                "Shared layer không được phụ thuộc application composition, route hoặc feature nghiệp vụ.",
             },
           ],
         },

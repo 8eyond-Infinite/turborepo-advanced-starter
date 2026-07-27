@@ -2,10 +2,10 @@ import * as React from "react";
 import { HelpCircle, Settings2, Shield, type LucideIcon } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { ApiClient } from "@/lib/api-client";
-import { NavMain } from "@/components/nav-main";
-import { NavUser } from "@/components/nav-user";
+import { NavMain } from "./nav-main";
+import { NavUser } from "./nav-user";
 import { useAuthStore } from "@/features/auth";
-import { usePermission } from "@/hooks/usePermission";
+import { usePermission } from "@/app/access/usePermission";
 import {
   Sidebar,
   SidebarContent,
