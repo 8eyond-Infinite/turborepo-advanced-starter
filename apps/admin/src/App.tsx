@@ -7,6 +7,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "./components/theme-provider";
 import { ApplicationErrorBoundary } from "@/components/application-error-boundary";
 import { subscribeToAuthCacheCleanup } from "@/app/auth-cache-boundary";
+import { RealtimeProvider } from "@/app/realtime/realtime-provider";
 
 // 1. Initialize TanStack Query Client
 const queryClient = new QueryClient({
@@ -52,8 +53,10 @@ function App() {
     <ApplicationErrorBoundary>
       <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
         <QueryClientProvider client={queryClient}>
-          <RouterProvider router={router} />
-          <Toaster />
+          <RealtimeProvider>
+            <RouterProvider router={router} />
+            <Toaster />
+          </RealtimeProvider>
         </QueryClientProvider>
       </ThemeProvider>
     </ApplicationErrorBoundary>

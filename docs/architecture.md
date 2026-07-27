@@ -274,7 +274,9 @@ Feature khác chỉ được import qua `index.ts` công khai, không được i
 
 ### Runtime composition
 
-`main.tsx` render `App`. `App` khởi động phần auth, rồi tạo QueryClient, theme, router, toaster và error boundary cho toàn ứng dụng. Route registry chỉ tải code của trang khi người dùng mở đến trang đó (lazy-load). `ProtectedRoute` chặn người chưa đăng nhập và quản lý vòng đời kết nối WebSocket. `PermissionGuard` bảo vệ route/action theo quyền.
+`main.tsx` render `App`. `App` khởi động phần auth, rồi lắp QueryClient, theme, realtime provider, router, toaster và error boundary cho toàn ứng dụng. Route registry chỉ tải code của trang khi người dùng mở đến trang đó (lazy-load). `ProtectedRoute` chỉ chặn người chưa đăng nhập; `PermissionGuard` bảo vệ route/action theo quyền.
+
+Realtime là một application boundary độc lập trong `src/app/realtime`: client adapter tạo Socket.IO connection và chỉ truyền access token qua handshake auth; event-handler adapter chuyển transport event thành logout, toast hoặc query invalidation; `RealtimeProvider` sở hữu vòng đời socket theo auth state và cập nhật credential khi HTTP client refresh token. Việc tách boundary khỏi `ProtectedRoute` giữ routing thuần về access control, đồng thời bảo đảm chỉ có một nơi mở, đăng ký listener và cleanup kết nối realtime.
 
 Chi tiết đầy đủ nằm trong [Admin handbook](../apps/admin/README.md).
 

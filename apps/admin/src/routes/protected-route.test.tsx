@@ -1,13 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { useAuthStore } from "@/features/auth";
 import { ProtectedRoute } from "./protected-route";
-
-const { useWebSocket } = vi.hoisted(() => ({
-  useWebSocket: vi.fn(),
-}));
-vi.mock("@/hooks/useWebSocket", () => ({ useWebSocket }));
 
 const renderRoute = () =>
   render(
@@ -23,7 +18,6 @@ const renderRoute = () =>
 
 describe("<ProtectedRoute />", () => {
   beforeEach(() => {
-    useWebSocket.mockClear();
     useAuthStore.setState({
       user: null,
       isAuthenticated: false,
