@@ -374,9 +374,9 @@ Bản build Vite của Admin chỉ là các file tĩnh, có thể phục vụ qu
 
 ### Render topology cho backend
 
-Backend được codify tại `render.yaml` thành bốn resource cùng region: Docker web service cho API, Docker background worker dùng cùng image, managed PostgreSQL và managed Key Value. API/worker nhận `DATABASE_URL` và `REDIS_URL` qua private connection string; datastore không mở public inbound. API chạy migration bằng `node scripts/migrate.mjs` ở pre-deploy, trước rollout, còn worker không chạy migration.
+Backend production được codify tại `render.yaml` thành bốn resource cùng region: Docker web service cho API, Docker background worker dùng cùng image, managed PostgreSQL và managed Key Value. API/worker nhận `DATABASE_URL` và `REDIS_URL` qua private connection string; datastore không mở public inbound. API chạy migration bằng `node scripts/migrate.mjs` ở pre-deploy, trước rollout, còn worker không chạy migration.
 
-Đọc [Triển khai backend trên Render](render-deployment.md) trước khi tạo Blueprint. Tài liệu đó là checklist đầy đủ cho plan, secret, CORS, cookie topology, smoke test và rollback. Không tái tạo topology này bằng các field thủ công rời rạc trong dashboard.
+`render.free.yaml` là Blueprint demo riêng: một free API, free PostgreSQL, free Redis, không worker; migration và seed chạy tuần tự trước startup vì free plan không có pre-deploy command. Đọc [Triển khai backend trên Render](render-deployment.md) trước khi chọn file. Không biến topology free thành production bằng cách nâng plan rời rạc trong dashboard.
 
 ### Vercel topology cho hai frontend
 
