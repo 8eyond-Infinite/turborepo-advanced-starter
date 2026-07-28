@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
+import { adminEnvironment } from "@/config/environment";
 import { resolveAvatarUrl } from "./avatar-url";
 
 describe("resolveAvatarUrl", () => {
   it("resolves a server-relative avatar against the configured API", () => {
     expect(resolveAvatarUrl("/public/uploads/avatars/member.png")).toBe(
-      "https://api.example.com/public/uploads/avatars/member.png",
+      new URL(
+        "/public/uploads/avatars/member.png",
+        `${adminEnvironment.apiUrl}/`,
+      ).toString(),
     );
   });
 
