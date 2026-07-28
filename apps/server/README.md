@@ -1,5 +1,13 @@
 # Backend Architecture Handbook
 
+> **Phần II · Chương 6 — Backend từ request đến side effect**
+>
+> Chương trước: [Kiến trúc hệ thống](../../docs/architecture.md) · [Mục lục handbook](../../docs/README.md) · Chương sau: [Admin Portal](../admin/README.md)
+
+Nếu Chương 5 là bản đồ thành phố, chương này là chuyến đi qua từng con đường của backend. Sau khi đọc, bạn phải biết mở file nào khi một request vào hệ thống, business rule nằm ở đâu, transaction kết thúc ở đâu và side effect nền được giao cho ai.
+
+Đừng bắt đầu bằng cách ghi nhớ bốn layer. Hãy bắt đầu bằng flow `POST /users`: controller nhận HTTP, command handler điều phối use case, aggregate bảo vệ quy tắc nghiệp vụ, repository ghi dữ liệu, outbox giữ lời hứa phát event và worker xử lý email. Tên layer chỉ là cách gọi ngắn gọn cho các trách nhiệm trong flow này.
+
 Tài liệu này là bản đồ kiến trúc chính thức của backend trong `apps/server`. Mục tiêu không chỉ là cho biết dự án có những thư mục nào, mà giúp một thành viên mới hiểu được hệ thống đang giải quyết vấn đề gì, vì sao code được chia như hiện tại, một request đi qua những lớp nào và phải mở rộng code theo cách nào để không phá vỡ kiến trúc.
 
 Các README bên trong từng bounded context đi sâu vào nghiệp vụ cụ thể:

@@ -1,5 +1,13 @@
 # Quy trình phát hành
 
+> **Phần IV · Chương 17 — Từ commit đến phiên bản có thể rollback**
+>
+> Chương trước: [Render adapter](render-deployment.md) · [Mục lục handbook](README.md) · Chương sau: [Operations Runbook](operations-runbook.md)
+
+Build thành công chưa phải là release. Release là một quyết định có thể truy vết: ta chọn tập thay đổi nào, gắn cho nó version nào, image nào đúng là artifact đã qua CI và nếu lỗi thì quay về đâu.
+
+Chương này theo một commit `feat:` từ lúc merge vào `main`, qua release-please, Git tag và GHCR image tag. Điểm quan trọng nhất là “build once”: artifact được phát hành chính là artifact đã được kiểm thử, không phải một image được build lại sau đó.
+
 Tài liệu này trả lời ba câu hỏi: phiên bản của repo được đánh số thế nào, một bản phát hành ra đời qua những bước nào, và khi cần quay lui thì bám vào đâu.
 
 > Gặp từ lạ? Tra [Bảng thuật ngữ](glossary.md).
@@ -76,3 +84,7 @@ Chưa bật mà workflow chạy sẽ lỗi `GitHub Actions is not permitted to c
 - **Không build lại khi phát hành.** Image được gắn tag phiên bản chính là image đã qua kiểm tra ở CI, loại trừ khả năng "bản test một đằng, bản phát hành một nẻo".
 
 Một điều tinh tế đáng biết: tag do `GITHUB_TOKEN` tạo ra **không kích hoạt workflow khác** (GitHub chặn để tránh bot gọi bot vòng lặp vô hạn). Vì vậy đừng viết workflow mới kiểu `on: push: tags: [v*]` và mong nó chạy khi release-please tạo tag — nó sẽ im lặng không chạy. Việc gì cần làm lúc phát hành thì đặt vào job sau `release-please` trong chính `release.yml`, như job `tag-image` hiện tại.
+
+## Checkpoint cuối chương
+
+Chọn một release gần nhất trên GitHub và lần ngược ba thứ: release version, Git commit SHA và GHCR image tag. Ba giá trị phải dẫn về cùng một source state. Sau đó tự trả lời: vì sao production không deploy `latest`, ai quyết định thời điểm phát hành và rollback cần biết tag nào.

@@ -1,5 +1,13 @@
 # Roles Bounded Context
 
+> **Phần III · Chương 11 — Vai trò, quyền và quyết định truy cập**
+>
+> Chương trước: [Users context](../users/README.md) · [Mục lục handbook](../../../../../../docs/README.md) · Chương sau: [Notifications context](../../notifications/README.md)
+
+Roles trả lời “một danh tính đã biết có được thực hiện hành động này không?”. Chương này tách rõ authentication (401: chưa chứng minh được danh tính) và authorization (403: biết người gọi nhưng họ thiếu quyền).
+
+Ta sẽ đi theo request đọc danh sách role. Guard xác thực token trước, permission guard đọc metadata của endpoint, backend tải quyền hiệu lực của user rồi mới cho controller chạy. UI có thể ẩn nút để trải nghiệm tốt hơn, nhưng quyết định bảo mật cuối cùng luôn nằm ở backend.
+
 Roles sở hữu mô hình RBAC: role, danh mục permission và quan hệ role-permission. Context này trả lời “một role đại diện cho tập quyền nào?”. Còn việc kiểm tra một HTTP request có đủ quyền hay không diễn ra ở guard thuộc tầng presentation.
 
 > Gặp từ lạ (RBAC, guard, aggregate, tokenVersion…)? Tra [Bảng thuật ngữ](../../../../../../docs/glossary.md).

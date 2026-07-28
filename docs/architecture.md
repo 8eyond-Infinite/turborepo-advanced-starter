@@ -1,5 +1,13 @@
 # Kiến trúc hệ thống
 
+> **Phần II · Chương 5 — Từ request đến toàn hệ thống**
+>
+> Chương trước: [Công cụ và thư viện](tech-stack.md) · [Mục lục handbook](README.md) · Chương sau: [Backend Architecture](../apps/server/README.md)
+
+Chương này trả lời câu hỏi lớn nhất: khi người dùng thực hiện một hành động, những phần nào của hệ thống tham gia và vì sao trách nhiệm được chia như hiện tại? Hãy đọc theo thứ tự thay vì nhảy ngay vào sơ đồ layers; system context ở đầu chương là chiếc bản đồ giúp mọi chi tiết phía sau có chỗ đứng.
+
+Câu chuyện xuyên suốt là quản trị viên tạo một user. Admin gửi HTTP request; backend xác thực người gọi, kiểm tra quyền, thực thi use case, bảo vệ invariant, ghi PostgreSQL và outbox trong cùng transaction; publisher chuyển event sang Redis queue; worker xử lý email. Mỗi section sau phóng to một đoạn của câu chuyện đó.
+
 Tài liệu này giải thích cấu trúc đang chạy của monorepo: phần nào thuộc quyền sở hữu của ai, các tầng phụ thuộc nhau theo chiều nào, một request đi qua những bước gì, transaction được quản lý ra sao, đăng nhập/phân quyền hoạt động thế nào, frontend giữ state ở đâu, và những điểm chưa hoàn thiện. Tài liệu không dùng “Clean Architecture”, “DDD” hoặc “enterprise” như nhãn trang trí; mỗi khái niệm được gắn với file và behavior thực tế.
 
 ## 1. System context

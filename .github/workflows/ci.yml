@@ -40,6 +40,9 @@ jobs:
       - name: Validate production Compose manifest
         run: pnpm verify:compose
 
+      - name: Validate documentation chapters and links
+        run: pnpm verify:docs
+
       - name: Lint
         run: pnpm turbo run lint
 

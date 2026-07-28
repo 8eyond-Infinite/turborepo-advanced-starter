@@ -1,5 +1,13 @@
 # Audit Bounded Context
 
+> **Phần III · Chương 13 — Dấu vết của một hành động**
+>
+> Chương trước: [Notifications context](../notifications/README.md) · [Mục lục handbook](../../../../../docs/README.md) · Chương sau: [Development và Docker](../../../../../docs/development-and-deployment.md)
+
+Audit trả lời “ai đã làm gì, vào lúc nào, từ request nào?”. Nó phục vụ điều tra và trách nhiệm giải trình, không phải application log tổng quát và cũng không phải domain event.
+
+Câu chuyện chính là admin vô hiệu hóa một user. Endpoint được đánh dấu cần audit; interceptor thu danh tính và request context; sau khi hành động thành công, audit port lưu một record có cấu trúc. Failure semantics rất quan trọng: lỗi ghi audit phải được quan sát rõ, nhưng quyết định có làm nghiệp vụ chính thất bại hay không phải là policy có chủ đích.
+
 Audit cung cấp dấu vết có cấu trúc cho các hành động quan trọng về bảo mật, quản trị và tuân thủ. Audit record trả lời: ai thực hiện hành động gì, lúc nào, từ đâu và với mô tả nào.
 
 Audit không thay thế application log. Application log phục vụ vận hành/debug; audit trail phục vụ truy vết hành động nghiệp vụ và cần schema ổn định hơn.

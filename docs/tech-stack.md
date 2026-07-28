@@ -1,5 +1,11 @@
 # Thư viện trong repo dùng để làm gì
 
+> **Phần I · Chương 4 — Công cụ và thư viện**
+>
+> Chương trước: [Ngôn ngữ chung](glossary.md) · [Mục lục handbook](README.md) · Chương sau: [Kiến trúc hệ thống](architecture.md)
+
+Bạn không cần biết mọi dependency để sửa một feature. Điều cần biết là mỗi công cụ đang gánh trách nhiệm nào và boundary nào không nên bị nó xâm nhập. Prisma giúp infrastructure nói chuyện với PostgreSQL; điều đó không có nghĩa domain entity được phép import Prisma.
+
 Mỗi dòng trả lời ba câu: thư viện này giải quyết việc gì, vì sao repo chọn nó, và tìm nó ở đâu trong code. Đọc kèm [Bảng thuật ngữ](glossary.md) khi gặp khái niệm lạ.
 
 Nguyên tắc thêm dependency mới: phải trả lời được "nếu không có nó thì mình phải tự viết cái gì, và đoạn đó có đáng viết không". Thêm thư viện là thêm bề mặt tấn công và một thứ phải nâng cấp mãi mãi.
@@ -101,3 +107,7 @@ Nguyên tắc thêm dependency mới: phải trả lời được "nếu không 
 | **PostgreSQL** | Cơ sở dữ liệu chính, đồng thời là nơi đặt bảng outbox.                                                 |
 | **Redis**      | Phiên refresh, cache, hàng đợi BullMQ và pub/sub cho realtime.                                         |
 | **Maildev**    | Máy chủ SMTP giả ở local: bắt mọi email hệ thống gửi ra và hiển thị trên web, không gửi thật ra ngoài. |
+
+## Checkpoint cuối chương
+
+Đừng kiểm tra bằng cách nhớ tên thư viện. Hãy chọn flow tạo user và chỉ ra công cụ tham gia ở từng đoạn: React Query ở Admin, NestJS/CQRS trong backend, Prisma/PostgreSQL khi lưu dữ liệu, Redis/BullMQ cho email nền và Jest/Playwright khi kiểm thử. Nếu một dependency mới không có vị trí rõ trong bản đồ này, cần xem lại lý do thêm nó.

@@ -1,5 +1,13 @@
 # Triển khai backend trên Render
 
+> **Phần IV · Chương 16 — Render là một deployment adapter**
+>
+> Chương trước: [Deployment contract](provider-neutral-deployment.md) · [Mục lục handbook](README.md) · Chương sau: [Release process](release-process.md)
+
+Đọc [Chương 15](provider-neutral-deployment.md) trước để hiểu API, worker, migration và datastore contract. Chương này chỉ ánh xạ các vai trò đó sang khái niệm của Render: web service, background worker, managed PostgreSQL, Key Value và Blueprint.
+
+Nếu bỏ Render vào ngày mai, application image và process boundary không đổi. Chỉ composition root thay đổi. Đây là cách tránh để quyết định nghiệp vụ hoặc kiến trúc code bị khóa vào một nhà cung cấp.
+
 Tài liệu này mô tả topology staging/production của backend trên Render. Nguồn sự thật có thể thực thi là [`render.yaml`](../render.yaml); dashboard dùng để cấp quyền GitHub, nhập secret được đánh dấu `sync: false`, xác nhận chi phí và quan sát deployment, không phải nơi duy trì một bản cấu hình song song.
 
 ## 1. Topology
@@ -151,3 +159,7 @@ Review phải chỉ có ba resource mang hậu tố `-free`: API, PostgreSQL và
 - `SameSite=None` giúp Vercel gọi Render cross-site nhưng browser vẫn có thể chặn third-party cookie. Custom domain cùng site mới là topology production.
 
 Khi cần dữ liệu bền, email worker, pre-deploy migration hoặc scale nhiều replica, xóa free environment và provision `render.yaml`; không sửa plan từng resource một rồi giữ startup command free.
+
+## Checkpoint cuối chương
+
+Trước khi bấm Apply Blueprint, bạn phải nhận ra được resource nào là API, worker, database và Redis; biến nào do Render sinh; biến nào con người phải nhập; migration chạy ở đâu; và vì sao free Blueprint không đại diện cho production. Nếu không trả lời được một câu, quay lại topology hoặc environment contract thay vì thử bằng dashboard.

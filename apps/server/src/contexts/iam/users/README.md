@@ -1,5 +1,13 @@
 # Users Bounded Context
 
+> **Phần III · Chương 10 — Vòng đời một tài khoản**
+>
+> Chương trước: [Auth context](../auth/README.md) · [Mục lục handbook](../../../../../../docs/README.md) · Chương sau: [Roles context](../roles/README.md)
+
+Users sở hữu trạng thái và quy tắc vòng đời của tài khoản: tạo, cập nhật, kích hoạt, vô hiệu hóa và xóa. Auth có thể đọc user để xác thực, nhưng không được tự thay đổi quy tắc vòng đời này.
+
+Câu chuyện chính là admin tạo một nhân viên mới. Flow phải vừa ghi user, vừa bảo đảm email hợp lệ/không trùng, vừa ghi domain event trong cùng transaction. Email chào mừng là side effect xảy ra sau commit; nó không được phép làm transaction tạo user thất bại.
+
 Users sở hữu User aggregate: danh tính nội bộ, profile, password hash, role assignments, trạng thái active/deleted và version dùng để thu hồi token. Đây là nơi đặt mọi invariant liên quan đến vòng đời tài khoản.
 
 > Gặp từ lạ (aggregate, port, invariant, outbox…)? Tra [Bảng thuật ngữ](../../../../../../docs/glossary.md) — mỗi khái niệm có định nghĩa một câu kèm ví dụ trong repo.

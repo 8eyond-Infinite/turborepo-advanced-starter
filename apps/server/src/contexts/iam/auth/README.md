@@ -1,5 +1,13 @@
 # Auth Bounded Context
 
+> **Phần III · Chương 9 — Danh tính và vòng đời phiên**
+>
+> Chương trước: [Client Web](../../../../../client/README.md) · [Mục lục handbook](../../../../../../docs/README.md) · Chương sau: [Users context](../users/README.md)
+
+Auth trả lời “người gọi là ai và phiên này còn đáng tin không?”. Nó không sở hữu hồ sơ user, role hay permission catalog. Cách chia này quan trọng: xác thực danh tính là một trách nhiệm khác với quản lý vòng đời tài khoản và quyết định người đó được phép làm gì.
+
+Hãy đọc chương bằng câu chuyện một phiên đăng nhập: email/password tạo ra access token ngắn hạn và refresh session dài hơn; request dùng access token; refresh rotation thay session cũ bằng session mới; logout hoặc thay đổi `tokenVersion` làm phiên mất hiệu lực. Mỗi bước đều có happy path và failure path cần hiểu.
+
 Auth chịu trách nhiệm xác minh danh tính, cấp token và quản lý vòng đời của phiên refresh (refresh session — bản ghi cho phép một thiết bị xin token mới). Context này trả lời câu hỏi “request đến từ ai?”; còn câu hỏi “người này có được phép làm hành động đó không?” thuộc về phần phân quyền trong Roles.
 
 Đọc [Backend Architecture Handbook](../../../../README.md) trước nếu chưa quen với dependency direction, CQRS và port/adapter.
