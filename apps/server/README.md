@@ -4,9 +4,9 @@
 >
 > Chương trước: [Kiến trúc hệ thống](../../docs/architecture.md) · [Mục lục handbook](../../docs/README.md) · Chương sau: [Admin Portal](../admin/README.md)
 
-Nếu Chương 5 là bản đồ thành phố, chương này là chuyến đi qua từng con đường của backend. Sau khi đọc, bạn phải biết mở file nào khi một request vào hệ thống, business rule nằm ở đâu, transaction kết thúc ở đâu và side effect nền được giao cho ai.
+Nếu Chương 5 là bản đồ thành phố, chương này là chuyến đi qua từng con đường của backend. Sau khi đọc, bạn phải biết mở file nào khi một request vào hệ thống, quy tắc nghiệp vụ nằm ở đâu, đoạn ghi database kết thúc ở đâu và ai nhận những việc chạy nền như gửi email.
 
-Đừng bắt đầu bằng cách ghi nhớ bốn layer. Hãy bắt đầu bằng flow `POST /users`: controller nhận HTTP, command handler điều phối use case, aggregate bảo vệ quy tắc nghiệp vụ, repository ghi dữ liệu, outbox giữ lời hứa phát event và worker xử lý email. Tên layer chỉ là cách gọi ngắn gọn cho các trách nhiệm trong flow này.
+Đừng bắt đầu bằng cách ghi nhớ bốn tầng kiến trúc. Hãy bắt đầu bằng flow `POST /users`: controller nhận request; handler điều phối việc tạo tài khoản; `UserEntity` từ chối trạng thái không hợp lệ; repository ghi database; bảng outbox giữ lại thông báo “user vừa được tạo”; worker đọc việc nền và gửi email. Sau khi hiểu câu chuyện này, tên các tầng chỉ còn là cách gọi ngắn gọn cho từng nhóm trách nhiệm.
 
 Tài liệu này là bản đồ kiến trúc chính thức của backend trong `apps/server`. Mục tiêu không chỉ là cho biết dự án có những thư mục nào, mà giúp một thành viên mới hiểu được hệ thống đang giải quyết vấn đề gì, vì sao code được chia như hiện tại, một request đi qua những lớp nào và phải mở rộng code theo cách nào để không phá vỡ kiến trúc.
 
@@ -17,9 +17,11 @@ Các README bên trong từng bounded context đi sâu vào nghiệp vụ cụ t
 - [Roles](./src/contexts/iam/roles/README.md): RBAC, role và permission.
 - [Audit](./src/contexts/audit/README.md): audit trail và cơ chế ghi log xuyên suốt request.
 
-## 1. Mental model: nên hình dung backend này như thế nào?
+## 1. Nên hình dung backend này như thế nào?
 
-Backend là một **modular monolith** viết bằng NestJS. Toàn bộ hệ thống được deploy như một application, dùng chung process và database, nhưng code không được tổ chức như một khối lớn. Nó được chia thành các bounded context theo năng lực nghiệp vụ: IAM, Notifications, Audit, Analytics, Menu và Storage.
+Backend được build và triển khai như một hệ thống duy nhất, nhưng code bên trong được chia thành những khu có trách nhiệm riêng. Kiểu tổ chức này gọi là **modular monolith**.
+
+Mỗi khu phụ trách một nhóm nghiệp vụ: IAM quản lý danh tính và quyền; Notifications quản lý thông báo; Audit lưu dấu vết thao tác; Analytics, Menu và Storage có phạm vi riêng. Trong Domain-Driven Design, một khu có ngôn ngữ và luật riêng như vậy được gọi là **bounded context**.
 
 “Monolith” ở đây nói về đơn vị triển khai. “Modular” nói về ranh giới trong code. Một context sở hữu model và use case của chính nó; context khác không được tùy tiện truy cập sâu vào repository hoặc entity nội bộ. Cách tổ chức này giữ chi phí vận hành thấp như monolith, đồng thời tạo ranh giới đủ rõ để hệ thống có thể phát triển lâu dài.
 
@@ -140,7 +142,7 @@ Audit sở hữu audit record và read API. Các context khác chỉ gắn metad
 
 Analytics tổng hợp dữ liệu đọc cho dashboard. Menu tạo navigation tree dựa trên permission. Storage định nghĩa port upload/delete và có adapter local/S3. Đây là các context nhỏ hơn nhưng vẫn tuân theo ranh giới presentation/application/domain/infrastructure khi độ phức tạp yêu cầu.
 
-## 5. Request lifecycle
+## 5. Một request sống từ lúc vào đến lúc trả response
 
 Một HTTP request thông thường đi theo chuỗi sau:
 

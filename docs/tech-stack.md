@@ -4,9 +4,9 @@
 >
 > Chương trước: [Ngôn ngữ chung](glossary.md) · [Mục lục handbook](README.md) · Chương sau: [Kiến trúc hệ thống](architecture.md)
 
-Bạn không cần biết mọi dependency để sửa một feature. Điều cần biết là mỗi công cụ đang gánh trách nhiệm nào và boundary nào không nên bị nó xâm nhập. Prisma giúp infrastructure nói chuyện với PostgreSQL; điều đó không có nghĩa domain entity được phép import Prisma.
+Bạn không cần học thuộc mọi thư viện trước khi sửa một tính năng. Chỉ cần biết công cụ đó giải quyết việc gì và phần code nào được phép dùng nó. Ví dụ, Prisma giúp code lưu dữ liệu vào PostgreSQL; entity chứa quy tắc nghiệp vụ không cần và không được biết Prisma tồn tại.
 
-Mỗi dòng trả lời ba câu: thư viện này giải quyết việc gì, vì sao repo chọn nó, và tìm nó ở đâu trong code. Đọc kèm [Bảng thuật ngữ](glossary.md) khi gặp khái niệm lạ.
+Mỗi dòng trong các bảng trả lời ba câu: nếu thiếu thư viện này ta phải tự làm việc gì, repo dùng nó ở đâu, và trách nhiệm của nó dừng ở chỗ nào.
 
 Nguyên tắc thêm dependency mới: phải trả lời được "nếu không có nó thì mình phải tự viết cái gì, và đoạn đó có đáng viết không". Thêm thư viện là thêm bề mặt tấn công và một thứ phải nâng cấp mãi mãi.
 
@@ -98,7 +98,11 @@ Nguyên tắc thêm dependency mới: phải trả lời được "nếu không 
 
 ## Client (`apps/client`)
 
-**Next.js** (App Router, Server Components, Server Actions, middleware) + React, cùng `@repo/types` và `@repo/contracts`. Không có thư viện auth hay data-fetching riêng: phiên đăng nhập là một cookie HttpOnly do chính Next.js quản lý, còn dữ liệu được lấy bằng `fetch` ở phía server. `server-only` chặn việc lỡ import code chứa token vào Client Component. `jose` mã hóa nội dung session cookie (chuẩn JWE) — chọn nó thay vì module crypto của Node vì middleware có thể chạy ở edge runtime. Test bằng Vitest, môi trường Node thuần (không cần jsdom vì toàn logic phía server). Xem [Client handbook](../apps/client/README.md).
+Client dùng **Next.js** với App Router, Server Components, Server Actions và middleware. Trình duyệt không giữ access token; Next.js giữ phiên trong cookie `HttpOnly` và gọi NestJS API ở phía server.
+
+Client không cần thêm thư viện data-fetching vì server dùng `fetch` trực tiếp. Marker `server-only` làm build thất bại nếu code chứa token bị import nhầm vào Client Component. Thư viện `jose` mã hóa session cookie theo chuẩn JWE và dùng được cả trong edge runtime.
+
+Các phần này được test bằng Vitest trong môi trường Node, không cần jsdom vì logic chạy phía server. Xem [Client handbook](../apps/client/README.md) để theo flow đăng nhập đầy đủ.
 
 ## Hạ tầng chạy kèm (Docker)
 
@@ -108,6 +112,6 @@ Nguyên tắc thêm dependency mới: phải trả lời được "nếu không 
 | **Redis**      | Phiên refresh, cache, hàng đợi BullMQ và pub/sub cho realtime.                                         |
 | **Maildev**    | Máy chủ SMTP giả ở local: bắt mọi email hệ thống gửi ra và hiển thị trên web, không gửi thật ra ngoài. |
 
-## Checkpoint cuối chương
+## Tự kiểm tra trước khi sang chương sau
 
 Đừng kiểm tra bằng cách nhớ tên thư viện. Hãy chọn flow tạo user và chỉ ra công cụ tham gia ở từng đoạn: React Query ở Admin, NestJS/CQRS trong backend, Prisma/PostgreSQL khi lưu dữ liệu, Redis/BullMQ cho email nền và Jest/Playwright khi kiểm thử. Nếu một dependency mới không có vị trí rõ trong bản đồ này, cần xem lại lý do thêm nó.

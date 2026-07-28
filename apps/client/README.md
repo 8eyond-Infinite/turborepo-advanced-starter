@@ -4,9 +4,9 @@
 >
 > Chương trước: [Admin Portal](../admin/README.md) · [Mục lục handbook](../../docs/README.md) · Chương sau: [Auth context](../server/src/contexts/iam/auth/README.md)
 
-Admin và Client cùng gọi một backend nhưng không có cùng kiến trúc. Admin là SPA nội bộ; Client hướng tới trang công khai, SEO và render phía server. Chương này giải thích sự khác nhau bằng vòng đời đăng nhập và một request render trang, thay vì sao chép cấu trúc của Admin sang Next.js.
+Admin và Client cùng dùng dữ liệu từ một backend nhưng phục vụ hai hoàn cảnh khác nhau. Admin là công cụ nội bộ chạy trong trình duyệt. Client có trang công khai cần máy tìm kiếm đọc được và có những trang được dựng sẵn ở server. Vì vậy không thể sao chép nguyên kiến trúc của Admin sang Next.js.
 
-Client hiện là một lát cắt kiến trúc nhỏ, không phải sản phẩm đã hoàn thiện. Giá trị của nó nằm ở boundary: browser không giữ token, Next.js server đóng vai trò Backend for Frontend (BFF), còn backend NestJS vẫn sở hữu nghiệp vụ.
+Client hiện chỉ là một ví dụ nhỏ để chứng minh cách chia trách nhiệm, chưa phải sản phẩm hoàn chỉnh. Trình duyệt không giữ access token. Thay vào đó, trình duyệt gọi Next.js; Next.js giữ phiên và gọi NestJS API thay cho trình duyệt. Một server đứng giữa và phục vụ riêng nhu cầu của frontend như vậy được gọi là **Backend for Frontend (BFF)**.
 
 Ứng dụng dành cho người dùng cuối, xây bằng Next.js App Router. Client tồn tại trong repo này để làm hai việc mà Admin SPA không làm được: **render nội dung ở phía server cho máy tìm kiếm đọc được**, và **giữ token hoàn toàn ngoài tầm với của JavaScript trình duyệt**.
 
@@ -55,7 +55,13 @@ sequenceDiagram
     N-->>U: HTML đã có sẵn dữ liệu
 ```
 
-Điểm mấu chốt về việc làm mới token: **Next.js chỉ cho ghi cookie ở middleware, Server Action và Route Handler — không cho ghi trong lúc render trang**. Vì vậy việc làm mới nằm ở [`middleware.ts`](middleware.ts): nó đọc trường `exp` của access token (không xác minh chữ ký — việc đó là của API), và nếu còn dưới 60 giây thì gọi `/auth/refresh` rồi gắn cookie mới vào response. `lib/refresh-session.ts` giữ một single-flight map theo refresh token: các request đồng thời trong cùng một Next.js instance dùng chung một Promise và chỉ tạo một HTTP refresh. Backend vẫn là chốt bảo mật cuối cùng: Redis consume old JTI bằng Lua script atomic, nên dù request đến từ nhiều Next instance thì một refresh credential cũng chỉ rotate thành công đúng một lần.
+Next.js không cho code ghi cookie trong lúc render trang. Cookie chỉ được thay đổi ở middleware, Server Action hoặc Route Handler. Vì vậy [`middleware.ts`](middleware.ts) chịu trách nhiệm làm mới phiên.
+
+Middleware đọc thời điểm hết hạn (`exp`) của access token. Nó chỉ dùng thông tin này để biết khi nào cần gọi `/auth/refresh`; API vẫn là nơi xác minh token có thật sự hợp lệ hay không. Nếu token còn dưới 60 giây, middleware xin token mới và gắn cookie mới vào response.
+
+Nhiều request có thể cùng phát hiện token sắp hết hạn. `lib/refresh-session.ts` gom các request trong cùng một Next.js instance vào chung một Promise, nên chỉ có một HTTP refresh được gửi. Cách gom việc trùng nhau này gọi là **single-flight**.
+
+Nếu hệ thống chạy nhiều Next.js instance, mỗi instance vẫn có thể gửi một refresh. Redis ở backend dùng một thao tác nguyên tử để bảo đảm refresh token cũ chỉ được dùng thành công đúng một lần. Single-flight giúp giảm request thừa; Redis mới là chốt bảo mật.
 
 ## 3. Cấu trúc
 
@@ -122,7 +128,11 @@ Cookie `client_session` chứa cả access token lẫn refresh token, được *
 
 Giới hạn còn lại đúng bằng bản chất của mọi session cookie: kẻ trộm được **nguyên vẹn** cookie thì vẫn dùng được phiên. Chống chuyện đó là việc của `HttpOnly` (XSS không đọc được), `Secure` (không đi qua HTTP thường) và `SameSite=Lax`. Nếu cần thu hồi từng phiên một, hướng nâng cấp là session store phía server (Redis) và chỉ đặt session id vào cookie.
 
-Khi nhiều tab cùng làm mới token gần như đồng thời trong cùng một Next instance, single-flight gom chúng thành một request. Nếu hệ thống chạy nhiều Next replica, hai request vẫn có thể đến hai instance khác nhau; Redis atomic rotation đảm bảo chỉ một request thắng và request kia nhận 401. Nếu access token cũ của request thua vẫn còn hạn, middleware không xóa hoặc ghi đè cookie: request đó được đi tiếp bằng access token cũ, còn response thắng có thể cập nhật cookie mới. Chỉ khi access token đã thực sự hết hạn và refresh vẫn thất bại thì middleware mới clear session và chuyển về login. Muốn mọi replica cùng nhận chính xác một refresh result vẫn cần distributed single-flight hoặc idempotency record TTL ngắn; security invariant “old token chỉ dùng một lần” không phụ thuộc nâng cấp đó.
+Khi nhiều tab cùng làm mới token trong một Next.js instance, single-flight gom chúng thành một request. Nếu hệ thống chạy nhiều instance, hai request vẫn có thể đi tới hai server khác nhau. Redis chỉ cho một request dùng refresh token cũ thành công; request còn lại nhận `401`.
+
+Request thua chưa chắc phải đăng xuất người dùng. Nếu access token cũ của nó vẫn còn hạn, middleware để request tiếp tục và không ghi đè cookie mới từ response thắng. Chỉ khi access token đã hết hạn và refresh cũng thất bại, middleware mới xóa session và chuyển về trang login.
+
+Muốn mọi Next.js instance dùng chung chính xác một kết quả refresh cần thêm cơ chế phối hợp phân tán. Đây là cải tiến hiệu năng và trải nghiệm; quy tắc bảo mật “refresh token cũ chỉ dùng một lần” đã được Redis bảo vệ.
 
 Logout không chỉ xóa cookie BFF. Server Action đọc refresh token trong session, gọi `POST /auth/logout` để revoke JTI trong Redis, rồi luôn xóa cookie trong `finally`. Nếu API tạm thời không truy cập được, cookie phía trình duyệt vẫn bị xóa để người dùng thoát khỏi thiết bị hiện tại; session Redis sẽ hết TTL hoặc được operator/user thu hồi sau.
 
@@ -134,6 +144,6 @@ Tham số `next` sau login chỉ được nhận khi là path nội bộ bắt �
 - Mutation cần đăng nhập: viết thêm Server Action gọi `apiFetch`, không mở endpoint proxy chung chung.
 - Cần dữ liệu cập nhật liên tục ở phía client: cân nhắc TanStack Query cho riêng phần đó — nhưng khi ấy phải đi qua Route Handler của Next.js, không gọi thẳng API.
 
-## Checkpoint cuối chương
+## Tự kiểm tra trước khi sửa Client
 
 Bạn đã hiểu boundary của Client khi có thể giải thích nơi session cookie được đọc, nơi access token tồn tại, vì sao Server Component gọi API khác SPA và lúc nào mới cần Client Component. Hãy thử lần flow chưa đăng nhập vào `/me`: middleware phải chặn trước khi trang riêng tư render.

@@ -8,9 +8,9 @@ Nếu đây là lần đầu bạn vào repository, đừng đọc ngẫu nhiên
 
 Trong các chương, ta dùng một tình huống chung để nối kiến trúc với code:
 
-> Một quản trị viên đăng nhập Admin Portal, tạo tài khoản nhân viên mới, hệ thống lưu user, ghi audit log, phát domain event qua outbox, đưa email chào mừng vào queue và cập nhật giao diện.
+> Một quản trị viên đăng nhập, tạo tài khoản cho nhân viên mới và nhìn thấy người đó xuất hiện trong danh sách. Phía sau màn hình, server lưu tài khoản, ghi lại ai vừa thực hiện thao tác và giao việc gửi email chào mừng cho tiến trình chạy nền.
 
-Tình huống này đi qua gần như mọi lớp quan trọng: frontend, HTTP, authentication, authorization, CQRS, domain model, transaction, outbox, worker, Redis và PostgreSQL. Khi hiểu được nó từ đầu đến cuối, bạn đã có mental model đủ tốt để tự lần theo các nghiệp vụ khác.
+Đây là câu chuyện đời thường trước. Trong các chương sau, từng đoạn của câu chuyện mới được gắn với tên kỹ thuật tương ứng: xác thực, phân quyền, transaction, outbox, queue và worker. Khi hiểu được đường đi từ cú click đến dữ liệu rồi quay lại màn hình, bạn có thể dùng cùng cách suy luận cho nghiệp vụ khác.
 
 ## Phần I — Làm quen với dự án
 
@@ -34,7 +34,7 @@ Phần này đi từ toàn hệ thống vào từng application. Đọc nó khi 
 5. [Chương 5 — Kiến trúc hệ thống](architecture.md)
    System context, monorepo boundary, dependency direction, CQRS, outbox và runtime topology.
 6. [Chương 6 — Backend Architecture Handbook](../apps/server/README.md)
-   Bounded context, layers, request lifecycle, read/write flow và composition root.
+   Cách backend chia khu nghiệp vụ, đường đi của request đọc/ghi và nơi các module được lắp ráp.
 7. [Chương 7 — Admin Portal Handbook](../apps/admin/README.md)
    Startup, routing, authentication, query cache, permission, realtime và cách thêm feature.
 8. [Chương 8 — Client Web Handbook](../apps/client/README.md)
@@ -52,7 +52,7 @@ Mỗi chương ở phần này sở hữu một nhóm quy tắc nghiệp vụ. H
 12. [Chương 12 — Notifications: thông báo và realtime](../apps/server/src/contexts/notifications/README.md)
 13. [Chương 13 — Audit: dấu vết hành động](../apps/server/src/contexts/audit/README.md)
 
-Mẫu chung của mỗi chương là: câu chuyện nghiệp vụ → boundary sở hữu → flow thành công → failure path → transaction/invariant → bản đồ file → cách mở rộng → checklist review.
+Mỗi chương bắt đầu bằng một câu chuyện nghiệp vụ, chỉ ra phần nào chịu trách nhiệm, lần theo đường đi thành công rồi giải thích những chỗ có thể lỗi. Sau đó chương mới đi vào transaction, quy tắc bắt buộc, bản đồ file và cách mở rộng.
 
 ## Phần IV — Xây dựng, phát hành và vận hành
 
@@ -85,13 +85,13 @@ Không đọc runbook như giáo trình nhập môn. Nó được thiết kế �
 
 Mở Chương 18, bắt đầu ở “Ba phút đầu tiên”, thu thập bằng chứng trước khi restart. Sau khi dịch vụ phục hồi mới quay lại các chương kiến trúc để phân tích nguyên nhân.
 
-## Quy ước đọc
+## Các nhãn dùng trong sách
 
-Các chương dùng bốn loại khối lặp lại:
+Một số chương dài dùng các nhãn sau để người đọc biết mình đang làm gì:
 
-- **Mental model** biến khái niệm trừu tượng thành một hình dung dễ nhớ.
+- **Cách hình dung** giải thích khái niệm trừu tượng bằng một ví dụ dễ nhớ.
 - **Đi theo flow** lần từng bước qua code thật.
-- **Checkpoint** là câu hỏi bạn phải tự trả lời trước khi sang chương sau.
+- **Tự kiểm tra** là câu hỏi giúp bạn biết mình đã hiểu đủ để sang phần sau chưa.
 - **Đọc code** là đường dẫn cụ thể để IDE mở đúng điểm bắt đầu.
 
 Sơ đồ dùng để thể hiện quan hệ hoặc thứ tự. Table dùng để so sánh/tra cứu. Phần giải thích chính được viết bằng văn xuôi để người đọc hiểu được lý do, thay vì phải tự nối các bullet rời rạc.

@@ -4,9 +4,11 @@
 >
 > Chương trước: [Audit context](../apps/server/src/contexts/audit/README.md) · [Mục lục handbook](README.md) · Chương sau: [Deployment không phụ thuộc nhà cung cấp](provider-neutral-deployment.md)
 
-Chương này nối hai thế giới thường bị trộn lẫn: development tối ưu cho tốc độ sửa code và production tối ưu cho tính lặp lại, an toàn. Khi đọc, luôn tự hỏi “process này đang chạy trên host hay trong container?” và “ai sở hữu dependency/data của nó?”. Hai câu đó giải thích phần lớn lỗi Docker local từng xuất hiện trong repo.
+Chương này phân biệt hai cách chạy thường bị trộn với nhau. Khi lập trình, ta muốn sửa code và thấy kết quả ngay. Khi triển khai, ta muốn cùng một bản build chạy lặp lại và không phụ thuộc trạng thái máy của lập trình viên.
 
-Ta bắt đầu bằng workflow hằng ngày: application chạy trên host để IDE và hot reload hoạt động tốt; PostgreSQL, Redis và Maildev chạy trong Docker. Sau đó ta theo cùng source code qua build image, migration, health check, CI và deployment topology.
+Với mỗi cách chạy, hãy hỏi hai câu: chương trình đang chạy trực tiếp trên Windows/WSL hay trong container, và dependency cùng dữ liệu của nó nằm ở đâu? Trả lời sai một trong hai câu thường dẫn tới lỗi `node_modules`, sai hostname database hoặc Docker chiếm dung lượng ngoài dự kiến.
+
+Ta bắt đầu bằng cách chạy hằng ngày: application chạy trực tiếp trên máy để IDE và tự reload code hoạt động nhanh; PostgreSQL, Redis và Maildev chạy trong Docker. Sau đó ta theo cùng source code qua quá trình build image, cập nhật cấu trúc database, kiểm tra sức khỏe và triển khai.
 
 Tài liệu này quy định cách chạy monorepo trong local, CI và production. Mục tiêu là tránh trộn lẫn hai kiểu phát triển (chạy trên máy host và chạy trong container), tránh để hai phía cùng cài đặt và ghi vào chung một `node_modules`, và giữ cho vòng đời của migration/database luôn kiểm soát được.
 
@@ -151,7 +153,11 @@ pnpm --filter=admin exec playwright install chromium # chỉ cần lần đầu
 pnpm e2e:admin
 ```
 
-`e2e:admin:prepare` bật Postgres/Redis bằng `docker compose up --wait`, chỉ tiếp tục sau khi cả hai healthcheck thành công, rồi drop/recreate đúng database `admin_browser_e2e`, áp migration và seed admin test. Không thay bằng `up -d` đơn thuần: khi Docker Desktop vừa khởi động, container có thể đã ở trạng thái running trong lúc PostgreSQL vẫn startup và làm `dropdb` fail ngẫu nhiên. Script không đụng tới `starter_db`. Playwright sau đó khởi động API ở `127.0.0.1:3101` và Admin ở `127.0.0.1:5174`; hai cổng riêng ngăn suite reuse nhầm dev process `3001/5173`, còn cùng hostname bảo đảm cookie `SameSite=Lax` phản ánh topology được kiểm tra.
+`e2e:admin:prepare` bật Postgres và Redis bằng `docker compose up --wait`. Script chỉ đi tiếp khi cả hai healthcheck thành công. Sau đó nó xóa rồi tạo lại đúng database dùng cho browser test là `admin_browser_e2e`, chạy migration và tạo admin test.
+
+Không thay `up --wait` bằng `up -d`. Khi Docker Desktop vừa khởi động, container có thể mang trạng thái running trong lúc PostgreSQL vẫn đang chuẩn bị nhận kết nối; lệnh `dropdb` khi đó sẽ lỗi ngẫu nhiên.
+
+Script không đụng tới database phát triển `starter_db`. Playwright khởi động API ở `127.0.0.1:3101` và Admin ở `127.0.0.1:5174`. Cổng riêng ngăn test dùng nhầm process development; cùng hostname giúp cookie `SameSite=Lax` hoạt động giống topology đang được kiểm tra.
 
 ## 5. Prisma workflow
 
@@ -417,7 +423,14 @@ CI chạy trên GitHub Actions với hai workflow đã triển khai:
 
 Node được pin qua `.nvmrc`, pnpm qua trường `packageManager`. Dependabot cập nhật npm dependencies và GitHub Actions hàng tuần (`.github/dependabot.yml`). Local có husky pre-commit (lint-staged + prettier) và commit-msg (commitlint, conventional commits).
 
-Job `image` hoàn tất chuỗi cung ứng: build Docker image của server từ `apps/server/Dockerfile`, sinh danh mục thành phần (SBOM — bản kê mọi package có trong image, định dạng SPDX, đính kèm như artifact của run), quét lỗ hổng image bằng trivy (fail ở mức HIGH/CRITICAL, bỏ qua lỗ hổng chưa có bản vá), và chỉ khi merge vào `main` mới đẩy image bất biến lên GitHub Container Registry với hai tag: SHA của commit và `latest`. Job này khai báo `needs` cả quality lẫn e2e — image không bao giờ được phát hành từ code chưa qua gate. Chạy worker từ cùng image bằng lệnh `node dist/worker.js`.
+Job `image` biến source code đã qua kiểm tra thành Docker image:
+
+1. Build server bằng `apps/server/Dockerfile`.
+2. Tạo SBOM — danh sách package thực sự có trong image — và lưu nó như artifact của CI.
+3. Dùng Trivy quét lỗ hổng mức HIGH/CRITICAL; lỗ hổng chưa có bản vá được ghi nhận nhưng không chặn job.
+4. Chỉ khi commit đã merge vào `main`, đẩy image lên GHCR với tag SHA và `latest`.
+
+Job phụ thuộc cả quality test lẫn E2E, nên code chưa qua gate không được publish. API và worker chạy cùng image; worker chỉ đổi entry command thành `node dist/worker.js`.
 
 Database dùng cho test phải có tên/phạm vi riêng; backend E2E đã có chốt chặn từ chối reset bất kỳ database nào không có hậu tố `_test`.
 
@@ -492,6 +505,6 @@ rollback version rõ
 observability và alert sẵn sàng
 ```
 
-## Checkpoint cuối chương
+## Tự kiểm tra: phân biệt ba cách chạy
 
 Trước khi sang deployment, hãy tự mô tả được ba workflow mà không trộn chúng: host development, container development và production image. Với mỗi workflow, chỉ ra ai cài dependency, database được gọi bằng hostname nào, migration chạy bằng lệnh nào và dữ liệu nào tồn tại sau khi container bị recreate.

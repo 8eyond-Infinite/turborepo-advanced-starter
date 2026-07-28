@@ -4,15 +4,15 @@
 >
 > Chương trước: [Client Web](../../../../../client/README.md) · [Mục lục handbook](../../../../../../docs/README.md) · Chương sau: [Users context](../users/README.md)
 
-Auth trả lời “người gọi là ai và phiên này còn đáng tin không?”. Nó không sở hữu hồ sơ user, role hay permission catalog. Cách chia này quan trọng: xác thực danh tính là một trách nhiệm khác với quản lý vòng đời tài khoản và quyết định người đó được phép làm gì.
+Auth trả lời hai câu: “người đang gọi API là ai?” và “phiên đăng nhập của họ còn hợp lệ không?”. Auth không sửa hồ sơ, không tạo role và không quản lý danh sách permission. Những việc đó thuộc context khác.
 
-Hãy đọc chương bằng câu chuyện một phiên đăng nhập: email/password tạo ra access token ngắn hạn và refresh session dài hơn; request dùng access token; refresh rotation thay session cũ bằng session mới; logout hoặc thay đổi `tokenVersion` làm phiên mất hiệu lực. Mỗi bước đều có happy path và failure path cần hiểu.
+Hãy đi theo một phiên đăng nhập. Email và password đổi lấy access token sống ngắn. Khi token đó hết hạn, refresh session cho phép trình duyệt xin cặp token mới mà không bắt người dùng nhập lại mật khẩu. Mỗi lần refresh, phiên cũ bị thay bằng phiên mới; cơ chế này gọi là **refresh rotation**. Logout hoặc thay đổi quyền tài khoản sẽ làm phiên cũ mất hiệu lực.
 
 Auth chịu trách nhiệm xác minh danh tính, cấp token và quản lý vòng đời của phiên refresh (refresh session — bản ghi cho phép một thiết bị xin token mới). Context này trả lời câu hỏi “request đến từ ai?”; còn câu hỏi “người này có được phép làm hành động đó không?” thuộc về phần phân quyền trong Roles.
 
-Đọc [Backend Architecture Handbook](../../../../README.md) trước nếu chưa quen với dependency direction, CQRS và port/adapter.
+Nếu chưa đọc [Backend Architecture Handbook](../../../../README.md), hãy đọc nó trước. Chương đó giải thích vì sao controller, handler, domain và code Redis/Prisma được tách thành các phần khác nhau.
 
-## 1. Ranh giới và ownership
+## 1. Auth chịu trách nhiệm gì?
 
 Auth sở hữu:
 
@@ -94,7 +94,7 @@ sequenceDiagram
     Controller-->>Client: 200
 ```
 
-### Failure path
+### Khi refresh không thành công
 
 Email không tồn tại và password sai đều phải trả về cùng một lỗi chung kiểu “sai thông tin đăng nhập”; API không được để lộ email nào có tài khoản, email nào không. User đã bị khóa hoặc đã xóa không được nhận token mới. Nếu ghi session vào Redis thất bại, login không được coi là hoàn tất, vì refresh token vừa cấp sẽ không có bản ghi trong Redis để đối chiếu khi dùng.
 
@@ -138,7 +138,15 @@ sequenceDiagram
 
 Xoay vòng token như vậy (rotation) khiến refresh token cũ khó bị đem dùng lại lần nữa (replay). Khi cấp cặp token mới, handler phải đọc lại trạng thái user và tokenVersion hiện tại từ database, không được sao chép mù quáng payload của token cũ.
 
-Rotation là một thao tác atomic trong Redis. `RedisSessionStore.rotateRefreshToken` gọi primitive `RedisService.replaceIfPresent`, primitive này chạy Lua script để kiểm tra key JTI cũ còn tồn tại, xóa nó và tạo key JTI mới trong cùng một lần thực thi. Redis không xen lệnh của request khác vào giữa script. Vì vậy khi hai request cùng dùng một refresh token, đúng một request consume được old JTI; request còn lại nhận lỗi 401 `UNAUTHORIZED`. Không được thay cơ chế này bằng chuỗi `GET → SET → DEL`, vì chuỗi đó mở lại race condition và cho phép một refresh credential sinh nhiều session mới.
+Rotation phải diễn ra như một thao tác duy nhất trong Redis. `RedisSessionStore.rotateRefreshToken` gọi `RedisService.replaceIfPresent`; hàm này chạy Lua script để làm ba việc liền nhau:
+
+1. kiểm tra key của phiên cũ còn tồn tại;
+2. xóa key cũ;
+3. tạo key cho phiên mới.
+
+Redis không cho request khác chen vào giữa script. Vì vậy, nếu hai request cùng dùng một refresh token, đúng một request thành công; request còn lại nhận `401 UNAUTHORIZED`.
+
+Không thay script bằng ba lệnh rời `GET → SET → DEL`. Request thứ hai có thể chen vào giữa các lệnh và làm một refresh token sinh ra nhiều phiên mới; lỗi cạnh tranh như vậy gọi là **race condition**.
 
 ## 7. Logout và session management
 
@@ -173,7 +181,7 @@ Hai strategy là chỗ Passport cắm vào để kiểm tra token cho từng req
 
 `auth.controller.ts` là lớp tiếp nhận HTTP: nhận request, gọi use case, trả response. `login.dto.ts` và `register.dto.ts` đứng gác ở cửa vào: request thiếu trường hay sai định dạng bị chặn ngay tại đây.
 
-## 10. Invariant và security rules
+## 10. Những quy tắc bảo mật luôn phải đúng
 
 - Không có default/fallback JWT secret trong code.
 - Secret dùng cho production phải qua được bước kiểm tra độ dài tối thiểu.

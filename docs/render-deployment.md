@@ -4,11 +4,11 @@
 >
 > Chương trước: [Deployment contract](provider-neutral-deployment.md) · [Mục lục handbook](README.md) · Chương sau: [Release process](release-process.md)
 
-Đọc [Chương 15](provider-neutral-deployment.md) trước để hiểu API, worker, migration và datastore contract. Chương này chỉ ánh xạ các vai trò đó sang khái niệm của Render: web service, background worker, managed PostgreSQL, Key Value và Blueprint.
+Đọc [Chương 15](provider-neutral-deployment.md) trước. Chương đó giải thích hệ thống cần API, worker, migration, PostgreSQL và Redis để làm gì. Ở đây ta chỉ tìm dịch vụ tương ứng trên Render cho từng vai trò.
 
-Nếu bỏ Render vào ngày mai, application image và process boundary không đổi. Chỉ composition root thay đổi. Đây là cách tránh để quyết định nghiệp vụ hoặc kiến trúc code bị khóa vào một nhà cung cấp.
+Nếu bỏ Render vào ngày mai, ta vẫn chạy cùng Docker image và vẫn tách API khỏi worker. Chỉ phần “dịch vụ nào chạy vai trò nào” thay đổi. Nói theo thuật ngữ kiến trúc, ta thay **composition root của deployment**, chứ không thay code nghiệp vụ.
 
-Tài liệu này mô tả topology staging/production của backend trên Render. Nguồn sự thật có thể thực thi là [`render.yaml`](../render.yaml); dashboard dùng để cấp quyền GitHub, nhập secret được đánh dấu `sync: false`, xác nhận chi phí và quan sát deployment, không phải nơi duy trì một bản cấu hình song song.
+File [`render.yaml`](../render.yaml) là cấu hình chính thức của môi trường Render. Dashboard chỉ dùng để kết nối GitHub, nhập secret, xác nhận chi phí và xem trạng thái. Không chỉnh một bản cấu hình thứ hai trong dashboard rồi để nó lệch khỏi file trong Git.
 
 ## 1. Topology
 
@@ -129,7 +129,9 @@ node scripts/migrate.mjs
 → node dist/main.js
 ```
 
-Seed yêu cầu `ALLOW_PRODUCTION_SEED=true`, `SEED_ADMIN_EMAIL` và mật khẩu ít nhất 12 ký tự. Seed là idempotent: permission/role được upsert, admin đã tồn tại không bị đổi mật khẩu, menu tùy chỉnh không bị xóa. Nếu migration hoặc seed fail thì API không khởi động, tránh chạy với schema/database bootstrap dở dang.
+Seed cần ba đầu vào: chốt xác nhận `ALLOW_PRODUCTION_SEED=true`, email admin và mật khẩu dài ít nhất 12 ký tự. Nó tạo những permission hoặc role còn thiếu nhưng không tạo bản sao khi chạy lại. Nếu admin đã tồn tại, seed giữ nguyên mật khẩu; nếu menu đã được tùy chỉnh, seed không xóa chúng. Đặc tính chạy lại an toàn này được gọi là **idempotent**.
+
+Nếu migration hoặc seed lỗi, API không khởi động. Dừng sớm như vậy an toàn hơn việc để API nhận request trong khi database mới được chuẩn bị một nửa.
 
 ### Tạo free Blueprint
 
@@ -160,6 +162,6 @@ Review phải chỉ có ba resource mang hậu tố `-free`: API, PostgreSQL và
 
 Khi cần dữ liệu bền, email worker, pre-deploy migration hoặc scale nhiều replica, xóa free environment và provision `render.yaml`; không sửa plan từng resource một rồi giữ startup command free.
 
-## Checkpoint cuối chương
+## Tự kiểm tra trước khi triển khai
 
 Trước khi bấm Apply Blueprint, bạn phải nhận ra được resource nào là API, worker, database và Redis; biến nào do Render sinh; biến nào con người phải nhập; migration chạy ở đâu; và vì sao free Blueprint không đại diện cho production. Nếu không trả lời được một câu, quay lại topology hoặc environment contract thay vì thử bằng dashboard.

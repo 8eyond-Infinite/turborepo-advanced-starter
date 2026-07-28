@@ -1,10 +1,10 @@
 # Sổ tay vận hành (Operations Runbook)
 
-> **Phần IV · Chương 18 — Khi hệ thống không còn đi theo happy path**
+> **Phần IV · Chương 18 — Khi hệ thống gặp sự cố**
 >
 > Chương trước: [Release process](release-process.md) · [Mục lục handbook](README.md) · Chương sau: không có
 
-Đây là tài liệu tra cứu dưới áp lực, không phải chương nhập môn. Khi có sự cố, mục tiêu đầu tiên là xác định phạm vi và khôi phục dịch vụ mà không phá mất bằng chứng. Vì vậy các mục được tổ chức theo triệu chứng quan sát được, không theo cấu trúc source code.
+Đây là tài liệu để mở khi hệ thống đang lỗi, không phải chương nhập môn. Việc đầu tiên là xác định phần nào hỏng và lưu lại log/trạng thái trước khi restart. Các mục vì vậy được sắp theo triệu chứng người vận hành nhìn thấy, chẳng hạn “API không trả lời” hoặc “email không được gửi”.
 
 Nếu đang học hệ thống và chưa có incident, hãy đọc “Ba phút đầu tiên” để hiểu thứ tự quan sát rồi quay lại khi cần. Nếu incident đang diễn ra, đừng đọc từ đầu đến cuối: bắt đầu ở checklist ba phút, ghi lại kết quả và đi tới đúng kịch bản.
 
@@ -141,7 +141,13 @@ Theo mức độ leo thang:
 3. **Đá tài khoản khỏi mọi thiết bị:** `POST /auth/logout/global` — vừa xóa phiên refresh trong Redis, vừa tăng `tokenVersion` nên access token đang lưu hành chết ngay lập tức, không phải chờ hết 15 phút.
 4. **Khóa hẳn tài khoản:** `PATCH /users/:id/deactivate` — chặn đăng nhập, thu hồi phiên và đẩy sự kiện ép đăng xuất qua realtime.
 
-Refresh token là single-use. Rotation dùng Lua script atomic trong Redis; nếu log xuất hiện 401 với thông điệp “already been used, revoked, or expired”, trước tiên kiểm tra client có gửi đồng thời cùng refresh token từ nhiều replica/tab hay không. Không sửa sự cố bằng cách quay lại chuỗi `GET → SET → DEL`, vì thao tác không atomic sẽ cho phép replay sinh nhiều session. BFF đã gom request trong từng Next instance; khi chạy nhiều replica, một request cạnh tranh có thể bị từ chối và đây là behavior an toàn mặc định. 4. **Nghi ngờ toàn hệ thống bị lộ:** xoay vòng JWT secret (mục 5) — mọi token hiện có lập tức vô hiệu, tất cả người dùng phải đăng nhập lại.
+Refresh token chỉ được dùng một lần. Redis chạy một Lua script để kiểm tra token cũ, xóa nó và lưu token mới như một thao tác không thể bị request khác chen vào.
+
+Nếu log có `401` với thông điệp “already been used, revoked, or expired”, trước tiên kiểm tra nhiều tab hoặc nhiều BFF replica có gửi cùng refresh token đồng thời hay không. Một request thắng và request còn lại bị từ chối là hành vi an toàn.
+
+Không “sửa” bằng cách đổi về chuỗi `GET → SET → DEL`. Request khác có thể chen vào giữa ba lệnh và dùng lại cùng credential để sinh thêm session.
+
+5. **Nghi ngờ toàn hệ thống bị lộ:** xoay vòng JWT secret (mục 5). Mọi token hiện có lập tức vô hiệu và tất cả người dùng phải đăng nhập lại.
 
 Sau mọi thao tác: đối chiếu `/audit-logs` để dựng lại dòng thời gian kẻ tấn công đã làm gì.
 

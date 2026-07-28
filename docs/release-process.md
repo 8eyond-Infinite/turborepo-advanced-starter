@@ -85,6 +85,6 @@ Chưa bật mà workflow chạy sẽ lỗi `GitHub Actions is not permitted to c
 
 Một điều tinh tế đáng biết: tag do `GITHUB_TOKEN` tạo ra **không kích hoạt workflow khác** (GitHub chặn để tránh bot gọi bot vòng lặp vô hạn). Vì vậy đừng viết workflow mới kiểu `on: push: tags: [v*]` và mong nó chạy khi release-please tạo tag — nó sẽ im lặng không chạy. Việc gì cần làm lúc phát hành thì đặt vào job sau `release-please` trong chính `release.yml`, như job `tag-image` hiện tại.
 
-## Checkpoint cuối chương
+## Tự kiểm tra trước khi phát hành
 
 Chọn một release gần nhất trên GitHub và lần ngược ba thứ: release version, Git commit SHA và GHCR image tag. Ba giá trị phải dẫn về cùng một source state. Sau đó tự trả lời: vì sao production không deploy `latest`, ai quyết định thời điểm phát hành và rollback cần biết tag nào.
