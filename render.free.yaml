@@ -11,7 +11,6 @@ services:
     dockerCommand: /bin/sh -c "node scripts/migrate.mjs && node scripts/seed.mjs && node dist/main.js"
     healthCheckPath: /health/ready
     autoDeployTrigger: checksPass
-    maxShutdownDelaySeconds: 30
     envVars:
       - key: NODE_ENV
         value: production
