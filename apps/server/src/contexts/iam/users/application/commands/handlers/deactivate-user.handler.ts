@@ -2,6 +2,7 @@ import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { Inject } from '@nestjs/common';
 import { DeactivateUserCommand } from '../deactivate-user.command';
 import { UserNotFoundException } from '@iam/users/domain/exceptions/user-not-found.exception';
+import { UserSelfMutationForbiddenException } from '@iam/users/domain/exceptions/user-self-mutation-forbidden.exception';
 import { Result } from '@shared/domain/result';
 import { DomainException } from '@shared/domain/exceptions/domain.exception';
 import {
@@ -23,6 +24,10 @@ export class DeactivateUserCommandHandler implements ICommandHandler<
     command: DeactivateUserCommand,
   ): Promise<Result<void, DomainException>> {
     const { id, adminId } = command;
+
+    if (id === adminId) {
+      return Result.fail(new UserSelfMutationForbiddenException('deactivate'));
+    }
 
     const user = await this.userRepository.findById(id);
     if (!user) {

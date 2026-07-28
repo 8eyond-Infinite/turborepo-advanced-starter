@@ -33,10 +33,12 @@ Users không ký token, cũng không quản lý phiên refresh; đó là việc 
 Aggregate bảo vệ state transition:
 
 - `register()` tạo user mới active, chưa deleted, version bằng 0 và phát `UserRegisteredEvent`.
-- `updateInfo()` thay email/username/avatar, tăng tokenVersion và cập nhật audit fields.
-- `updateRoles()` đổi role assignments và tăng tokenVersion.
+- `updateInfo()` thay email/username/avatar và cập nhật audit fields, nhưng không thu hồi access token vì các field profile không thay đổi quyền truy cập.
+- `updateRoles()` chuẩn hóa role trùng và chỉ tăng tokenVersion khi tập role thực sự thay đổi. Gửi lại cùng các role theo thứ tự khác không làm token cũ mất hiệu lực.
 - `deactivate()` tắt truy cập, tăng tokenVersion và phát `UserDeactivatedEvent`.
 - `activate()`, `softDelete()` và `restore()` thay trạng thái và làm token cũ hết hiệu lực bằng cách tăng tokenVersion.
+
+Application layer còn bảo vệ một quy tắc liên quan đến người thực hiện thao tác: admin không được tự vô hiệu hóa, tự đổi trạng thái active hoặc tự xóa chính tài khoản đang đăng nhập. Ba command handler kiểm tra `target user id === adminId` trước khi đọc hay ghi repository và trả `USER_SELF_MUTATION_FORBIDDEN` (HTTP 409). Quy tắc phải nằm ở backend vì client, script hoặc công cụ API đều có thể gọi endpoint mà không đi qua giao diện Admin.
 
 tokenVersion thuộc aggregate vì nó là số phiên bản của quyền truy cập user — quyền đổi thì số tăng — chứ không phải một chi tiết kỹ thuật của JWT.
 

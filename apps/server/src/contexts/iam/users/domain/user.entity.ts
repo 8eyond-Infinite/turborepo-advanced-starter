@@ -117,7 +117,14 @@ export class UserEntity extends AggregateRoot {
   }
 
   public updateRoles(roles: string[], updatedBy?: string): void {
-    this.props.roles = roles;
+    const nextRoles = [...new Set(roles)];
+    const rolesChanged =
+      nextRoles.length !== this.props.roles.length ||
+      nextRoles.some((role) => !this.props.roles.includes(role));
+
+    if (!rolesChanged) return;
+
+    this.props.roles = nextRoles;
     this.revokeAccessTokens();
     this.trackUpdate(updatedBy);
   }
@@ -131,7 +138,6 @@ export class UserEntity extends AggregateRoot {
     this.props.email = new Email(email);
     this.props.username = new Username(username);
     this.props.avatar = avatar ?? null;
-    this.revokeAccessTokens();
     this.trackUpdate(updatedBy);
   }
 

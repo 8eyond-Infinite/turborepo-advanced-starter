@@ -35,7 +35,7 @@ export class RefreshCommandHandler implements ICommandHandler<
   ): Promise<
     Result<{ accessToken: string; refreshToken: string }, DomainException>
   > {
-    const { userId, email, jti: oldJti } = command;
+    const { userId, jti: oldJti } = command;
 
     const user = await this.userRepository.findById(userId);
     if (!user) {
@@ -45,12 +45,12 @@ export class RefreshCommandHandler implements ICommandHandler<
     const newJti = this.userRepository.nextIdentity();
     const accessPayload = {
       sub: userId,
-      email,
+      email: user.email,
       permissions,
       tokenVersion: user.tokenVersion,
       jti: newJti,
     };
-    const refreshPayload = { sub: userId, email, jti: newJti };
+    const refreshPayload = { sub: userId, email: user.email, jti: newJti };
 
     const accessToken = this.jwtService.sign(accessPayload, {
       secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),

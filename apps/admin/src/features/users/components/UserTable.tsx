@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import type { User } from "@repo/types";
 import { PERMISSIONS } from "@repo/contracts";
@@ -6,6 +6,7 @@ import { UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog, PageCard, PageHeader } from "@/components";
 import { usePermissions } from "@/app/access/usePermission";
+import { useAuthStore } from "@/features/auth";
 import { useUsers } from "../hooks/useUsers";
 import { AddUserCard } from "./AddUserCard";
 import { EditUserModal } from "./EditUserModal";
@@ -18,6 +19,7 @@ const parsePage = (value: string | null): number => {
 };
 
 export const UserTable = () => {
+  const currentUserId = useAuthStore((state) => state.user?.id ?? null);
   const [searchParams, setSearchParams] = useSearchParams();
   const search = searchParams.get("q") ?? "";
   const currentPage = parsePage(searchParams.get("page"));
@@ -64,6 +66,28 @@ export const UserTable = () => {
     loadRoles: access.canCreateUser || access.canUpdateUser,
   });
 
+  useEffect(() => {
+    if (usersState.isLoading || usersState.isError) return;
+    const lastAvailablePage = Math.max(1, usersState.meta.totalPages);
+    if (currentPage <= lastAvailablePage) return;
+
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        if (lastAvailablePage === 1) next.delete("page");
+        else next.set("page", String(lastAvailablePage));
+        return next;
+      },
+      { replace: true },
+    );
+  }, [
+    currentPage,
+    setSearchParams,
+    usersState.isError,
+    usersState.isLoading,
+    usersState.meta.totalPages,
+  ]);
+
   return (
     <div className="space-y-6 bg-background text-foreground">
       <PageHeader
@@ -106,6 +130,7 @@ export const UserTable = () => {
         </div>
         <UsersDataTable
           users={usersState.users}
+          currentUserId={currentUserId}
           search={search}
           currentPage={usersState.meta.currentPage}
           totalPages={usersState.meta.totalPages}

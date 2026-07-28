@@ -1,8 +1,9 @@
 import type { User } from "@repo/types";
 import { PERMISSIONS } from "@repo/contracts";
 import { render, screen } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { waitFor } from "@testing-library/react";
 import { useAuthStore } from "@/features/auth";
 import { UserTable } from "./UserTable";
 
@@ -33,10 +34,16 @@ const setPermissions = (permissions: string[]) => {
   });
 };
 
+const LocationProbe = () => {
+  const location = useLocation();
+  return <output data-testid="location">{location.search}</output>;
+};
+
 const renderTable = (initialEntry = "/users") =>
   render(
     <MemoryRouter initialEntries={[initialEntry]}>
       <UserTable />
+      <LocationProbe />
     </MemoryRouter>,
   );
 
@@ -143,5 +150,28 @@ describe("<UserTable /> permission visibility", () => {
       loadRoles: false,
     });
     expect(screen.getByRole("textbox")).toHaveValue("member");
+  });
+
+  it("replaces an out-of-range page after the result set shrinks", async () => {
+    setPermissions([PERMISSIONS.USER.READ]);
+    useUsers.mockReturnValue({
+      ...useUsers.mock.results[0]?.value,
+      users: [],
+      meta: {
+        totalItems: 0,
+        itemCount: 0,
+        itemsPerPage: 10,
+        totalPages: 1,
+        currentPage: 3,
+      },
+      isLoading: false,
+      isError: false,
+    });
+
+    renderTable("/users?q=member&page=3");
+
+    await waitFor(() => {
+      expect(screen.getByTestId("location")).toHaveTextContent("?q=member");
+    });
   });
 });

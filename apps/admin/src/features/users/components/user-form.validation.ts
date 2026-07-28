@@ -2,7 +2,7 @@ export interface UserFormValues {
   email: string;
   username: string;
   password?: string;
-  role: string;
+  roles: string[];
 }
 
 export type UserFormErrors = Partial<Record<keyof UserFormValues, string>>;
@@ -38,8 +38,8 @@ export const validateUserForm = (
     }
   }
 
-  if (!values.role) {
-    errors.role = "Vui lòng chọn một vai trò.";
+  if (values.roles.length === 0) {
+    errors.roles = "Vui lòng chọn ít nhất một vai trò.";
   }
 
   return errors;

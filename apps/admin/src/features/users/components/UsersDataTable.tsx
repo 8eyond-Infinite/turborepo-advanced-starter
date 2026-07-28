@@ -18,10 +18,11 @@ import {
   QueryErrorState,
   TablePagination,
 } from "@/components";
-import { adminEnvironment } from "@/config/environment";
+import { resolveAvatarUrl } from "../utils/avatar-url";
 
 interface UsersDataTableProps {
   users: User[];
+  currentUserId: string | null;
   search: string;
   currentPage: number;
   totalPages: number;
@@ -42,14 +43,9 @@ interface UsersDataTableProps {
   onDelete: (userId: string) => Promise<void>;
 }
 
-const getAvatarUrl = (avatarPath?: string | null) => {
-  if (!avatarPath) return undefined;
-  if (avatarPath.startsWith("http")) return avatarPath;
-  return `${adminEnvironment.apiUrl}${avatarPath}`;
-};
-
 export const UsersDataTable = ({
   users,
+  currentUserId,
   search,
   currentPage,
   totalPages,
@@ -95,6 +91,7 @@ export const UsersDataTable = ({
                 <div
                   className="flex items-center justify-center gap-2 text-sm text-muted-foreground"
                   role="status"
+                  aria-label="Đang tải danh sách tài khoản"
                 >
                   <div
                     className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"
@@ -129,6 +126,7 @@ export const UsersDataTable = ({
             </TableRow>
           ) : (
             users.map((user) => {
+              const isCurrentUser = user.id === currentUserId;
               const isThisUserToggling =
                 isToggling && togglingUserId === user.id;
               const isThisUserDeleting =
@@ -139,7 +137,10 @@ export const UsersDataTable = ({
                   <TableCell className="py-3 pl-6">
                     <div className="flex items-center gap-3">
                       <Avatar className="h-9 w-9 border border-border">
-                        <AvatarImage src={getAvatarUrl(user.avatar)} alt="" />
+                        <AvatarImage
+                          src={resolveAvatarUrl(user.avatar)}
+                          alt=""
+                        />
                         <AvatarFallback className="text-xs font-semibold uppercase">
                           {user.username?.substring(0, 2) || "US"}
                         </AvatarFallback>
@@ -175,11 +176,19 @@ export const UsersDataTable = ({
                           Không có vai trò
                         </span>
                       )}
+                      {isCurrentUser && (
+                        <Badge
+                          variant="secondary"
+                          className="px-2 py-0 text-[10px]"
+                        >
+                          Tài khoản của bạn
+                        </Badge>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell className="text-center">
                     <div className="flex items-center justify-center gap-2">
-                      {canUpdate && (
+                      {canUpdate && !isCurrentUser && (
                         <Switch
                           checked={user.isActive}
                           onCheckedChange={() => onToggle(user)}
@@ -233,7 +242,7 @@ export const UsersDataTable = ({
                             />
                           </Button>
                         )}
-                        {canDelete && (
+                        {canDelete && !isCurrentUser && (
                           <ConfirmDialog
                             trigger={
                               <Button

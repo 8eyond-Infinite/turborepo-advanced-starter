@@ -35,7 +35,7 @@ const EMPTY_DRAFT: UserFormDraft = {
   username: "",
   password: "",
   avatar: null,
-  role: "",
+  roles: [],
 };
 
 export const AddUserCard = ({
@@ -50,12 +50,12 @@ export const AddUserCard = ({
 }: AddUserCardProps) => {
   const [draft, setDraft] = useState<UserFormDraft>(EMPTY_DRAFT);
   const [errors, setErrors] = useState<UserFormErrors>({});
-  const selectedRole =
-    draft.role ||
-    roles.find((role) => role.name === "USER")?.name ||
-    roles[0]?.name ||
-    "";
-  const values = { ...draft, role: selectedRole };
+  const defaultRole =
+    roles.find((role) => role.name === "USER")?.name || roles[0]?.name || "";
+  const values = {
+    ...draft,
+    roles: draft.roles.length > 0 || !defaultRole ? draft.roles : [defaultRole],
+  };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -69,7 +69,7 @@ export const AddUserCard = ({
         username: values.username.trim(),
         password: values.password.trim(),
         avatar: values.avatar,
-        roles: [values.role],
+        roles: values.roles,
       });
       onClose();
     } catch {

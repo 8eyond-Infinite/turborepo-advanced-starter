@@ -1,6 +1,7 @@
 import type { Role } from "@repo/types";
 import { Input } from "@/components/ui/input";
-import { QueryErrorState, SingleSelect } from "@/components";
+import { Checkbox } from "@/components/ui/checkbox";
+import { QueryErrorState } from "@/components";
 import { AvatarUpload } from "./AvatarUpload";
 import type { UserFormErrors, UserFormValues } from "./user-form.validation";
 
@@ -134,32 +135,51 @@ export const UserFormFields = ({
           </div>
         )}
 
-        <div className="space-y-2">
-          <label
-            htmlFor={fieldId("role")}
-            className="block text-xs font-semibold text-muted-foreground"
-          >
-            Vai trò (Role)
-          </label>
-          <SingleSelect
-            triggerId={fieldId("role")}
-            accessibleLabel="Chọn vai trò cho tài khoản"
-            options={roles.map((role) => ({
-              label: role.name,
-              value: role.name,
-            }))}
-            value={values.role}
-            onChange={(role) => update("role", role)}
-            placeholder="Chọn vai trò"
-            className="w-full bg-card"
-            disabled={isRolesLoading || isRolesError}
-          />
-          {errors.role && (
-            <p id={errorId("role")} className="text-xs text-destructive">
-              {errors.role}
+        <fieldset
+          className="space-y-2"
+          aria-invalid={Boolean(errors.roles)}
+          aria-describedby={errors.roles ? errorId("roles") : undefined}
+        >
+          <legend className="text-xs font-semibold text-muted-foreground">
+            Vai trò (có thể chọn nhiều)
+          </legend>
+          <div className="max-h-32 space-y-2 overflow-y-auto rounded-md border border-input p-3">
+            {roles.map((role) => {
+              const checkboxId = `${idPrefix}-role-${role.id}`;
+              const checked = values.roles.includes(role.name);
+              return (
+                <div key={role.id} className="flex items-center gap-2">
+                  <Checkbox
+                    id={checkboxId}
+                    checked={checked}
+                    disabled={isRolesLoading || isRolesError}
+                    onCheckedChange={(nextChecked) =>
+                      update(
+                        "roles",
+                        nextChecked === true
+                          ? [...values.roles, role.name]
+                          : values.roles.filter((name) => name !== role.name),
+                      )
+                    }
+                  />
+                  <label htmlFor={checkboxId} className="text-sm">
+                    {role.name}
+                  </label>
+                </div>
+              );
+            })}
+            {!isRolesLoading && !isRolesError && roles.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                Chưa có vai trò nào để gán.
+              </p>
+            )}
+          </div>
+          {errors.roles && (
+            <p id={errorId("roles")} className="text-xs text-destructive">
+              {errors.roles}
             </p>
           )}
-        </div>
+        </fieldset>
       </div>
 
       {isRolesError && (

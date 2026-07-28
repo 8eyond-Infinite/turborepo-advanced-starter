@@ -9,7 +9,7 @@ describe("validateUserForm", () => {
           email: "invalid",
           username: "ab",
           password: "12345",
-          role: "",
+          roles: [],
         },
         { requirePassword: true },
       ),
@@ -17,7 +17,7 @@ describe("validateUserForm", () => {
       email: "Email không đúng định dạng.",
       username: "Username phải có từ 3 đến 50 ký tự.",
       password: "Mật khẩu phải có ít nhất 6 ký tự.",
-      role: "Vui lòng chọn một vai trò.",
+      roles: "Vui lòng chọn ít nhất một vai trò.",
     });
   });
 
@@ -27,7 +27,7 @@ describe("validateUserForm", () => {
         {
           email: "member@example.com",
           username: "member",
-          role: "USER",
+          roles: ["USER", "AUDITOR"],
         },
         { requirePassword: false },
       ),

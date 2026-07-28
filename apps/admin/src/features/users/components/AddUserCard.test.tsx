@@ -11,6 +11,11 @@ const roles: Role[] = [
     name: "USER",
     permissions: [],
   },
+  {
+    id: "role-auditor",
+    name: "AUDITOR",
+    permissions: [],
+  },
 ];
 
 const createdUser: User = {
@@ -81,6 +86,19 @@ describe("<AddUserCard />", () => {
     expect(onClose).not.toHaveBeenCalled();
     expect(screen.getByLabelText(/Địa chỉ Email/i)).toHaveValue(
       "member@example.com",
+    );
+  });
+
+  it("submits every selected role", async () => {
+    const onCreateUser = vi.fn().mockResolvedValue(createdUser);
+    renderForm(onCreateUser);
+    const user = await fillValidDraft();
+    await user.click(screen.getByRole("checkbox", { name: "AUDITOR" }));
+
+    await user.click(screen.getByRole("button", { name: "Tạo người dùng" }));
+
+    expect(onCreateUser).toHaveBeenCalledWith(
+      expect.objectContaining({ roles: ["USER", "AUDITOR"] }),
     );
   });
 
