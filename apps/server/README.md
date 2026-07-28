@@ -118,6 +118,8 @@ apps/server/
 
 `app.module.ts` là **composition root** (nơi duy nhất lắp ráp toàn bộ ứng dụng). Mọi module, port và adapter được ghép nối với nhau tại đây. File này được phép biết nhiều thành phần; business logic không được đặt tại đây.
 
+Thư mục `public/uploads/` là dữ liệu runtime của `LocalStorageAdapter`, chỉ phục vụ phát triển trên máy cá nhân. Adapter tự tạo thư mục khi cần và Git bỏ qua toàn bộ file bên trong, vì ảnh người dùng không phải source code. Production không được dựa vào filesystem của container; cấu hình `STORAGE_PROVIDER=s3` để dùng S3 hoặc dịch vụ object storage tương thích S3.
+
 ## 4. Bounded context và quyền sở hữu
 
 ### IAM
