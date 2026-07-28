@@ -61,7 +61,9 @@ WORKDIR /app
 COPY --from=prod-deps /prod/server ./
 # dist bị .gitignore nên pnpm deploy không mang theo — copy thẳng từ builder.
 COPY --from=builder /app/apps/server/dist ./dist
-COPY --from=builder /app/apps/server/public ./public
+# Local storage needs this directory to remain writable by the non-root runtime
+# user. Multi-node production should use the S3 adapter instead.
+COPY --chown=app:app --from=builder /app/apps/server/public ./public
 # Migration is an explicit pre-deploy process, never part of API startup.
 COPY --from=builder /app/apps/server/scripts ./scripts
 COPY --from=builder /app/packages/database/prisma ./database/prisma

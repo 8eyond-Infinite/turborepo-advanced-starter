@@ -37,6 +37,9 @@ jobs:
       - name: Generate Prisma client
         run: pnpm --filter=@repo/database db:generate
 
+      - name: Validate production Compose manifest
+        run: pnpm verify:compose
+
       - name: Lint
         run: pnpm turbo run lint
 

@@ -378,6 +378,12 @@ Backend production được codify tại `render.yaml` thành bốn resource cù
 
 `render.free.yaml` là Blueprint demo riêng: một free API, free PostgreSQL, free Redis, không worker; migration và seed chạy tuần tự trước startup vì free plan không có pre-deploy command. Đọc [Triển khai backend trên Render](render-deployment.md) trước khi chọn file. Không biến topology free thành production bằng cách nâng plan rời rạc trong dashboard.
 
+### Provider-neutral single-node topology
+
+`deploy/compose/compose.production.yaml` hiện thực cùng process boundary mà không phụ thuộc Render: Caddy nhận public traffic; API và worker dùng chung immutable image; migration chạy one-off trước rollout; PostgreSQL/Redis nằm trên internal network và persistent volume. CI kiểm tra manifest bằng `pnpm verify:compose`.
+
+Topology này dùng để diễn tập production trên Ubuntu/WSL2, đưa lên VPS nhỏ hoặc làm bước trung gian trước ECS. Nó không phải high availability và database container không thay thế managed database khi dữ liệu khách hàng quan trọng. Cách tạo environment, build/pull image, deploy, seed, verify và rollback nằm tại [Triển khai backend không phụ thuộc nhà cung cấp](provider-neutral-deployment.md).
+
 ### Vercel topology cho hai frontend
 
 Repository chỉ có hai frontend deployable: project **Admin** trỏ Root Directory `apps/admin`, project **Client** trỏ Root Directory `apps/client`. Không tạo project `web` và không trỏ một Vercel project vào repository root; làm vậy khiến Vercel tự đoán sai framework/build target trong monorepo.

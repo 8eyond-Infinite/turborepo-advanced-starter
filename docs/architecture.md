@@ -334,9 +334,9 @@ Không sao chép kiến trúc của Admin SPA một cách máy móc. Next.js có
 
 ## 11. Production process topology
 
-Backend production không phải một process duy nhất. API và BullMQ worker được build từ cùng Docker image để giữ cùng code/version, nhưng deploy thành hai Render service có lifecycle độc lập. API sở hữu HTTP, Socket.IO, outbox polling và queue producer; worker chỉ sở hữu queue consumer. PostgreSQL và Redis là managed datastore trên private network.
+Backend production không phải một process duy nhất. API và BullMQ worker được build từ cùng Docker image để giữ cùng code/version, nhưng deploy thành hai service có lifecycle độc lập. API sở hữu HTTP, Socket.IO, outbox polling và queue producer; worker chỉ sở hữu queue consumer. PostgreSQL và Redis chỉ được truy cập qua private network.
 
-Migration là release step chạy một lần trước API rollout, không nằm trong startup của API/worker. `render.yaml` là deployment composition root; `apps/server/Dockerfile` là runtime artifact boundary; `scripts/migrate.mjs` là migration entrypoint. Chi tiết vận hành nằm tại [Render deployment](render-deployment.md).
+Migration là release step chạy một lần trước API rollout, không nằm trong startup của API/worker. `apps/server/Dockerfile` là runtime artifact boundary; `scripts/migrate.mjs` là migration entrypoint. Deployment composition root có thể là Compose, Render Blueprint hoặc sau này là Terraform/ECS, nhưng không được thay đổi process boundary này. Đọc [deployment contract không phụ thuộc nhà cung cấp](provider-neutral-deployment.md); [Render deployment](render-deployment.md) chỉ là một adapter cụ thể.
 
 ## 12. Database và migration
 

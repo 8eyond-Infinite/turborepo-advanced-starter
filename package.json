@@ -22,6 +22,7 @@
     "test": "turbo run test",
     "e2e:admin:prepare": "node scripts/prepare-admin-e2e.mjs",
     "e2e:admin": "pnpm e2e:admin:prepare && pnpm --filter=admin e2e",
+    "verify:compose": "docker compose --env-file deploy/compose/.env.production.example -f deploy/compose/compose.production.yaml config --quiet",
     "verify:render": "node scripts/verify-render-deployment.mjs",
     "prepare": "husky"
   },
