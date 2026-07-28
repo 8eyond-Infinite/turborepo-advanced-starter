@@ -48,7 +48,7 @@ export const EditUserModal = ({
     username: user.username,
     password: "",
     avatar: user.avatar || null,
-    role: user.roles[0] || "USER",
+    roles: user.roles,
   });
   const [errors, setErrors] = useState<UserFormErrors>({});
 
@@ -64,7 +64,7 @@ export const EditUserModal = ({
         email: draft.email.trim(),
         username: draft.username.trim(),
         avatar: draft.avatar,
-        roles: [draft.role],
+        roles: draft.roles,
       });
       onClose();
     } catch {
