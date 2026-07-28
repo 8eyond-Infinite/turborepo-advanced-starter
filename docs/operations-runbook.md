@@ -225,6 +225,80 @@ Quay lui ứng dụng thì an toàn. **Quay lui database thì không** — repo 
 
 Sau khi xoay vòng, kiểm tra `.env.example` xem có biến mới nào cần khai báo không, và xác nhận gitleaks vẫn sạch.
 
+### 5.1 Admin đã được seed nhưng không còn biết password
+
+Trước hết phân biệt lỗi request và lỗi credential. Gửi một password cố ý sai nhưng hợp lệ về độ dài:
+
+- `400` là DTO/validation fail; kiểm tra email, JSON và password tối thiểu sáu ký tự;
+- `401 INVALID_CREDENTIALS` nghĩa là request đã tới login handler nhưng user không tồn tại hoặc password không khớp;
+- `200` nghĩa là credential đúng; không in response body vì nó chứa token.
+
+Kiểm tra admin tồn tại bằng một truy vấn chỉ trả count. Không đọc hoặc copy password hash:
+
+```bash
+docker compose \
+  --env-file deploy/compose/.env.production \
+  -f deploy/compose/compose.production.yaml \
+  exec -T postgres \
+  sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "SELECT count(*) FROM users WHERE email = '\''admin@example.com'\'';"'
+```
+
+Nếu count là `0`, quay về quy trình bootstrap ở [deployment chapter](provider-neutral-deployment.md#34-bootstrap-admin-seed-chưa-phải-là-login). Nếu count là `1`, chạy seed lại không đổi password. Với production thật, ưu tiên flow password-reset đã audit hoặc quy trình break-glass được tổ chức phê duyệt; không sửa trực tiếp database theo thói quen.
+
+Trong một lab single-node chưa có dữ liệu người dùng, operator có thể chạy one-off reset có mục tiêu từ chính application image. Password được nhập ẩn, chỉ truyền vào environment của process ngắn hạn, hash bằng cùng thư viện bcrypt và chỉ update đúng email:
+
+```bash
+read -rsp "New admin password (minimum 12 characters): " RESET_PASSWORD
+echo
+
+docker compose \
+  --env-file deploy/compose/.env.production \
+  -f deploy/compose/compose.production.yaml \
+  exec -T -e RESET_PASSWORD="$RESET_PASSWORD" api \
+  node -e '
+const bcrypt = require("bcrypt");
+const { Client } = require("pg");
+(async () => {
+  const client = new Client({ connectionString: process.env.DATABASE_URL });
+  await client.connect();
+  const hash = await bcrypt.hash(process.env.RESET_PASSWORD, 10);
+  const result = await client.query(
+    `UPDATE users SET password = $1, "updatedAt" = NOW() WHERE email = $2`,
+    [hash, "admin@example.com"],
+  );
+  await client.end();
+  if (result.rowCount !== 1) throw new Error(`Updated ${result.rowCount} rows`);
+  console.log("Admin password reset successfully.");
+})().catch((error) => {
+  console.error(error.message);
+  process.exit(1);
+});'
+
+unset RESET_PASSWORD
+```
+
+Ngay sau đó login qua public gateway và chỉ kiểm tra HTTP status. Nếu không phải lab trống, việc reset phải có incident/change record, xác nhận danh tính người yêu cầu và thu hồi các session hiện tại theo chính sách của sản phẩm.
+
+### 5.2 Realtime không xuất hiện trong browser
+
+Admin chỉ mở Socket.IO sau khi auth store có access token. Trong DevTools, chọn **Network → WS**, bật Preserve log rồi reload protected route; Fetch/XHR không hiển thị WebSocket. Connection đúng có URL:
+
+```text
+ws://<api-host>/socket.io/?EIO=4&transport=websocket
+```
+
+và status `101 Switching Protocols`. Đối chiếu phía API:
+
+```bash
+docker compose \
+  --env-file deploy/compose/.env.production \
+  -f deploy/compose/compose.production.yaml \
+  logs --since 5m api \
+  | grep -E 'Socket.IO|connected on socket|Disconnecting socket'
+```
+
+Nếu browser không có request và server không có log, kiểm tra CSP `connect-src`, `VITE_API_URL` và auth state. Nếu request có nhưng bị đóng, đọc `Disconnecting socket`: thiếu token và token sai là lỗi authentication; lỗi CORS/CSP xảy ra trước khi gateway chấp nhận connection.
+
 ## 6. Việc định kỳ
 
 | Việc                                         | Tần suất             | Ghi chú                                                                          |

@@ -56,10 +56,46 @@ Migration là release step, không phải API startup hook. Seed không nằm tr
 
 ## 3. Chuẩn bị local production-like environment
 
-Sao chép file mẫu nhưng không commit file thật:
+### 3.1 Chọn đúng môi trường
 
-```powershell
-Copy-Item deploy/compose/.env.production.example deploy/compose/.env.production
+Bài diễn tập gần VPS nhất trên Windows là một Ubuntu WSL2 có `systemd` và Docker Engine riêng. Docker CLI trong Ubuntu phải là `/usr/bin/docker`; nếu `which docker` trỏ vào `/mnt/c/Program Files/Docker/...` thì terminal đang dùng Docker Desktop integration, chưa phải daemon độc lập cần kiểm tra.
+
+```bash
+which docker
+docker version
+docker compose version
+systemctl is-active docker
+docker run --rm hello-world
+```
+
+Kết quả đúng có cả phần Client và Server, Compose có version, service trả `active`, và `hello-world` chạy thành công. Khi dùng daemon độc lập này, thoát Docker Desktop để không nuôi đồng thời hai VM/daemon và tránh tranh RAM, disk hoặc cổng 80/443.
+
+Clone repository vào filesystem Linux, chẳng hạn `~/workspaces`, thay vì `/mnt/c` hoặc `/mnt/d`. Cách này gần filesystem của VPS hơn và tránh chi phí bind mount, permission cùng file-watching xuyên Windows/Linux.
+
+### 3.2 Xác thực artifact bất biến
+
+CI chỉ đẩy image theo SHA sau khi commit trên `main` vượt qua toàn bộ quality gate. Với package GHCR private, đăng nhập GitHub CLI trong chính Ubuntu rồi chuyển token qua standard input; đăng nhập trên Windows không tự truyền sang WSL:
+
+```bash
+gh auth login --hostname github.com --git-protocol https --web
+gh auth refresh --hostname github.com --scopes read:packages
+gh auth token | docker login ghcr.io --username <github-user> --password-stdin
+
+IMAGE_TAG="$(git rev-parse HEAD)"
+docker manifest inspect \
+  "ghcr.io/<organization>/<repository>/server:${IMAGE_TAG}" >/dev/null
+```
+
+`unauthorized` nghĩa là registry chưa xác thực hoặc tài khoản chưa có quyền đọc package; nó chưa chứng minh image không tồn tại. Trên VPS, ưu tiên token/deploy credential chỉ có `read:packages`. File Docker config chứa credential phải chỉ người vận hành đọc được; không copy token vào `.env.production`, shell command hoặc tài liệu.
+
+### 3.3 Tạo environment và deploy
+
+Sao chép file mẫu nhưng không commit file thật. Trên Linux, tạo file với quyền hẹp ngay từ đầu:
+
+```bash
+install -m 600 \
+  deploy/compose/.env.production.example \
+  deploy/compose/.env.production
 ```
 
 Điền các nhóm biến:
@@ -77,39 +113,76 @@ Copy-Item deploy/compose/.env.production.example deploy/compose/.env.production
 openssl rand -hex 32
 ```
 
-Với local image:
+Đặt `SERVER_IMAGE` thành GHCR image và `SERVER_IMAGE_TAG` thành SHA vừa kiểm tra. Sau đó validate manifest và chạy script chuẩn:
 
-```powershell
-$compose = "deploy/compose/compose.production.yaml"
-$envFile = "deploy/compose/.env.production"
+```bash
+docker compose \
+  --env-file deploy/compose/.env.production \
+  -f deploy/compose/compose.production.yaml \
+  config --quiet
 
-# Trong .env.production đặt SERVER_IMAGE=turborepo-starter/server
-# và SERVER_IMAGE_TAG=local cho riêng bài diễn tập local.
-docker compose --env-file $envFile -f $compose config --quiet
-docker compose --env-file $envFile -f $compose build api
-docker compose --env-file $envFile -f $compose up -d --wait postgres redis
-docker compose --env-file $envFile -f $compose run --rm migrate
-docker compose --env-file $envFile -f $compose up -d api worker caddy
-docker compose --env-file $envFile -f $compose up --wait api
+deploy/compose/scripts/deploy.sh
+deploy/compose/scripts/verify.sh
 ```
 
-Bootstrap admin chỉ chạy lần đầu:
+`deploy.sh` pull đúng image theo SHA, dựng datastore, chạy migration one-off rồi mới rollout API, worker và Caddy. Một deployment đạt checkpoint đầu khi verifier báo `live, ready`, API/PostgreSQL/Redis healthy, worker và Caddy `Up`, còn migration không tồn tại như process thường trực.
 
-```powershell
-# Tạm đặt ALLOW_PRODUCTION_SEED=true và điền SEED_ADMIN_*.
-docker compose --env-file $envFile -f $compose --profile tools run --rm seed
+### 3.4 Bootstrap admin: seed chưa phải là login
+
+Bootstrap admin chỉ chạy lần đầu. Operator phải tự chọn và lưu password vào password manager trước khi chạy; không sinh một password ngẫu nhiên rồi xóa bản rõ trước khi kiểm tra đăng nhập. Truyền quyền seed và password cho đúng một invocation, trong khi `.env.production` vẫn giữ `ALLOW_PRODUCTION_SEED=false`:
+
+```bash
+read -rsp "Admin password (minimum 12 characters): " SEED_PASSWORD
+echo
+
+ALLOW_PRODUCTION_SEED=true \
+SEED_ADMIN_PASSWORD="$SEED_PASSWORD" \
+docker compose \
+  --env-file deploy/compose/.env.production \
+  -f deploy/compose/compose.production.yaml \
+  --profile tools \
+  run --rm seed
 ```
 
-Sau khi seed thành công, đổi `ALLOW_PRODUCTION_SEED=false` và xóa mật khẩu bootstrap khỏi file nếu không còn cần. Seed không đổi mật khẩu của admin đã tồn tại.
+Seed idempotent đối với role, permission và menu, nhưng cố ý **không đổi password của admin đã tồn tại**. Vì vậy “container seed exit 0” và “đăng nhập được” là hai checkpoint khác nhau. Sau khi seed báo thành công, kiểm tra user tồn tại rồi login qua public gateway:
 
-Kiểm tra:
+```bash
+docker compose \
+  --env-file deploy/compose/.env.production \
+  -f deploy/compose/compose.production.yaml \
+  exec -T postgres \
+  sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "SELECT count(*) FROM users WHERE email = '\''admin@example.com'\'';"'
 
-```powershell
-curl.exe http://localhost/health/live
-curl.exe http://localhost/health/ready
-docker compose --env-file $envFile -f $compose ps
-docker compose --env-file $envFile -f $compose logs --tail 100 api worker caddy
+LOGIN_STATUS="$(
+  curl --silent --output /dev/null --write-out '%{http_code}' \
+    --request POST \
+    --header 'Content-Type: application/json' \
+    --data "{\"email\":\"admin@example.com\",\"password\":\"${SEED_PASSWORD}\"}" \
+    http://localhost/auth/login
+)"
+echo "Login HTTP status: ${LOGIN_STATUS}"
 ```
+
+Chỉ khi count là `1` và login trả `200` mới được `unset SEED_PASSWORD` và xóa `SEED_ADMIN_PASSWORD` khỏi file nếu trước đó đã điền vào file. Nếu login trả `400`, đọc validation response; nếu trả `401`, password không khớp hash hoặc user không tồn tại. Không chạy seed lặp lại để “thử”, vì seed không reset credential.
+
+### 3.5 Smoke test từ browser
+
+Admin development trên Windows dùng:
+
+```dotenv
+VITE_API_URL=http://localhost
+```
+
+CORS phải chứa chính xác `http://localhost:5173`. Không trỏ Admin vào `localhost:3001`, vì API chỉ expose trong Docker network; browser đi qua Caddy ở port 80. Smoke test hoàn chỉnh gồm:
+
+1. login thành công;
+2. `/users?page=1&limit=10` trả `200` từ remote address port 80;
+3. reload protected route vẫn giữ/khôi phục session;
+4. Network → WS có `ws://localhost/socket.io/?EIO=4&transport=websocket` trả `101 Switching Protocols`;
+5. API log có `User ... connected on socket ...`;
+6. logout làm protected route không còn truy cập được.
+
+Health xanh chỉ chứng minh dependency sẵn sàng; nó không thay thế kiểm tra auth, cookie, authorization và realtime.
 
 ## 4. Đưa lên một VPS
 
