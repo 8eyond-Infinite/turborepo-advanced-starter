@@ -26,7 +26,14 @@ COPY . .
 # prisma generate only needs a syntactically valid URL at build time.
 ENV DATABASE_URL=postgresql://build:build@localhost:5432/build
 RUN pnpm --filter=@repo/database db:generate \
-  && pnpm turbo run build --filter=server...
+  && pnpm turbo run build --filter=server... \
+  && pnpm --filter=server exec esbuild ../../packages/database/prisma/seed.ts \
+    --bundle \
+    --platform=node \
+    --format=cjs \
+    --target=node20 \
+    --packages=external \
+    --outfile=dist/seed.cjs
 
 # Chỉ cài production dependencies của riêng server (và các package nó dùng).
 # Không có devDependencies, không có deps của admin/client — bề mặt tấn công

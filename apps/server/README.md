@@ -395,6 +395,8 @@ Read endpoint có thể dùng `CacheInterceptor`. Mutation dùng `CacheInvalidat
 
 Production managed Redis nên cung cấp một `REDIS_URL` (`redis://` hoặc `rediss://`). `src/infrastructure/cache/redis-connection.ts` là parser dùng chung cho cache, BullMQ và Socket.IO adapter, vì vậy ba consumer không thể lệch credential/TLS. Các biến host/port riêng vẫn được giữ cho local development. Render topology, pre-deploy migration và smoke test được mô tả trong [Render deployment](../../docs/render-deployment.md).
 
+Production image cũng chứa hai deployment entrypoint rõ ràng: `scripts/migrate.mjs` chạy migration chain và `scripts/seed.mjs` gọi seed idempotent với validation bắt buộc cho admin credential. Blueprint production chỉ dùng migration pre-deploy; Blueprint free staging mới chạy cả migration và seed trước single-instance API startup.
+
 - Nest shutdown hooks đóng resource có trật tự.
 
 Liveness không nên kiểm tra dependency ngoài vì dependency outage không có nghĩa process cần restart. Readiness phải phản ánh application có đủ khả năng nhận traffic hay không.

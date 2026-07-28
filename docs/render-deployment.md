@@ -99,3 +99,55 @@ Rollback application bằng deployment trước hoặc commit trước. Không c
 Khi sự cố, kiểm tra theo thứ tự: API deploy log và readiness; migration pre-deploy; PostgreSQL/Redis metrics; worker log và BullMQ backlog; cuối cùng rollback application nếu schema vẫn tương thích.
 
 Không gắn persistent disk vào API để lưu upload lâu dài. Filesystem container là ephemeral; upload production phải chuyển sang object storage qua adapter S3 hiện có.
+
+## 7. Free staging Blueprint
+
+`render.free.yaml` là topology dùng để demo hoặc học cách deploy mà chưa phát sinh chi phí. Nó không phải biến thể production giá rẻ và không được promote nguyên trạng:
+
+```text
+Free Web API
+├── startup: migrate → idempotent seed → API
+├── Free PostgreSQL
+└── Free Key Value
+
+Không có background worker
+```
+
+Render không cung cấp free background worker hoặc pre-deploy command. Vì free staging chỉ có đúng một API instance, Blueprint chấp nhận ngoại lệ chạy migration và seed trước API startup:
+
+```text
+node scripts/migrate.mjs
+→ node scripts/seed.mjs
+→ node dist/main.js
+```
+
+Seed yêu cầu `ALLOW_PRODUCTION_SEED=true`, `SEED_ADMIN_EMAIL` và mật khẩu ít nhất 12 ký tự. Seed là idempotent: permission/role được upsert, admin đã tồn tại không bị đổi mật khẩu, menu tùy chỉnh không bị xóa. Nếu migration hoặc seed fail thì API không khởi động, tránh chạy với schema/database bootstrap dở dang.
+
+### Tạo free Blueprint
+
+Trong Render chọn **New → Blueprint**, repository này, branch `main`, rồi đổi Blueprint path từ mặc định thành:
+
+```text
+render.free.yaml
+```
+
+Render sẽ yêu cầu:
+
+| Biến                  | Giá trị                                                              |
+| --------------------- | -------------------------------------------------------------------- |
+| `CORS_ORIGINS`        | Origin Admin Vercel chính xác, không có slash cuối                   |
+| `SEED_ADMIN_EMAIL`    | Email đăng nhập admin staging                                        |
+| `SEED_ADMIN_PASSWORD` | Mật khẩu staging tối thiểu 12 ký tự, không dùng lại mật khẩu cá nhân |
+
+Review phải chỉ có ba resource mang hậu tố `-free`: API, PostgreSQL và Redis. Nếu thấy worker hoặc plan `starter`, bạn đang dùng nhầm `render.yaml`.
+
+### Giới hạn bắt buộc phải hiểu
+
+- Free API có cold start; request đầu tiên sau thời gian idle có thể chậm.
+- Free PostgreSQL có giới hạn dung lượng, không backup và hết hạn theo chính sách hiện hành của Render.
+- Free Key Value không persistence; restart có thể làm mất refresh session, cache và queued job.
+- Không có worker nên email job không được consume. Job có thể nằm trong Redis rồi mất khi Redis restart.
+- Migration trong startup chỉ an toàn cho single-instance demo. Không copy command này sang paid/scaled service.
+- `SameSite=None` giúp Vercel gọi Render cross-site nhưng browser vẫn có thể chặn third-party cookie. Custom domain cùng site mới là topology production.
+
+Khi cần dữ liệu bền, email worker, pre-deploy migration hoặc scale nhiều replica, xóa free environment và provision `render.yaml`; không sửa plan từng resource một rồi giữ startup command free.
