@@ -51,4 +51,23 @@ describe("<NotificationItemButton /> application shell", () => {
       screen.getByRole("button", { name: "Đã đọc: Security alert" }),
     ).toBeDisabled();
   });
+
+  it("contains a rejected mutation at the click boundary", async () => {
+    const onMarkAsRead = vi.fn().mockRejectedValue(new Error("offline"));
+    render(
+      <NotificationItemButton
+        notification={notification}
+        isPending={false}
+        onMarkAsRead={onMarkAsRead}
+      />,
+    );
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "Đánh dấu đã đọc: Security alert",
+      }),
+    );
+
+    expect(onMarkAsRead).toHaveBeenCalledWith("notification-1");
+  });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
-import { Can } from "./usePermission";
+import { render, renderHook, screen } from "@testing-library/react";
+import { Can, usePermission } from "./usePermission";
 import { useAuthStore } from "@/features/auth";
 import type { User } from "@repo/types";
 
@@ -22,6 +22,16 @@ const loginAs = (permissions: string[]) => {
 };
 
 describe("<Can /> application permission gating", () => {
+  it("keeps evaluator functions stable while the user is unchanged", () => {
+    loginAs(["user:read"]);
+    const { result, rerender } = renderHook(() => usePermission());
+    const firstEvaluator = result.current;
+
+    rerender();
+
+    expect(result.current).toBe(firstEvaluator);
+  });
+
   it("renders children when the user holds the required permission", () => {
     loginAs(["user:read"]);
     render(<Can I="user:read">visible-content</Can>);

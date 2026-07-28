@@ -3,8 +3,8 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import { MainLayout } from "@/app/shell/MainLayout";
 import { ProtectedRoute } from "./protected-route";
 import { PermissionGuard } from "@/app/access/usePermission";
-import { PERMISSIONS } from "@repo/contracts";
 import { RouteErrorPage } from "./route-error-page";
+import { adminRouteManifest, type AdminRoutePath } from "./route-manifest";
 
 const LoginForm = lazy(() =>
   import("@/features/auth/pages").then((module) => ({
@@ -60,33 +60,18 @@ const withSuspense = (element: ReactNode) => (
   <Suspense fallback={<RouteFallback />}>{element}</Suspense>
 );
 
-// Clean Route Config with metadata permissions
-export const adminRoutes = [
-  {
-    path: "/",
-    element: withSuspense(<DashboardOverview />),
-  },
-  {
-    path: "/users",
-    element: withSuspense(<UserTable />),
-    permission: PERMISSIONS.USER.READ,
-  },
-  {
-    path: "/roles",
-    element: withSuspense(<RolesManagement />),
-    permission: PERMISSIONS.ROLE.READ,
-  },
-  {
-    path: "/sessions",
-    element: withSuspense(<SessionsManagement />),
-    permission: PERMISSIONS.SESSION.READ,
-  },
-  {
-    path: "/audit-logs",
-    element: withSuspense(<AuditLogsManagement />),
-    permission: PERMISSIONS.AUDIT.READ,
-  },
-];
+const routeElements: Record<AdminRoutePath, ReactNode> = {
+  "/": withSuspense(<DashboardOverview />),
+  "/users": withSuspense(<UserTable />),
+  "/roles": withSuspense(<RolesManagement />),
+  "/sessions": withSuspense(<SessionsManagement />),
+  "/audit-logs": withSuspense(<AuditLogsManagement />),
+};
+
+export const adminRoutes = adminRouteManifest.map((route) => ({
+  ...route,
+  element: routeElements[route.path],
+}));
 
 export const router = createBrowserRouter([
   {

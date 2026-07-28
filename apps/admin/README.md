@@ -109,7 +109,9 @@ Trong thời gian bootstrap, `App` hiển thị loading toàn màn hình. Điề
 
 ## 4. Routing, layout và code splitting
 
-`src/routes/index.tsx` là nơi duy nhất khai báo page route. Các màn hình được lazy import, vì vậy trình duyệt chỉ tải code của feature khi route tương ứng được mở.
+`src/routes/route-manifest.ts` là nguồn duy nhất giữ metadata của route quản trị: URL, nhãn breadcrumb và permission bắt buộc. `src/routes/index.tsx` ghép metadata đó với page được lazy import để tạo route tree. Cách tách này giúp layout, router và kiểm tra quyền cùng đọc một định nghĩa; khi thêm hoặc đổi route, breadcrumb không bị lệch khỏi router.
+
+Các màn hình được lazy import, vì vậy trình duyệt chỉ tải code của feature khi route tương ứng được mở.
 
 Route công khai gồm `/login` và `/403`. Tất cả route quản trị nằm bên dưới `ProtectedRoute`, sau đó dùng `MainLayout`. Mỗi route có thể khai báo một permission và được bọc bởi `PermissionGuard`.
 
@@ -129,7 +131,7 @@ Provider chỉ mở socket sau khi auth store xác nhận đã đăng nhập và
 
 Access token của Socket.IO chỉ đi trong `handshake.auth.token`, không nằm trong query string để tránh URL hoặc proxy log ghi lại bearer credential. Khi HTTP refresh thành công, event `auth:token-refreshed` cập nhật `socket.auth`; lần reconnect kế tiếp luôn dùng token mới.
 
-Khi thêm page mới, feature export page qua `pages.ts`; route lazy import `@/features/<name>/pages` rồi thêm entry vào `adminRoutes`. Permission của route phải lấy từ `@repo/contracts`, không viết string trực tiếp. `index.ts` và `pages.ts` có mục đích khác nhau: `index.ts` là capability/API dùng chéo; `pages.ts` là entry chỉ dành cho lazy route. Không export page từ `index.ts`, vì một import tĩnh vào capability có thể kéo page vào initial bundle và phá code splitting.
+Khi thêm page mới, feature export page qua `pages.ts`. Sau đó thêm URL, nhãn và permission vào `route-manifest.ts`, rồi nối URL với lazy page trong `routes/index.tsx`. TypeScript sẽ báo lỗi nếu manifest có route nhưng bảng page chưa có phần tử tương ứng. Permission phải lấy từ `@repo/contracts`, không viết string trực tiếp. `index.ts` và `pages.ts` có mục đích khác nhau: `index.ts` là capability/API dùng chéo; `pages.ts` là entry chỉ dành cho lazy route. Không export page từ `index.ts`, vì một import tĩnh vào capability có thể kéo page vào initial bundle và phá code splitting.
 
 ## 5. Đăng nhập và vòng đời token
 
@@ -246,11 +248,15 @@ Backend hiện bảo đảm search trên action, details và email. UI không cu
 
 ### Notification đi từ server đến màn hình như thế nào?
 
-Popover tải 50 notification mới nhất nhưng badge dùng `unreadCount` do backend đếm trên toàn bộ mailbox; không được đếm mảng page hiện tại. Mark-one và mark-all cập nhật cache lạc quan để UI phản hồi ngay, giữ snapshot để rollback khi request thất bại, rồi invalidate root key sau thành công.
+Popover tải 50 notification mới nhất nhưng badge dùng `unreadCount` do backend đếm trên toàn bộ mailbox; không được đếm mảng page hiện tại. Mark-one và mark-all cập nhật cache lạc quan để UI phản hồi ngay, giữ snapshot để rollback khi request thất bại, rồi invalidate root key sau thành công. Mutation lỗi được hook chuyển thành toast và được click handler giữ lại tại UI boundary, vì vậy browser không phát sinh unhandled Promise rejection sau khi rollback đã hoàn tất.
 
-Mỗi notification chưa đọc là một semantic button có accessible name và dùng được bằng bàn phím. Notification đã đọc bị disabled vì không còn action. Timestamp hiển thị tương đối nhưng giữ ISO gốc trong `dateTime`. Realtime event chỉ invalidate cache và hiển thị toast; HTTP response vẫn là nguồn sự thật.
+Mỗi notification chưa đọc là một semantic button có accessible name và dùng được bằng bàn phím. Notification đã đọc bị disabled vì không còn action. Bell nối unread count bằng `aria-describedby`; badge `9+` chỉ là biểu diễn thị giác và bị ẩn khỏi accessibility tree. Popover có heading, loading status và error alert được đặt tên rõ ràng. Timestamp hiển thị tương đối nhưng giữ ISO gốc trong `dateTime`. Realtime event chỉ invalidate cache và hiển thị toast; HTTP response vẫn là nguồn sự thật.
 
-Shared shell đặt breadcrumb metadata ngoài component để không tạo lại mỗi render, bao gồm đầy đủ route Audit. Header và content padding thay đổi theo breakpoint; active navigation nhận diện cả route con thay vì chỉ exact pathname.
+Shared shell đọc breadcrumb từ route manifest, vì vậy nhãn và route guard không có hai danh sách độc lập. Header và content padding thay đổi theo breakpoint; active navigation nhận diện cả route con nhưng không nhầm `/users-archive` là con của `/users`.
+
+Sidebar tải thứ tự, nhóm, nhãn và icon từ `/menus`, sau đó đối chiếu từng URL với route manifest và lọc theo permission của principal hiện tại. URL không tồn tại trong frontend, item không có quyền và group rỗng đều không được render. Icon backend chưa được frontend hỗ trợ dùng biểu tượng `Shield` an toàn. Trong lúc tải, sidebar hiển thị trạng thái loading; nếu request lỗi, người dùng thấy thông báo cùng nút thử lại; nếu tải thành công nhưng không còn item hợp lệ, sidebar giải thích rằng tài khoản chưa có menu được cấp quyền.
+
+User menu tách “Đăng xuất” khỏi “Đăng xuất mọi thiết bị”. Trong lúc một action đang chạy, cả hai lựa chọn bị khóa để tránh gửi request lặp. Router chỉ thay history bằng `/login` sau khi auth store đã hoàn thành local cleanup; lỗi bất ngờ được giữ tại event boundary và hiển thị bằng toast thay vì tạo unhandled rejection. Avatar không có ảnh dùng initials tính từ tên người dùng, không dùng chữ viết tắt hard-code.
 
 ## 7. Permission model
 
@@ -536,7 +542,7 @@ Vendor đã được tách theo nhịp thay đổi (`react-vendor`, `data-vendor
 
 Authentication đã dùng HttpOnly refresh cookie, access token trong memory, single-flight refresh và rollback cho login dở dang. Browser E2E đã khóa login, cookie refresh qua reload, RBAC route và force logout qua WebSocket trên topology local/CI thật. Khoảng trống tiếp theo là kiểm thử topology production có TLS và domain/subdomain thật.
 
-Test suite đã bảo vệ API client, auth store, route guard, permission evaluator, cache boundary, realtime boundary, permission visibility của các màn hình quản trị chính và mutation/invalidation của users, roles, sessions và notifications. Browser suite bảo vệ các flow quan trọng nhất qua frontend, API, cookie, database, Redis và WebSocket thật.
+Test suite đã bảo vệ application bootstrap, MainLayout/breadcrumb, user-menu logout, global logout, việc tháo các global subscription, API client, auth store, route guard, permission evaluator, cache boundary, realtime boundary, permission visibility của các màn hình quản trị chính và mutation/invalidation của users, roles, sessions và notifications. Browser suite bảo vệ các flow quan trọng nhất qua frontend, API, cookie, database, Redis và WebSocket thật.
 
 Application resilience hiện có ba tầng. Lỗi render vượt khỏi feature được chặn bởi `ApplicationErrorBoundary`; lỗi lazy route/loader được chặn bởi `RouteErrorPage`; lỗi server state dự kiến được feature hiển thị bằng `QueryErrorState`. Boundary không đưa raw `Error.message` ra người dùng vì message kỹ thuật có thể chứa endpoint, identifier hoặc dữ liệu nhạy cảm.
 

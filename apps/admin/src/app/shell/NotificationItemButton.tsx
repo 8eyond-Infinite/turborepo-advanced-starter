@@ -59,6 +59,9 @@ export const NotificationItemButton = ({
   onMarkAsRead,
 }: NotificationItemButtonProps) => {
   const isActionable = !notification.isRead;
+  const handleMarkAsRead = () => {
+    void onMarkAsRead(notification.id).catch(() => undefined);
+  };
 
   return (
     <button
@@ -69,7 +72,7 @@ export const NotificationItemButton = ({
           ? `Đánh dấu đã đọc: ${notification.title}`
           : `Đã đọc: ${notification.title}`
       }
-      onClick={() => void onMarkAsRead(notification.id)}
+      onClick={handleMarkAsRead}
       className={`w-full p-4 text-left transition-colors ${
         notification.isRead
           ? "cursor-default opacity-60"

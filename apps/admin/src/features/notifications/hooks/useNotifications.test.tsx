@@ -98,4 +98,42 @@ describe("useNotifications", () => {
     ).toEqual(response);
     expect(toast.error).toHaveBeenCalledOnce();
   });
+
+  it("optimistically marks every item read and rolls back on failure", async () => {
+    let rejectMutation!: (error: Error) => void;
+    notificationApi.markAllAsRead.mockImplementation(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          rejectMutation = reject;
+        }),
+    );
+    const { result } = renderHook(() => useNotifications(), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    let mutation!: Promise<void>;
+    act(() => {
+      mutation = result.current.markAllAsRead();
+    });
+
+    await waitFor(() => {
+      const optimistic = queryClient.getQueryData<NotificationListResponse>(
+        notificationKeys.list(1, 50),
+      );
+      expect(optimistic?.unreadCount).toBe(0);
+      expect(optimistic?.items.every((item) => item.isRead)).toBe(true);
+    });
+
+    rejectMutation(new Error("network unavailable"));
+    await act(async () => {
+      await expect(mutation).rejects.toThrow("network unavailable");
+    });
+
+    expect(
+      queryClient.getQueryData<NotificationListResponse>(
+        notificationKeys.list(1, 50),
+      ),
+    ).toEqual(response);
+    expect(toast.error).toHaveBeenCalledOnce();
+    expect(toast.success).not.toHaveBeenCalled();
+  });
 });

@@ -16,6 +16,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
+import { isNavigationPathActive } from "./navigation";
 
 export function NavMain({
   items,
@@ -38,16 +39,13 @@ export function NavMain({
       <SidebarGroupLabel>Admin Panel</SidebarGroupLabel>
       <SidebarMenu>
         {items.map((item) => {
-          // Check if any sub-item is active to open the collapsible menu by default
-          const hasActiveSubItem = item.items?.some(
-            (sub) =>
-              location.pathname === sub.url ||
-              (sub.url !== "/" && location.pathname.startsWith(`${sub.url}/`)),
+          const hasActiveSubItem = item.items?.some((sub) =>
+            isNavigationPathActive(location.pathname, sub.url),
           );
 
           return (
             <Collapsible
-              key={item.title}
+              key={item.url}
               asChild
               defaultOpen={item.isActive || hasActiveSubItem}
               className="group/collapsible"
@@ -63,13 +61,13 @@ export function NavMain({
                 <CollapsibleContent>
                   <SidebarMenuSub>
                     {item.items?.map((subItem) => {
-                      const isSubActive =
-                        location.pathname === subItem.url ||
-                        (subItem.url !== "/" &&
-                          location.pathname.startsWith(`${subItem.url}/`));
+                      const isSubActive = isNavigationPathActive(
+                        location.pathname,
+                        subItem.url,
+                      );
 
                       return (
-                        <SidebarMenuSubItem key={subItem.title}>
+                        <SidebarMenuSubItem key={subItem.url}>
                           <SidebarMenuSubButton asChild isActive={isSubActive}>
                             <Link to={subItem.url}>
                               <span>{subItem.title}</span>
