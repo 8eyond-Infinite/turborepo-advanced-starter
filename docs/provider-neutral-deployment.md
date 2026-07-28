@@ -4,11 +4,11 @@
 >
 > Chương trước: [Development và Docker](development-and-deployment.md) · [Mục lục handbook](README.md) · Chương sau: [Render adapter](render-deployment.md)
 
-Mục tiêu của chương không phải dạy thuộc một file Compose. Mục tiêu là hiểu deployment contract: hệ thống cần những process nào, process nào nhận Internet, migration chạy lúc nào, dữ liệu sống ở đâu và rollback thay đổi thứ gì. Khi contract rõ, VPS, Render hay AWS chỉ là các cách hiện thực khác nhau.
+Chương này trả lời một câu hỏi thực tế: cần chạy những chương trình nào để backend phục vụ được người dùng, và phải khởi động chúng theo thứ tự nào để không làm hỏng dữ liệu?
 
 Hãy hình dung một nhà hàng nhỏ. Caddy là cửa đón khách; API là nhân viên nhận yêu cầu; worker là khu xử lý việc nền; PostgreSQL là sổ cái; Redis là bảng công việc nhanh. Migration là việc sửa cấu trúc sổ trước ca làm. Không nhân viên API nào được tự sửa sổ mỗi lần bắt đầu ca.
 
-Tài liệu này mô tả deployment contract chung của backend và cách diễn tập nó trên một máy Ubuntu/WSL2 trước khi đưa lên VPS hoặc chuyển sang AWS ECS. Render, một VPS và ECS là ba cách hiện thực khác nhau của cùng contract; application image, process boundary và thứ tự migration không thay đổi theo nhà cung cấp.
+Năm vai trò trên và thứ tự khởi động của chúng tạo thành **quy ước triển khai** (deployment contract) của dự án. Ta sẽ diễn tập quy ước đó trên Ubuntu/WSL2. Sau này chuyển sang VPS, Render hay AWS, tên dịch vụ có thể đổi nhưng trách nhiệm của từng vai trò vẫn giữ nguyên.
 
 ## 1. Phạm vi và mức bảo đảm
 
@@ -125,11 +125,15 @@ deploy/compose/scripts/deploy.sh
 deploy/compose/scripts/verify.sh
 ```
 
-`deploy.sh` pull đúng image theo SHA, dựng datastore, chạy migration one-off rồi mới rollout API, worker và Caddy. Một deployment đạt checkpoint đầu khi verifier báo `live, ready`, API/PostgreSQL/Redis healthy, worker và Caddy `Up`, còn migration không tồn tại như process thường trực.
+`deploy.sh` pull đúng image theo SHA, dựng datastore, chạy migration một lần rồi mới khởi động API, worker và Caddy. Bước triển khai đầu tiên hoàn tất khi verifier báo `live, ready`; API, PostgreSQL và Redis đều healthy; worker cùng Caddy ở trạng thái `Up`. Container migration kết thúc sau khi làm xong việc, không chạy thường trực.
 
-### 3.4 Bootstrap admin: seed chưa phải là login
+### 3.4 Tạo dữ liệu ban đầu và tài khoản quản trị
 
-Bootstrap admin chỉ chạy lần đầu. Operator phải tự chọn và lưu password vào password manager trước khi chạy; không sinh một password ngẫu nhiên rồi xóa bản rõ trước khi kiểm tra đăng nhập. Truyền quyền seed và password cho đúng một invocation, trong khi `.env.production` vẫn giữ `ALLOW_PRODUCTION_SEED=false`:
+Database mới chỉ có cấu trúc bảng sau khi migration chạy xong. Nó chưa có danh sách quyền, vai trò, menu hoặc tài khoản để đăng nhập. Lệnh `seed` nạp bộ dữ liệu ban đầu này.
+
+Người vận hành tự chọn mật khẩu quản trị, lưu nó vào password manager rồi truyền cho đúng một lần chạy seed. Biến `ALLOW_PRODUCTION_SEED=true` là chốt an toàn: nếu không bật nó một cách có chủ ý, image production sẽ từ chối chạy seed.
+
+Không cần sửa chốt đó thành `true` trong `.env.production`. Ta chỉ bật nó cho đúng command bên dưới:
 
 ```bash
 read -rsp "Admin password (minimum 12 characters): " SEED_PASSWORD
@@ -144,7 +148,16 @@ docker compose \
   run --rm seed
 ```
 
-Seed idempotent đối với role, permission và menu, nhưng cố ý **không đổi password của admin đã tồn tại**. Vì vậy “container seed exit 0” và “đăng nhập được” là hai checkpoint khác nhau. Sau khi seed báo thành công, kiểm tra user tồn tại rồi login qua public gateway:
+Seed có thể chạy lại mà không nhân đôi role, permission hoặc menu. Tính chất “chạy nhiều lần vẫn cho cùng một kết quả cuối” được gọi là **idempotent**.
+
+Mật khẩu là ngoại lệ có chủ ý. Seed chỉ đặt mật khẩu khi tạo tài khoản admin lần đầu; nếu tài khoản đã tồn tại, seed giữ nguyên mật khẩu cũ. Quy tắc này ngăn một lần deploy vô tình đổi credential của người đang vận hành hệ thống.
+
+Vì vậy ta cần xác nhận hai việc riêng:
+
+1. Database đã có đúng một tài khoản `admin@example.com`.
+2. Mật khẩu vừa chọn thật sự đăng nhập được qua địa chỉ public của API.
+
+Lệnh đầu chỉ trả về số lượng tài khoản, không đọc password hash:
 
 ```bash
 docker compose \
@@ -152,7 +165,11 @@ docker compose \
   -f deploy/compose/compose.production.yaml \
   exec -T postgres \
   sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "SELECT count(*) FROM users WHERE email = '\''admin@example.com'\'';"'
+```
 
+Kết quả mong đợi là `1`. Sau đó gửi request đăng nhập qua Caddy ở `http://localhost`:
+
+```bash
 LOGIN_STATUS="$(
   curl --silent --output /dev/null --write-out '%{http_code}' \
     --request POST \
@@ -163,7 +180,9 @@ LOGIN_STATUS="$(
 echo "Login HTTP status: ${LOGIN_STATUS}"
 ```
 
-Chỉ khi count là `1` và login trả `200` mới được `unset SEED_PASSWORD` và xóa `SEED_ADMIN_PASSWORD` khỏi file nếu trước đó đã điền vào file. Nếu login trả `400`, đọc validation response; nếu trả `401`, password không khớp hash hoặc user không tồn tại. Không chạy seed lặp lại để “thử”, vì seed không reset credential.
+`Login HTTP status: 200` nghĩa là email và mật khẩu đúng. Lúc này mới xóa biến tạm khỏi terminal bằng `unset SEED_PASSWORD`, rồi xóa `SEED_ADMIN_PASSWORD` khỏi file nếu trước đó đã ghi nó vào đó.
+
+Nếu API trả `400`, dữ liệu gửi lên sai định dạng; hãy đọc response để biết field nào không hợp lệ. Nếu API trả `401`, email không tồn tại hoặc mật khẩu không khớp. Chạy seed lại không giải quyết trường hợp sai mật khẩu vì seed không thay credential của tài khoản đã có.
 
 ### 3.5 Smoke test từ browser
 
@@ -267,8 +286,8 @@ Nếu chưa đáp ứng, dùng managed PostgreSQL.
 
 Sự chuyển đổi này thay deployment composition root, không thay domain/application code. Migration trở thành ECS one-off task trước khi update hai ECS service.
 
-## Checkpoint cuối chương
+## Tự kiểm tra: bạn đã hiểu quy trình chưa?
 
 Bạn đã hiểu deployment contract khi có thể vẽ lại năm ô Caddy, API, worker, PostgreSQL và Redis rồi giải thích đường kết nối giữa chúng. Bạn cũng phải trả lời được vì sao migration chạy trước rollout, vì sao worker không dùng HTTP healthcheck của API và vì sao rollback image không đồng nghĩa rollback database.
 
-Nếu mục tiêu tiếp theo là Render, sang [Chương 16](render-deployment.md). Nếu chuẩn bị một VPS, quay lại mục 4 và thực hiện theo từng checkpoint; đừng copy toàn bộ command trước khi hiểu file environment đang cung cấp secret nào.
+Nếu mục tiêu tiếp theo là Render, sang [Chương 16](render-deployment.md). Nếu chuẩn bị một VPS, quay lại mục 4 và xác nhận kết quả sau từng bước; đừng copy toàn bộ command trước khi hiểu file environment đang cung cấp secret nào.

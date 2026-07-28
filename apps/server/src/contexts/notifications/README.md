@@ -6,7 +6,9 @@
 
 Notification là một bản ghi bền dành cho đúng một người nhận. Realtime chỉ là cách báo nhanh rằng dữ liệu mới đã có; nó không thay thế database. Nếu browser đang offline, user vẫn phải đọc được notification sau khi đăng nhập lại.
 
-Hãy theo flow từ một domain event: router quyết định tạo notification, repository ghi PostgreSQL, gateway phát tín hiệu qua Socket.IO, Admin nhận tín hiệu rồi invalidate query để đọc lại nguồn sự thật. Cách làm này tránh biến WebSocket payload thành một database thứ hai trong frontend.
+Hãy theo flow từ lúc một nghiệp vụ báo “có chuyện vừa xảy ra”. Bộ định tuyến quyết định có cần tạo notification hay không. Repository lưu notification vào PostgreSQL. Sau đó Socket.IO chỉ báo cho Admin rằng dữ liệu mới đã có; Admin đánh dấu cache cũ là hết hạn và gọi HTTP để đọc bản đầy đủ.
+
+Thông báo “chuyện vừa xảy ra” được gọi là **domain event**. Việc đánh dấu cache cũ để tải lại gọi là **invalidate query**. WebSocket chỉ đánh thức giao diện, không trở thành một nguồn dữ liệu thứ hai.
 
 ## 1. Trách nhiệm
 
@@ -69,13 +71,13 @@ Transactional outbox bảo đảm không có trạng thái “database đã có 
 
 `POST /notifications/read-all` luôn giới hạn `userId` hiện tại ở repository. Hai use case đều idempotent về kết quả cuối: gọi lại trên notification đã đọc vẫn cho trạng thái đã đọc.
 
-## 6. Admin cache lifecycle
+## 6. Admin cập nhật cache như thế nào?
 
 Admin tải page đầu tối đa 50 item cho popover nhưng dùng `unreadCount` từ server cho badge. Mark-read dùng optimistic cache update để phản hồi ngay, lưu snapshot trước mutation và rollback nếu request thất bại. Sau thành công, root key `notificationKeys.all` được invalidate để đối chiếu lại với server.
 
 Event realtime chỉ invalidate root key. Nó không tự chèn payload vào cache vì event không mang toàn bộ read model và có thể đến trùng hoặc sai thứ tự.
 
-## 7. Invariants
+## 7. Những quy tắc luôn phải đúng
 
 - Mọi query và mutation phải bị giới hạn bởi authenticated user.
 - Badge unread lấy từ server trên toàn mailbox.
@@ -84,7 +86,7 @@ Event realtime chỉ invalidate root key. Nó không tự chèn payload vào cac
 - Optimistic update phải có rollback.
 - UI notification chưa đọc phải thao tác được bằng bàn phím.
 
-## 8. Bản đồ code và checkpoint
+## 8. Bản đồ code và câu hỏi tự kiểm tra
 
 Khi bắt đầu điều tra notification, mở `notification.module.ts` để thấy composition root của context. Từ endpoint HTTP, đi vào `presentation/controllers`; từ một event được phát, bắt đầu ở handler/router tạo notification. Repository adapter là nơi duy nhất nên biết Prisma, còn Admin integration nằm ở feature notification của `apps/admin`.
 

@@ -6,13 +6,15 @@
 
 Users sở hữu trạng thái và quy tắc vòng đời của tài khoản: tạo, cập nhật, kích hoạt, vô hiệu hóa và xóa. Auth có thể đọc user để xác thực, nhưng không được tự thay đổi quy tắc vòng đời này.
 
-Câu chuyện chính là admin tạo một nhân viên mới. Flow phải vừa ghi user, vừa bảo đảm email hợp lệ/không trùng, vừa ghi domain event trong cùng transaction. Email chào mừng là side effect xảy ra sau commit; nó không được phép làm transaction tạo user thất bại.
+Câu chuyện chính là admin tạo một nhân viên mới. Hệ thống phải kiểm tra email, lưu tài khoản và ghi lại sự kiện “user vừa được tạo” trong cùng một lần ghi database. Nếu một phần thất bại, cả hai phần đều không được lưu.
 
-Users sở hữu User aggregate: danh tính nội bộ, profile, password hash, role assignments, trạng thái active/deleted và version dùng để thu hồi token. Đây là nơi đặt mọi invariant liên quan đến vòng đời tài khoản.
+Email chào mừng được gửi sau đó bởi worker. Gửi mail chậm hoặc lỗi không được phép làm mất tài khoản vừa tạo. Những việc xảy ra bên ngoài lần ghi dữ liệu chính như gửi mail được gọi là **side effect**.
+
+`UserEntity` gom trạng thái của tài khoản và các hành động được phép lên trạng thái đó. Một cụm dữ liệu được thay đổi như một khối như vậy gọi là **aggregate**. Những luật luôn phải đúng, ví dụ “user đã xóa không thể được kích hoạt lại tùy tiện”, gọi là **invariant**.
 
 > Gặp từ lạ (aggregate, port, invariant, outbox…)? Tra [Bảng thuật ngữ](../../../../../../docs/glossary.md) — mỗi khái niệm có định nghĩa một câu kèm ví dụ trong repo.
 
-## 1. Ranh giới và ownership
+## 1. Users chịu trách nhiệm gì?
 
 Users sở hữu:
 
@@ -152,7 +154,7 @@ curl -s http://localhost:3001/users/me -H "Authorization: Bearer <V>"
 
 Ba dấu vết hậu trường để đối chiếu với diagram: row `iam.user.deactivated.v1` trong `outbox_events` chuyển `PUBLISHED`; mail deactivation hiện trong Maildev (`http://localhost:1083`); và key `refresh_token:<id>:*` biến mất khỏi Redis.
 
-## 7. Persistence và transaction boundary
+## 7. Dữ liệu được lưu trong một transaction như thế nào?
 
 `PrismaUserRepository` hiện thực `UserRepository`. Mapper chuyển bản ghi Prisma thành aggregate; `toPrimitives()` chuyển aggregate ngược lại thành dữ liệu thuần có kiểu rõ ràng để lưu xuống database.
 
@@ -219,7 +221,7 @@ Commands/queries ở tầng application mô tả từng use case. Handler ghép 
 
 Ở tầng presentation, DTO chặn input sai, controller nhận request rồi gửi command/query, presenter lọc field nào được phép trả ra ngoài.
 
-## 12. Invariant bắt buộc
+## 12. Những quy tắc luôn phải đúng
 
 - Email và username phải hợp lệ trước khi entity được tạo ra.
 - Mật khẩu thô không bao giờ được lưu xuống database hay ghi ra log.

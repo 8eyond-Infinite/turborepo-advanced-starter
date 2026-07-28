@@ -4,11 +4,11 @@
 >
 > Chương trước: chưa có · [Mục lục handbook](docs/README.md) · Chương sau: [Lộ trình học repo](docs/getting-started-path.md)
 
-Đây là cửa vào ngắn nhất của repository. Sau chương này, bạn cần biết hệ thống có những application nào, mỗi application phục vụ ai, dữ liệu đi qua đâu và làm thế nào để chạy dự án trên máy mình. Những khái niệm sâu như CQRS, outbox hay BFF sẽ được xây dần ở các chương sau.
+Đây là cửa vào ngắn nhất của repository. Sau chương này, bạn chỉ cần trả lời được bốn câu: hệ thống có những chương trình nào, mỗi chương trình phục vụ ai, dữ liệu chính nằm ở đâu và chạy dự án bằng lệnh nào. Chưa cần hiểu CQRS, outbox hay BFF; các chương sau sẽ giới thiệu chúng khi flow thực sự cần đến.
 
 Hãy hình dung repository như một khu làm việc chung. `apps/server` giữ nghiệp vụ và dữ liệu. `apps/admin` là công cụ vận hành dành cho quản trị viên. `apps/client` minh họa website hướng người dùng bằng Next.js. Các package dưới `packages/` là hợp đồng và công cụ mà nhiều application cùng dùng, không phải application có thể deploy độc lập.
 
-Đây là monorepo nền tảng gồm một NestJS API, một React Admin SPA, một Next.js client và các package dùng chung. Repository ưu tiên bốn thứ: kiến trúc có ranh giới rõ ràng giữa các phần, contract dùng chung để các app hiểu dữ liệu giống nhau, cơ chế đăng nhập có khả năng thu hồi phiên, và tài liệu bám sát code thật.
+Đây là một repository chứa nhiều ứng dụng cùng phát triển và dùng chung code — cách tổ chức đó gọi là **monorepo**. Bên trong có NestJS API, React Admin, Next.js Client và các package dùng chung. Mục tiêu là để các phần hiểu dữ liệu giống nhau, không trộn nghiệp vụ của phần này sang phần khác, có thể thu hồi phiên đăng nhập và luôn có tài liệu bám sát code thật.
 
 Không phải mọi phần đều có cùng mức hoàn thiện. Backend và Admin đã có kiến trúc nghiệp vụ; `apps/client` là một lát cắt dọc nhỏ minh họa mô hình BFF (render phía server, token không xuống trình duyệt) chứ không phải một sản phẩm hoàn chỉnh. Các giới hạn đang tồn tại được ghi rõ thay vì được che bằng nhãn “enterprise”.
 

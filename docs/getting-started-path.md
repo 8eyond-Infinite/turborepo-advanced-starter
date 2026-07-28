@@ -6,9 +6,14 @@
 
 Ta chưa cố học thuộc cấu trúc thư mục. Ta sẽ làm hệ thống chạy, tạo một request thật rồi đi theo dấu vết mà request để lại. Câu chuyện xuyên suốt là một quản trị viên đăng nhập, đọc danh sách user, tạo user mới và quan sát email nền.
 
-Mỗi chặng chỉ giới thiệu khái niệm đúng lúc nó xuất hiện. Khi gặp từ lạ, mở [glossary](glossary.md), đọc định nghĩa rồi quay lại; không cần học thuộc glossary trước. Một mental model chỉ đáng tin khi bạn dự đoán được hệ thống sẽ làm gì rồi quan sát thấy đúng điều đó.
+Mỗi chặng chỉ giới thiệu khái niệm đúng lúc nó xuất hiện. Khi gặp từ lạ, mở [glossary](glossary.md), đọc định nghĩa rồi quay lại; không cần học thuộc glossary trước. Một cách hiểu chỉ đáng tin khi bạn dự đoán được hệ thống sẽ làm gì rồi tự quan sát thấy đúng điều đó.
 
-Tài liệu này dành cho người **mới vào repo, chưa biết gì về hệ thống**. Đi theo đúng thứ tự — mỗi bước có mục tiêu, phần cần đọc, việc cần tự tay làm, và câu hỏi tự kiểm tra. Trả lời được câu hỏi thì mới sang bước kế tiếp; chưa trả lời được thì đọc lại, đừng đi tiếp.
+Tài liệu này dành cho người **mới vào repo, chưa biết gì về hệ thống**. Đi theo đúng thứ tự. Mỗi bước nói rõ:
+
+1. Bạn sắp tìm hiểu điều gì.
+2. Bạn cần chạy hoặc mở thứ gì.
+3. Kết quả đúng trông như thế nào.
+4. Bạn phải giải thích lại được điều gì trước khi đi tiếp.
 
 Chuẩn bị trước: mở sẵn [Bảng thuật ngữ](glossary.md) ở tab bên cạnh để tra từ lạ, và [Thư viện dùng để làm gì](tech-stack.md) khi muốn biết một dependency có mặt trong repo để giải quyết chuyện gì.
 
@@ -63,7 +68,7 @@ Nhìn output: turbo build `@repo/contracts`, `@repo/types`, `@repo/database` **t
 
 ---
 
-## Bước 2 — Mental model của backend
+## Bước 2 — Cách hình dung backend
 
 **Mục tiêu:** nhìn một thư mục bất kỳ trong `apps/server/src/contexts/` và biết mình đang đứng ở tầng nào.
 

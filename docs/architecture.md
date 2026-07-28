@@ -4,19 +4,19 @@
 >
 > Chương trước: [Công cụ và thư viện](tech-stack.md) · [Mục lục handbook](README.md) · Chương sau: [Backend Architecture](../apps/server/README.md)
 
-Chương này trả lời câu hỏi lớn nhất: khi người dùng thực hiện một hành động, những phần nào của hệ thống tham gia và vì sao trách nhiệm được chia như hiện tại? Hãy đọc theo thứ tự thay vì nhảy ngay vào sơ đồ layers; system context ở đầu chương là chiếc bản đồ giúp mọi chi tiết phía sau có chỗ đứng.
+Chương này trả lời câu hỏi lớn nhất: khi người dùng bấm một nút, code nào chạy từ trình duyệt đến database rồi quay lại? Hãy đọc theo thứ tự. Phần đầu dựng bức tranh toàn hệ thống; những tên kiến trúc chỉ xuất hiện sau khi ta đã nhìn thấy vấn đề mà chúng giải quyết.
 
-Câu chuyện xuyên suốt là quản trị viên tạo một user. Admin gửi HTTP request; backend xác thực người gọi, kiểm tra quyền, thực thi use case, bảo vệ invariant, ghi PostgreSQL và outbox trong cùng transaction; publisher chuyển event sang Redis queue; worker xử lý email. Mỗi section sau phóng to một đoạn của câu chuyện đó.
+Câu chuyện xuyên suốt là quản trị viên tạo một user. Admin gửi request. Backend kiểm tra người gọi là ai và có quyền hay không. Sau đó backend tạo tài khoản và lưu đồng thời một lời nhắc rằng email chào mừng cần được gửi. Tiến trình chạy nền đọc lời nhắc rồi gửi email. Mỗi phần sau sẽ phóng to một đoạn và giới thiệu tên kỹ thuật tương ứng.
 
 Tài liệu này giải thích cấu trúc đang chạy của monorepo: phần nào thuộc quyền sở hữu của ai, các tầng phụ thuộc nhau theo chiều nào, một request đi qua những bước gì, transaction được quản lý ra sao, đăng nhập/phân quyền hoạt động thế nào, frontend giữ state ở đâu, và những điểm chưa hoàn thiện. Tài liệu không dùng “Clean Architecture”, “DDD” hoặc “enterprise” như nhãn trang trí; mỗi khái niệm được gắn với file và behavior thực tế.
 
-## 1. System context
+## 1. Bức tranh toàn hệ thống
 
-Monorepo có ba application:
+Repository có ba chương trình có thể chạy độc lập:
 
-- `server` là "nguồn dữ liệu gốc" (system of record) — nơi lưu và quyết định mọi dữ liệu về danh tính người dùng, phân quyền, thông báo, audit và số liệu thống kê.
-- `admin` là SPA quản trị đã tích hợp đầy đủ với API và realtime gateway.
-- `client` là Next.js application dành cho end user, dùng mô hình BFF: trình duyệt chỉ gọi Next.js, còn Next.js gọi API ở phía server.
+- `server` lưu dữ liệu và quyết định quy tắc cuối cùng về tài khoản, quyền, thông báo và audit. Vì vậy nó là **nguồn dữ liệu gốc** (system of record).
+- `admin` là giao diện quản trị chạy trong trình duyệt và gọi thẳng API.
+- `client` là ứng dụng Next.js cho người dùng cuối. Trình duyệt gọi Next.js, rồi Next.js mới gọi API để token không lộ xuống browser.
 
 ```mermaid
 flowchart TB
@@ -40,7 +40,7 @@ PostgreSQL lưu dữ liệu nghiệp vụ lâu dài và bảng outbox. Redis lư
 
 Notification read model trả cả page items lẫn `unreadCount` trên toàn mailbox. Badge phía client không được suy ra từ page đang tải. Mark-read dùng optimistic cache có rollback, còn realtime chỉ đóng vai trò tín hiệu invalidate vì HTTP/database mới là nguồn sự thật.
 
-## 2. Monorepo boundary
+## 2. Ranh giới giữa application và package dùng chung
 
 `apps` chứa những phần chạy được và triển khai được (executable/deployable unit). `packages` chứa code mà các app import lúc biên dịch (compile-time dependency) — tự nó không chạy độc lập.
 
@@ -232,9 +232,17 @@ sequenceDiagram
 
 Route guard xác minh người gọi là ai (identity); permission guard kiểm tra người đó được phép làm gì. Permission guard phía frontend chỉ giúp trải nghiệm người dùng gọn hơn — chốt chặn bảo mật thật nằm ở backend.
 
-Admin giữ access token trong memory; refresh token nằm trong cookie `HttpOnly` giới hạn path `/auth` do server quản lý — JavaScript phía trình duyệt không đọc được, nên XSS không đánh cắp được credential sống dài. Khi client xác thực refresh bằng cookie, body response chỉ chứa access token; refresh token mới được rotate ngay trong cookie. API client/mobile không dùng cookie vẫn gửi refresh token qua `Authorization: Bearer` và nhận đủ cặp token trong body. Khi nhiều request cùng lúc bị trả về 401, API client gom tất cả về chung một lần refresh (một promise duy nhất), rồi thử lại mỗi request đúng một lần; nếu refresh thất bại thì phát tín hiệu logout cho toàn ứng dụng.
+Admin giữ access token trong bộ nhớ; reload trang sẽ làm token này biến mất. Refresh token sống lâu hơn nằm trong cookie `HttpOnly` giới hạn ở path `/auth`, nên JavaScript không đọc được nó.
 
-Next.js BFF cũng dùng single-flight trong phạm vi từng instance để các request render đồng thời không tự tranh nhau refresh. Đây là tối ưu concurrency/UX, không phải security boundary. Security boundary nằm ở Redis atomic rotation của backend và vẫn đúng khi có nhiều Next replica. Request thua cuộc giữa hai replica không xóa cookie nếu access token cũ vẫn còn hạn, tránh ghi đè `Set-Cookie` của response thắng; khi token thực sự hết hạn, refresh failure mới kết thúc session. Logout BFF phải gọi `/auth/logout` để revoke Redis session trước khi xóa JWE cookie; chỉ xóa cookie không được coi là logout hoàn chỉnh.
+Khi Admin xin token mới bằng cookie, response body chỉ trả access token; refresh token mới được thay ngay trong cookie. Client không dùng browser cookie, chẳng hạn mobile app, có thể gửi refresh token bằng `Authorization: Bearer` và nhận cả cặp token trong body.
+
+Nếu nhiều request cùng nhận `401`, API client gom chúng vào một lần refresh rồi thử lại mỗi request đúng một lần. Nếu refresh thất bại, ứng dụng phát tín hiệu logout.
+
+Next.js BFF cũng gom các request refresh trùng nhau trong phạm vi một instance. Việc này giảm request thừa nhưng không phải chốt bảo mật. Redis ở backend mới bảo đảm refresh token cũ chỉ dùng được một lần, kể cả khi có nhiều Next.js instance.
+
+Một request refresh thua cuộc không xóa cookie nếu access token cũ vẫn còn hạn; làm vậy tránh ghi đè cookie mới từ request thắng. Khi token thực sự hết hạn và refresh thất bại, session mới kết thúc.
+
+Logout ở BFF phải gọi `/auth/logout` để thu hồi session trong Redis rồi mới xóa cookie JWE. Chỉ xóa cookie trên browser chưa phải logout hoàn chỉnh.
 
 Session lifecycle phân biệt hai use case: `logout/global` xóa mọi refresh session và tăng `tokenVersion` để đá tất cả thiết bị ngay; `sessions/revoke-others` được xác thực bằng refresh cookie và bảo toàn JTI hiện tại. Hai endpoint không thể dùng thay thế cho nhau.
 
@@ -272,7 +280,7 @@ Component
 → backend
 ```
 
-### State ownership
+### Phần nào sở hữu loại state nào?
 
 | State                               | Owner           |
 | ----------------------------------- | --------------- |
@@ -294,7 +302,7 @@ Mutation cần xác nhận trả về Promise tới component. Shared `ConfirmDi
 
 Với mutation kiểu read-modify-write, component không được gửi đồng thời nhiều bản cập nhật được tính từ cùng một cache snapshot. Ma trận Roles là ví dụ: endpoint thay thế toàn bộ tập permission, nên `useRoles` tuần tự hóa thao tác checkbox và giữ chúng disabled cho tới khi invalidate/refetch hoàn tất. Nếu cần throughput cao hơn trong tương lai, contract phải đổi sang add/remove delta hoặc backend phải có optimistic concurrency token; chỉ bỏ khóa ở frontend là không an toàn.
 
-### Module boundary
+### Ranh giới giữa các module
 
 Dependency direction được ESLint thực thi, không chỉ ghi trong tài liệu:
 

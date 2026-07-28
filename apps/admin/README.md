@@ -4,17 +4,19 @@
 >
 > Chương trước: [Backend Architecture](../server/README.md) · [Mục lục handbook](../../docs/README.md) · Chương sau: [Client Web](../client/README.md)
 
-Chương này đi theo một thao tác nhìn thấy được: quản trị viên mở trang Users, lọc danh sách, tạo user và thấy giao diện cập nhật. Ta sẽ lần từ route, component, hook, query cache đến API adapter rồi quay lại UI. Nhờ vậy, khái niệm server state, UI state và cache invalidation xuất hiện trong một câu chuyện cụ thể thay vì một danh sách quy tắc React.
+Chương này đi theo một thao tác nhìn thấy được: quản trị viên mở trang Users, lọc danh sách, tạo user và thấy giao diện cập nhật. Ta sẽ lần từ URL đến component, từ component đến API, rồi theo response quay lại màn hình.
 
-Admin là SPA chạy trong trình duyệt. Vì vậy nó không sở hữu nghiệp vụ và không được tự quyết định quyền truy cập; backend mới là nguồn sự thật. Admin chịu trách nhiệm trình bày trạng thái, gửi intent của người dùng, quản lý trải nghiệm loading/error và giữ cache nhất quán với server.
+Trong lúc đi, ta mới đặt tên cho ba loại dữ liệu: dữ liệu lấy từ server, trạng thái tạm của giao diện và bản sao dữ liệu được giữ trong cache. Khi server thay đổi, Admin phải đánh dấu bản sao cũ là hết hạn để tải lại; thao tác đó gọi là **cache invalidation**.
+
+Admin là ứng dụng một trang (Single-Page Application, viết tắt SPA) chạy trong trình duyệt. Nó hiển thị dữ liệu và gửi yêu cầu của người dùng, nhưng backend mới là nơi quyết định thao tác có hợp lệ và được phép hay không.
 
 Admin Portal là ứng dụng quản trị chạy trên trình duyệt của monorepo. Ứng dụng được xây bằng React 19, TypeScript, Vite, React Router, TanStack Query, Zustand, Tailwind CSS và các UI primitive dựa trên Radix.
 
 Tài liệu này mô tả code đang tồn tại trong `apps/admin`, không mô tả một kiến trúc giả định. Mục tiêu là giúp một thành viên mới hiểu ứng dụng khởi động thế nào, request đi qua đâu, state thuộc về lớp nào, quyền được kiểm tra ở đâu và cần đặt code mới vào vị trí nào.
 
-## 1. Vai trò của Admin Portal trong hệ thống
+## 1. Admin chịu trách nhiệm gì?
 
-Admin Portal là một adapter phía client của backend. Nó không sở hữu business rule cuối cùng. Frontend có trách nhiệm trình bày dữ liệu, quản lý trạng thái tương tác trên màn hình, gọi API, báo lỗi cho người dùng và ẩn những thao tác họ không được phép thực hiện. Backend vẫn phải xác thực và phân quyền lại mọi request.
+Admin Portal là giao diện để con người sử dụng backend. Frontend trình bày dữ liệu, giữ trạng thái tương tác trên màn hình, gọi API, báo lỗi và ẩn những nút người dùng không có quyền sử dụng. Việc ẩn nút chỉ cải thiện trải nghiệm; backend vẫn xác thực danh tính và kiểm tra quyền lại ở mọi request.
 
 Ứng dụng dùng hai package chung của monorepo:
 
@@ -73,7 +75,11 @@ Entry point là `src/main.tsx`. File này nạp CSS, khởi tạo i18n rồi ren
 
 `App.tsx` là composition root phía client. Nó tạo một `QueryClient`, gắn theme provider, query provider, router và toaster. Ngay khi mount, `App` gọi `authStore.initialize()` để khôi phục phiên trước khi render route tree.
 
-`QueryClient` không được cấu hình trực tiếp trong component. `src/app/query-client.ts` là policy boundary chung của server state. Query đọc dữ liệu được thử lại tối đa hai lần khi lỗi có khả năng tạm thời: lỗi mạng của trình duyệt, HTTP 408, 429 hoặc 5xx. HTTP 4xx còn lại không được retry vì request hoặc quyền truy cập cần được sửa, chờ thêm không làm kết quả thay đổi. Mutation không tự retry vì một command có thể đã thành công ở server dù client chưa nhận được response; gửi lại mù quáng có thể tạo tác dụng phụ hai lần. Feature vẫn chịu trách nhiệm hiển thị error state và cho người dùng chủ động thử lại.
+`QueryClient` không được cấu hình riêng trong từng component. `src/app/query-client.ts` giữ chính sách chung cho dữ liệu lấy từ server.
+
+Query đọc dữ liệu được thử lại tối đa hai lần nếu lỗi có khả năng tạm thời: mất mạng, HTTP 408, 429 hoặc 5xx. Các lỗi 4xx khác không được tự thử lại vì request hoặc quyền truy cập đang sai; chờ thêm không làm kết quả thay đổi.
+
+Thao tác ghi dữ liệu (mutation) cũng không tự retry. Server có thể đã ghi thành công nhưng response bị mất trên đường về; gửi lại mù quáng có thể tạo tác dụng phụ hai lần. Mỗi feature phải hiển thị lỗi và để người dùng chủ động quyết định thử lại.
 
 ```mermaid
 sequenceDiagram
@@ -117,13 +123,15 @@ URL
   → Feature page
 ```
 
-`ProtectedRoute` chỉ có một trách nhiệm: quyết định người dùng đã đăng nhập hay chưa. Vòng đời realtime thuộc `RealtimeProvider` tại composition root của ứng dụng, không phụ thuộc route cụ thể. Provider chỉ mở socket khi auth store đã authenticated và có access token; khi logout hoặc provider unmount, nó gỡ listener rồi disconnect socket.
+`ProtectedRoute` chỉ quyết định người dùng đã đăng nhập hay chưa. Realtime không thuộc một trang cụ thể mà thuộc toàn ứng dụng, nên `RealtimeProvider` quản lý kết nối.
+
+Provider chỉ mở socket sau khi auth store xác nhận đã đăng nhập và có access token. Khi logout hoặc ứng dụng tháo provider khỏi cây React, nó gỡ listener rồi đóng socket.
 
 Access token của Socket.IO chỉ đi trong `handshake.auth.token`, không nằm trong query string để tránh URL hoặc proxy log ghi lại bearer credential. Khi HTTP refresh thành công, event `auth:token-refreshed` cập nhật `socket.auth`; lần reconnect kế tiếp luôn dùng token mới.
 
 Khi thêm page mới, feature export page qua `pages.ts`; route lazy import `@/features/<name>/pages` rồi thêm entry vào `adminRoutes`. Permission của route phải lấy từ `@repo/contracts`, không viết string trực tiếp. `index.ts` và `pages.ts` có mục đích khác nhau: `index.ts` là capability/API dùng chéo; `pages.ts` là entry chỉ dành cho lazy route. Không export page từ `index.ts`, vì một import tĩnh vào capability có thể kéo page vào initial bundle và phá code splitting.
 
-## 5. Authentication và token lifecycle
+## 5. Đăng nhập và vòng đời token
 
 Authentication state thuộc `features/auth/store/auth.store.ts`. Zustand store giữ `user`, `isAuthenticated` và trạng thái bootstrap. Access token chỉ nằm trong memory của `ApiClient`; refresh token nằm trong cookie `HttpOnly` do server quản lý — JavaScript không đọc/ghi được, trình duyệt tự gửi kèm khi gọi các endpoint `/auth/*` (mọi request của `ApiClient` bật `credentials: "include"`).
 
@@ -168,7 +176,11 @@ Nếu refresh thất bại, `ApiClient` xóa token và phát event `auth:logout`
 
 ### Thuộc tính bảo mật của mô hình cookie
 
-Refresh token nằm trong cookie `HttpOnly` (`Secure` ở production, giới hạn path `/auth`) nên XSS không đọc trộm được credential sống 7 ngày. Giới hạn còn lại: mã độc chạy được trong trang vẫn có thể GỌI `/auth/refresh` (trình duyệt tự đính cookie) để lấy access token ngắn hạn — HttpOnly chặn việc đánh cắp mang đi nơi khác, không chặn session-riding ngay tại tab bị nhiễm. Vì vậy phòng chống XSS (không `dangerouslySetInnerHTML` với dữ liệu chưa sạch, phụ thuộc bên thứ ba được kiểm soát) vẫn là yêu cầu bắt buộc. Backend dùng `REFRESH_COOKIE_SAME_SITE=lax` khi Admin/API cùng site; staging Vercel/Render cross-site dùng `none` cùng `Secure`, nhưng vẫn chịu chính sách chặn third-party cookie của browser. Production nên dùng custom subdomain cùng registrable domain.
+Refresh token nằm trong cookie `HttpOnly`, vì vậy JavaScript không thể đọc và gửi credential sống dài sang máy khác. Ở production cookie còn có `Secure` và chỉ được gửi tới path `/auth`.
+
+`HttpOnly` không giải quyết mọi dạng XSS. Mã độc đang chạy ngay trong tab vẫn có thể gọi `/auth/refresh`, vì trình duyệt tự đính cookie. Do đó code vẫn phải tránh render HTML chưa làm sạch và phải kiểm soát dependency phía trình duyệt.
+
+Khi Admin và API cùng một site, backend dùng `SameSite=Lax`. Môi trường Vercel/Render khác site phải dùng `SameSite=None` cùng `Secure`, nhưng một số browser vẫn chặn cookie bên thứ ba. Production nên dùng các subdomain chung một domain, chẳng hạn `admin.example.com` và `api.example.com`.
 
 ## 6. Server state và UI state
 
@@ -176,7 +188,7 @@ TanStack Query sở hữu dữ liệu đến từ server: users, roles, permissi
 
 Cache server được xem là dữ liệu thuộc về principal đang đăng nhập, không phải cache dùng chung cho cả tab. `app/auth-cache-boundary.ts` theo dõi transition từ authenticated sang unauthenticated và gọi `QueryClient.clear()`. Vì vậy logout, force logout hoặc refresh token hết hạn đều loại bỏ dữ liệu của phiên cũ trước khi một tài khoản khác đăng nhập trong cùng tab.
 
-Quy tắc ownership:
+Quy tắc xác định nơi sở hữu state:
 
 | Loại state         | Công cụ        | Ví dụ                       |
 | ------------------ | -------------- | --------------------------- |
@@ -232,7 +244,7 @@ Presentation của audit được tách khỏi query: `audit-log.presentation.ts
 
 Backend hiện bảo đảm search trên action, details và email. UI không cung cấp filter theo ngày/action hoặc export giả lập khi contract chưa hỗ trợ; các khả năng đó phải được thiết kế thành API có phân trang, authorization và giới hạn dữ liệu trước.
 
-### Notification lifecycle
+### Notification đi từ server đến màn hình như thế nào?
 
 Popover tải 50 notification mới nhất nhưng badge dùng `unreadCount` do backend đếm trên toàn bộ mailbox; không được đếm mảng page hiện tại. Mark-one và mark-all cập nhật cache lạc quan để UI phản hồi ngay, giữ snapshot để rollback khi request thất bại, rồi invalidate root key sau thành công.
 

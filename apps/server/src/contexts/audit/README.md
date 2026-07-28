@@ -6,7 +6,9 @@
 
 Audit trả lời “ai đã làm gì, vào lúc nào, từ request nào?”. Nó phục vụ điều tra và trách nhiệm giải trình, không phải application log tổng quát và cũng không phải domain event.
 
-Câu chuyện chính là admin vô hiệu hóa một user. Endpoint được đánh dấu cần audit; interceptor thu danh tính và request context; sau khi hành động thành công, audit port lưu một record có cấu trúc. Failure semantics rất quan trọng: lỗi ghi audit phải được quan sát rõ, nhưng quyết định có làm nghiệp vụ chính thất bại hay không phải là policy có chủ đích.
+Câu chuyện chính là admin vô hiệu hóa một user. Endpoint được đánh dấu là hành động cần lưu dấu vết. Một lớp chạy bao quanh controller thu danh tính người gọi và thông tin request; NestJS gọi lớp này là **interceptor**. Sau khi nghiệp vụ thành công, lớp đó yêu cầu Audit lưu một bản ghi có cấu trúc.
+
+Nếu ghi audit lỗi, hệ thống phải log rõ ràng. Việc lỗi audit có làm thao tác chính thất bại hay không phải là quyết định được viết và kiểm thử rõ, không được phụ thuộc tình cờ vào thứ tự `await`.
 
 Audit cung cấp dấu vết có cấu trúc cho các hành động quan trọng về bảo mật, quản trị và tuân thủ. Audit record trả lời: ai thực hiện hành động gì, lúc nào, từ đâu và với mô tả nào.
 
@@ -14,7 +16,7 @@ Audit không thay thế application log. Application log phục vụ vận hành
 
 > Gặp từ lạ (port, adapter, interceptor, correlation id…)? Tra [Bảng thuật ngữ](../../../../../docs/glossary.md).
 
-## 1. Ranh giới và ownership
+## 1. Audit chịu trách nhiệm gì?
 
 Audit sở hữu:
 

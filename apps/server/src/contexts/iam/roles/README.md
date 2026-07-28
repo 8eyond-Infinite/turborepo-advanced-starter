@@ -4,9 +4,9 @@
 >
 > Chương trước: [Users context](../users/README.md) · [Mục lục handbook](../../../../../../docs/README.md) · Chương sau: [Notifications context](../../notifications/README.md)
 
-Roles trả lời “một danh tính đã biết có được thực hiện hành động này không?”. Chương này tách rõ authentication (401: chưa chứng minh được danh tính) và authorization (403: biết người gọi nhưng họ thiếu quyền).
+Roles trả lời “người đã đăng nhập có được làm việc này không?”. Nếu hệ thống chưa xác định được người gọi là ai, API trả `401`. Nếu đã biết họ là ai nhưng họ thiếu quyền, API trả `403`. Hai trường hợp này lần lượt gọi là **authentication** và **authorization**.
 
-Ta sẽ đi theo request đọc danh sách role. Guard xác thực token trước, permission guard đọc metadata của endpoint, backend tải quyền hiệu lực của user rồi mới cho controller chạy. UI có thể ẩn nút để trải nghiệm tốt hơn, nhưng quyết định bảo mật cuối cùng luôn nằm ở backend.
+Ta sẽ đi theo request đọc danh sách role. Một lớp kiểm tra đứng trước controller xác minh token. Lớp kế tiếp đọc quyền mà endpoint yêu cầu và so với quyền của user. Trong NestJS, lớp đứng chặn request như vậy gọi là **guard**. UI có thể ẩn nút để dễ dùng hơn, nhưng backend luôn là nơi quyết định cuối cùng.
 
 Roles sở hữu mô hình RBAC: role, danh mục permission và quan hệ role-permission. Context này trả lời “một role đại diện cho tập quyền nào?”. Còn việc kiểm tra một HTTP request có đủ quyền hay không diễn ra ở guard thuộc tầng presentation.
 
@@ -26,7 +26,7 @@ JWT access token <──── resolved permissions
 
 Frontend và backend dùng chung một bộ tên permission để hai bên không lệch nhau. Tuy nhiên chặn hay cho qua một request luôn do backend quyết định cuối cùng.
 
-## 2. Ranh giới và ownership
+## 2. Roles chịu trách nhiệm gì?
 
 Roles sở hữu:
 
@@ -177,7 +177,7 @@ Khi thêm permission:
 5. cập nhật admin UI nếu cần;
 6. test cả trường hợp được phép lẫn bị từ chối.
 
-## 11. Invariant và policy
+## 11. Những quy tắc luôn phải đúng
 
 - Tên role không được trùng; quy tắc này do domain/repository giữ.
 - Chỉ permission có trong danh mục mới được lưu; tên lạ hiện bị bỏ qua trong im lặng — đây là điểm cần siết lại.
