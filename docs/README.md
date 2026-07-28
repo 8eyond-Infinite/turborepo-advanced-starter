@@ -1,0 +1,97 @@
+# Handbook của Turborepo Advanced Starter
+
+Đây là trang bắt đầu của toàn bộ tài liệu dự án. Hãy hình dung bộ tài liệu như một cuốn sách: mỗi chương chuẩn bị kiến thức cho chương sau, còn các handbook nằm cạnh code là phần bạn mở lại khi đang sửa một bounded context cụ thể.
+
+Nếu đây là lần đầu bạn vào repository, đừng đọc ngẫu nhiên từng README. Hãy bắt đầu từ Phần I và đi theo thứ tự. Nếu hệ thống đang có sự cố, bỏ qua lộ trình học và mở thẳng [Sổ tay vận hành](operations-runbook.md).
+
+## Câu chuyện xuyên suốt
+
+Trong các chương, ta dùng một tình huống chung để nối kiến trúc với code:
+
+> Một quản trị viên đăng nhập Admin Portal, tạo tài khoản nhân viên mới, hệ thống lưu user, ghi audit log, phát domain event qua outbox, đưa email chào mừng vào queue và cập nhật giao diện.
+
+Tình huống này đi qua gần như mọi lớp quan trọng: frontend, HTTP, authentication, authorization, CQRS, domain model, transaction, outbox, worker, Redis và PostgreSQL. Khi hiểu được nó từ đầu đến cuối, bạn đã có mental model đủ tốt để tự lần theo các nghiệp vụ khác.
+
+## Phần I — Làm quen với dự án
+
+Phần này trả lời: dự án gồm những gì, chạy bằng cách nào, nên đọc code theo thứ tự nào và những thuật ngữ trong repo có nghĩa gì.
+
+1. [Chương 1 — Repository nhìn từ bên ngoài](../README.md)
+   Bức tranh ngắn nhất về sản phẩm, các application, package dùng chung và quick start.
+2. [Chương 2 — Lộ trình học bằng cách chạy hệ thống](getting-started-path.md)
+   Chạy dự án, gọi API thật và quan sát một read flow, write flow, session và frontend cache.
+3. [Chương 3 — Ngôn ngữ chung của dự án](glossary.md)
+   Tra thuật ngữ khi gặp từ lạ; không cần học thuộc trước.
+4. [Chương 4 — Công cụ và thư viện](tech-stack.md)
+   Mỗi dependency giải quyết vấn đề nào và thuộc về lớp nào.
+
+Kết thúc Phần I, bạn phải trả lời được: application nào nhận request, dữ liệu nằm ở đâu, Redis dùng cho việc gì và chạy quality gate bằng lệnh nào.
+
+## Phần II — Kiến trúc và đường đi của code
+
+Phần này đi từ toàn hệ thống vào từng application. Đọc nó khi bạn cần hiểu “vì sao code được chia như vậy”, không chỉ “file nằm ở đâu”.
+
+5. [Chương 5 — Kiến trúc hệ thống](architecture.md)
+   System context, monorepo boundary, dependency direction, CQRS, outbox và runtime topology.
+6. [Chương 6 — Backend Architecture Handbook](../apps/server/README.md)
+   Bounded context, layers, request lifecycle, read/write flow và composition root.
+7. [Chương 7 — Admin Portal Handbook](../apps/admin/README.md)
+   Startup, routing, authentication, query cache, permission, realtime và cách thêm feature.
+8. [Chương 8 — Client Web Handbook](../apps/client/README.md)
+   Next.js BFF, server/client boundary, session cookie và SEO.
+
+Kết thúc Phần II, bạn phải lần được một request từ UI đến database và quay trở lại mà không đoán.
+
+## Phần III — Nghiệp vụ theo bounded context
+
+Mỗi chương ở phần này sở hữu một nhóm quy tắc nghiệp vụ. Hãy đọc chương tương ứng trước khi sửa code trong context đó.
+
+9. [Chương 9 — Auth: danh tính và vòng đời phiên](../apps/server/src/contexts/iam/auth/README.md)
+10. [Chương 10 — Users: vòng đời tài khoản](../apps/server/src/contexts/iam/users/README.md)
+11. [Chương 11 — Roles: vai trò và quyền](../apps/server/src/contexts/iam/roles/README.md)
+12. [Chương 12 — Notifications: thông báo và realtime](../apps/server/src/contexts/notifications/README.md)
+13. [Chương 13 — Audit: dấu vết hành động](../apps/server/src/contexts/audit/README.md)
+
+Mẫu chung của mỗi chương là: câu chuyện nghiệp vụ → boundary sở hữu → flow thành công → failure path → transaction/invariant → bản đồ file → cách mở rộng → checklist review.
+
+## Phần IV — Xây dựng, phát hành và vận hành
+
+Phần này trả lời cách đưa code từ máy lập trình viên đến một môi trường đang phục vụ người dùng.
+
+14. [Chương 14 — Development, Docker và database](development-and-deployment.md)
+15. [Chương 15 — Deployment không phụ thuộc nhà cung cấp](provider-neutral-deployment.md)
+16. [Chương 16 — Render là một deployment adapter](render-deployment.md)
+17. [Chương 17 — Release và version](release-process.md)
+18. [Chương 18 — Operations Runbook](operations-runbook.md)
+
+Không đọc runbook như giáo trình nhập môn. Nó được thiết kế để tra nhanh khi hệ thống lỗi. Muốn hiểu lý do đằng sau các lệnh vận hành, hãy đọc Chương 14–17 trước.
+
+## Phụ lục
+
+- [Đóng góp vào repository](../CONTRIBUTING.md): branch, commit, PR và quality gate.
+- [Chính sách bảo mật](../SECURITY.md): cách báo cáo lỗ hổng và phạm vi hỗ trợ.
+
+## Ba cách sử dụng handbook
+
+### Tôi là thành viên mới
+
+Đọc Chương 1 → 8 theo thứ tự, vừa đọc vừa chạy bài tập ở Chương 2. Sau đó chọn bounded context đầu tiên mình sẽ sửa ở Phần III.
+
+### Tôi sắp thêm một feature
+
+Đọc Chương 5 để xác nhận dependency direction, handbook của application liên quan, rồi chương bounded context sở hữu nghiệp vụ. Cuối cùng dùng checklist “cách thêm use case” trong handbook đó.
+
+### Production đang lỗi
+
+Mở Chương 18, bắt đầu ở “Ba phút đầu tiên”, thu thập bằng chứng trước khi restart. Sau khi dịch vụ phục hồi mới quay lại các chương kiến trúc để phân tích nguyên nhân.
+
+## Quy ước đọc
+
+Các chương dùng bốn loại khối lặp lại:
+
+- **Mental model** biến khái niệm trừu tượng thành một hình dung dễ nhớ.
+- **Đi theo flow** lần từng bước qua code thật.
+- **Checkpoint** là câu hỏi bạn phải tự trả lời trước khi sang chương sau.
+- **Đọc code** là đường dẫn cụ thể để IDE mở đúng điểm bắt đầu.
+
+Sơ đồ dùng để thể hiện quan hệ hoặc thứ tự. Table dùng để so sánh/tra cứu. Phần giải thích chính được viết bằng văn xuôi để người đọc hiểu được lý do, thay vì phải tự nối các bullet rời rạc.

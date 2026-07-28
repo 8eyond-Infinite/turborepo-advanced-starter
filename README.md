@@ -1,5 +1,13 @@
 # Turborepo Advanced Starter
 
+> **Phần I · Chương 1 — Repository nhìn từ bên ngoài**
+>
+> Chương trước: chưa có · [Mục lục handbook](docs/README.md) · Chương sau: [Lộ trình học repo](docs/getting-started-path.md)
+
+Đây là cửa vào ngắn nhất của repository. Sau chương này, bạn cần biết hệ thống có những application nào, mỗi application phục vụ ai, dữ liệu đi qua đâu và làm thế nào để chạy dự án trên máy mình. Những khái niệm sâu như CQRS, outbox hay BFF sẽ được xây dần ở các chương sau.
+
+Hãy hình dung repository như một khu làm việc chung. `apps/server` giữ nghiệp vụ và dữ liệu. `apps/admin` là công cụ vận hành dành cho quản trị viên. `apps/client` minh họa website hướng người dùng bằng Next.js. Các package dưới `packages/` là hợp đồng và công cụ mà nhiều application cùng dùng, không phải application có thể deploy độc lập.
+
 Đây là monorepo nền tảng gồm một NestJS API, một React Admin SPA, một Next.js client và các package dùng chung. Repository ưu tiên bốn thứ: kiến trúc có ranh giới rõ ràng giữa các phần, contract dùng chung để các app hiểu dữ liệu giống nhau, cơ chế đăng nhập có khả năng thu hồi phiên, và tài liệu bám sát code thật.
 
 Không phải mọi phần đều có cùng mức hoàn thiện. Backend và Admin đã có kiến trúc nghiệp vụ; `apps/client` là một lát cắt dọc nhỏ minh họa mô hình BFF (render phía server, token không xuống trình duyệt) chứ không phải một sản phẩm hoàn chỉnh. Các giới hạn đang tồn tại được ghi rõ thay vì được che bằng nhãn “enterprise”.
@@ -10,6 +18,7 @@ Người mới vào repo: bắt đầu từ [Lộ trình học từ đầu](docs
 
 | Tài liệu                                                                       | Đọc khi cần                                                                         |
 | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- |
+| [Mục lục Handbook](docs/README.md)                                             | Đọc dự án như một cuốn sách gồm 18 chương theo đúng thứ tự                          |
 | [Lộ trình học từ đầu](docs/getting-started-path.md)                            | Mới vào repo, muốn học có thứ tự với bài tập thực hành và câu hỏi tự kiểm tra       |
 | [Bảng thuật ngữ](docs/glossary.md)                                             | Tra nghĩa mọi thuật ngữ trong docs, mỗi khái niệm kèm ví dụ trong chính repo        |
 | [Thư viện dùng để làm gì](docs/tech-stack.md)                                  | Mỗi dependency giải quyết việc gì, vì sao chọn, và nằm ở đâu trong code             |

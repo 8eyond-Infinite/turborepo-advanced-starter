@@ -1,5 +1,13 @@
 # Sổ tay vận hành (Operations Runbook)
 
+> **Phần IV · Chương 18 — Khi hệ thống không còn đi theo happy path**
+>
+> Chương trước: [Release process](release-process.md) · [Mục lục handbook](README.md) · Chương sau: không có
+
+Đây là tài liệu tra cứu dưới áp lực, không phải chương nhập môn. Khi có sự cố, mục tiêu đầu tiên là xác định phạm vi và khôi phục dịch vụ mà không phá mất bằng chứng. Vì vậy các mục được tổ chức theo triệu chứng quan sát được, không theo cấu trúc source code.
+
+Nếu đang học hệ thống và chưa có incident, hãy đọc “Ba phút đầu tiên” để hiểu thứ tự quan sát rồi quay lại khi cần. Nếu incident đang diễn ra, đừng đọc từ đầu đến cuối: bắt đầu ở checklist ba phút, ghi lại kết quả và đi tới đúng kịch bản.
+
 Tài liệu này trả lời câu hỏi "đang có sự cố, giờ làm gì" — khác với [Phát triển và triển khai](development-and-deployment.md) vốn mô tả hệ thống được dựng và phát hành ra sao.
 
 Nguyên tắc chung khi xử lý sự cố: **khôi phục dịch vụ trước, tìm nguyên nhân sau**. Nhưng trước khi restart hay xóa gì, hãy chụp lại bằng chứng (log, số đo, trạng thái) — restart xong là mất dấu vết.

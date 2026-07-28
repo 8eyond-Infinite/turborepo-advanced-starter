@@ -1,5 +1,11 @@
 # Chính sách bảo mật (Security Policy)
 
+> **Phụ lục B — Báo cáo và xử lý lỗ hổng**
+>
+> [Mục lục handbook](docs/README.md)
+
+Tài liệu này dành cho việc báo cáo lỗ hổng có trách nhiệm. Không tạo issue công khai chứa secret, dữ liệu khách hàng, exploit hoạt động hoặc chi tiết đủ để người khác tái hiện tấn công trước khi bản vá sẵn sàng.
+
 _English summary: please report vulnerabilities privately to the email below; do not open a public issue. We aim to acknowledge reports within 72 hours._
 
 ## Phiên bản được hỗ trợ

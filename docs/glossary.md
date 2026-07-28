@@ -1,10 +1,18 @@
 # Bảng thuật ngữ (Glossary)
 
+> **Phần I · Chương 3 — Ngôn ngữ chung của dự án**
+>
+> Chương trước: [Lộ trình học](getting-started-path.md) · [Mục lục handbook](README.md) · Chương sau: [Công cụ và thư viện](tech-stack.md)
+
+Đây là từ điển tra cứu, không phải chương cần học thuộc. Khi một chương nói “aggregate”, “composition root” hay “refresh rotation”, hãy tìm thuật ngữ ở đây, đọc nghĩa cùng ví dụ trong code rồi quay lại flow đang học.
+
 Tài liệu này định nghĩa mọi thuật ngữ được dùng trong repo bằng ngôn ngữ tự nhiên, mỗi thuật ngữ kèm một ví dụ cụ thể lấy từ chính codebase. Đọc lướt một lần trước khi đọc các handbook; quay lại tra khi gặp từ lạ.
 
 Mẹo ghi chép: cột "Hiểu đơn giản là" chính là phần đáng chép vào sổ tay nhất.
 
 ## Quy ước viết tài liệu của repo
+
+Phần dưới đây là bản tóm tắt dành cho người đọc. Tác giả và reviewer xem bản đầy đủ tại [Quy chuẩn viết tài liệu](documentation-style-guide.md).
 
 Áp dụng cho mọi tài liệu tiếng Việt trong repo, để người mới không bị chặn bởi thuật ngữ:
 

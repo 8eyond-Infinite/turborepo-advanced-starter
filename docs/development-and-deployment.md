@@ -1,5 +1,13 @@
 # Phát triển, Docker và triển khai
 
+> **Phần IV · Chương 14 — Từ source code đến process đang chạy**
+>
+> Chương trước: [Audit context](../apps/server/src/contexts/audit/README.md) · [Mục lục handbook](README.md) · Chương sau: [Deployment không phụ thuộc nhà cung cấp](provider-neutral-deployment.md)
+
+Chương này nối hai thế giới thường bị trộn lẫn: development tối ưu cho tốc độ sửa code và production tối ưu cho tính lặp lại, an toàn. Khi đọc, luôn tự hỏi “process này đang chạy trên host hay trong container?” và “ai sở hữu dependency/data của nó?”. Hai câu đó giải thích phần lớn lỗi Docker local từng xuất hiện trong repo.
+
+Ta bắt đầu bằng workflow hằng ngày: application chạy trên host để IDE và hot reload hoạt động tốt; PostgreSQL, Redis và Maildev chạy trong Docker. Sau đó ta theo cùng source code qua build image, migration, health check, CI và deployment topology.
+
 Tài liệu này quy định cách chạy monorepo trong local, CI và production. Mục tiêu là tránh trộn lẫn hai kiểu phát triển (chạy trên máy host và chạy trong container), tránh để hai phía cùng cài đặt và ghi vào chung một `node_modules`, và giữ cho vòng đời của migration/database luôn kiểm soát được.
 
 ## 1. Nguyên tắc nền tảng
@@ -483,3 +491,7 @@ health check tồn tại
 rollback version rõ
 observability và alert sẵn sàng
 ```
+
+## Checkpoint cuối chương
+
+Trước khi sang deployment, hãy tự mô tả được ba workflow mà không trộn chúng: host development, container development và production image. Với mỗi workflow, chỉ ra ai cài dependency, database được gọi bằng hostname nào, migration chạy bằng lệnh nào và dữ liệu nào tồn tại sau khi container bị recreate.

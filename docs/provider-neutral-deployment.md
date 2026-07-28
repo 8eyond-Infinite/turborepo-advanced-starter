@@ -1,5 +1,13 @@
 # Triển khai backend không phụ thuộc nhà cung cấp
 
+> **Phần IV · Chương 15 — Một lần build, nhiều nơi chạy**
+>
+> Chương trước: [Development và Docker](development-and-deployment.md) · [Mục lục handbook](README.md) · Chương sau: [Render adapter](render-deployment.md)
+
+Mục tiêu của chương không phải dạy thuộc một file Compose. Mục tiêu là hiểu deployment contract: hệ thống cần những process nào, process nào nhận Internet, migration chạy lúc nào, dữ liệu sống ở đâu và rollback thay đổi thứ gì. Khi contract rõ, VPS, Render hay AWS chỉ là các cách hiện thực khác nhau.
+
+Hãy hình dung một nhà hàng nhỏ. Caddy là cửa đón khách; API là nhân viên nhận yêu cầu; worker là khu xử lý việc nền; PostgreSQL là sổ cái; Redis là bảng công việc nhanh. Migration là việc sửa cấu trúc sổ trước ca làm. Không nhân viên API nào được tự sửa sổ mỗi lần bắt đầu ca.
+
 Tài liệu này mô tả deployment contract chung của backend và cách diễn tập nó trên một máy Ubuntu/WSL2 trước khi đưa lên VPS hoặc chuyển sang AWS ECS. Render, một VPS và ECS là ba cách hiện thực khác nhau của cùng contract; application image, process boundary và thứ tự migration không thay đổi theo nhà cung cấp.
 
 ## 1. Phạm vi và mức bảo đảm
@@ -185,3 +193,9 @@ Nếu chưa đáp ứng, dùng managed PostgreSQL.
 | container logs    | CloudWatch Logs                 |
 
 Sự chuyển đổi này thay deployment composition root, không thay domain/application code. Migration trở thành ECS one-off task trước khi update hai ECS service.
+
+## Checkpoint cuối chương
+
+Bạn đã hiểu deployment contract khi có thể vẽ lại năm ô Caddy, API, worker, PostgreSQL và Redis rồi giải thích đường kết nối giữa chúng. Bạn cũng phải trả lời được vì sao migration chạy trước rollout, vì sao worker không dùng HTTP healthcheck của API và vì sao rollback image không đồng nghĩa rollback database.
+
+Nếu mục tiêu tiếp theo là Render, sang [Chương 16](render-deployment.md). Nếu chuẩn bị một VPS, quay lại mục 4 và thực hiện theo từng checkpoint; đừng copy toàn bộ command trước khi hiểu file environment đang cung cấp secret nào.

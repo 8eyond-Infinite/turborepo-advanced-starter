@@ -1,5 +1,11 @@
 # Đóng góp vào repo này
 
+> **Phụ lục A — Từ một thay đổi local đến pull request**
+>
+> [Mục lục handbook](docs/README.md) · [Quy chuẩn viết tài liệu](docs/documentation-style-guide.md)
+
+Phụ lục này là checklist cộng tác, không thay thế handbook kiến trúc. Trước khi sửa một bounded context, đọc chương sở hữu context đó; trước khi thay đổi hạ tầng, cập nhật đồng thời chương deployment/operations tương ứng.
+
 Tài liệu này mô tả quy trình làm việc bắt buộc — từ lúc clone đến lúc PR được merge. Đọc một lần trước PR đầu tiên; các quy tắc ở đây đều được máy móc cưỡng chế (hook, CI) nên biết trước sẽ đỡ mất thời gian.
 
 ## Bắt đầu

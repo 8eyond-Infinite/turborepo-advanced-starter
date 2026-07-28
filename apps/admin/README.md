@@ -1,5 +1,13 @@
 # Admin Portal
 
+> **Phần II · Chương 7 — Admin từ click đến dữ liệu**
+>
+> Chương trước: [Backend Architecture](../server/README.md) · [Mục lục handbook](../../docs/README.md) · Chương sau: [Client Web](../client/README.md)
+
+Chương này đi theo một thao tác nhìn thấy được: quản trị viên mở trang Users, lọc danh sách, tạo user và thấy giao diện cập nhật. Ta sẽ lần từ route, component, hook, query cache đến API adapter rồi quay lại UI. Nhờ vậy, khái niệm server state, UI state và cache invalidation xuất hiện trong một câu chuyện cụ thể thay vì một danh sách quy tắc React.
+
+Admin là SPA chạy trong trình duyệt. Vì vậy nó không sở hữu nghiệp vụ và không được tự quyết định quyền truy cập; backend mới là nguồn sự thật. Admin chịu trách nhiệm trình bày trạng thái, gửi intent của người dùng, quản lý trải nghiệm loading/error và giữ cache nhất quán với server.
+
 Admin Portal là ứng dụng quản trị chạy trên trình duyệt của monorepo. Ứng dụng được xây bằng React 19, TypeScript, Vite, React Router, TanStack Query, Zustand, Tailwind CSS và các UI primitive dựa trên Radix.
 
 Tài liệu này mô tả code đang tồn tại trong `apps/admin`, không mô tả một kiến trúc giả định. Mục tiêu là giúp một thành viên mới hiểu ứng dụng khởi động thế nào, request đi qua đâu, state thuộc về lớp nào, quyền được kiểm tra ở đâu và cần đặt code mới vào vị trí nào.

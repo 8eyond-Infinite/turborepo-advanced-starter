@@ -1,5 +1,13 @@
 # Notifications bounded context
 
+> **Phần III · Chương 12 — Thông báo và trạng thái đã đọc**
+>
+> Chương trước: [Roles context](../iam/roles/README.md) · [Mục lục handbook](../../../../../docs/README.md) · Chương sau: [Audit context](../audit/README.md)
+
+Notification là một bản ghi bền dành cho đúng một người nhận. Realtime chỉ là cách báo nhanh rằng dữ liệu mới đã có; nó không thay thế database. Nếu browser đang offline, user vẫn phải đọc được notification sau khi đăng nhập lại.
+
+Hãy theo flow từ một domain event: router quyết định tạo notification, repository ghi PostgreSQL, gateway phát tín hiệu qua Socket.IO, Admin nhận tín hiệu rồi invalidate query để đọc lại nguồn sự thật. Cách làm này tránh biến WebSocket payload thành một database thứ hai trong frontend.
+
 ## 1. Trách nhiệm
 
 Notifications sở hữu vòng đời thông báo trong ứng dụng: tạo bản ghi bền vững, truy vấn hộp thư của một user, đánh dấu một hoặc toàn bộ thông báo đã đọc, và phát domain event để realtime delivery có thể diễn ra sau transaction.
@@ -75,3 +83,9 @@ Event realtime chỉ invalidate root key. Nó không tự chèn payload vào cac
 - Realtime không thay thế HTTP read model.
 - Optimistic update phải có rollback.
 - UI notification chưa đọc phải thao tác được bằng bàn phím.
+
+## 8. Bản đồ code và checkpoint
+
+Khi bắt đầu điều tra notification, mở `notification.module.ts` để thấy composition root của context. Từ endpoint HTTP, đi vào `presentation/controllers`; từ một event được phát, bắt đầu ở handler/router tạo notification. Repository adapter là nơi duy nhất nên biết Prisma, còn Admin integration nằm ở feature notification của `apps/admin`.
+
+Trước khi sửa context, hãy tự giải thích được ba điều bằng lời của mình: vì sao realtime event chỉ invalidate cache, vì sao mark-read phải kiểm tra `userId`, và chuyện gì xảy ra nếu browser offline lúc notification được tạo. Nếu chưa trả lời được, đọc lại flow tạo và cache lifecycle trước khi code.

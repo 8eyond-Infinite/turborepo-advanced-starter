@@ -1,5 +1,13 @@
 # Client Web Application
 
+> **Phần II · Chương 8 — Client Web và ranh giới server/browser**
+>
+> Chương trước: [Admin Portal](../admin/README.md) · [Mục lục handbook](../../docs/README.md) · Chương sau: [Auth context](../server/src/contexts/iam/auth/README.md)
+
+Admin và Client cùng gọi một backend nhưng không có cùng kiến trúc. Admin là SPA nội bộ; Client hướng tới trang công khai, SEO và render phía server. Chương này giải thích sự khác nhau bằng vòng đời đăng nhập và một request render trang, thay vì sao chép cấu trúc của Admin sang Next.js.
+
+Client hiện là một lát cắt kiến trúc nhỏ, không phải sản phẩm đã hoàn thiện. Giá trị của nó nằm ở boundary: browser không giữ token, Next.js server đóng vai trò Backend for Frontend (BFF), còn backend NestJS vẫn sở hữu nghiệp vụ.
+
 Ứng dụng dành cho người dùng cuối, xây bằng Next.js App Router. Client tồn tại trong repo này để làm hai việc mà Admin SPA không làm được: **render nội dung ở phía server cho máy tìm kiếm đọc được**, và **giữ token hoàn toàn ngoài tầm với của JavaScript trình duyệt**.
 
 > Gặp từ lạ? Tra [Bảng thuật ngữ](../../docs/glossary.md).
@@ -125,3 +133,7 @@ Tham số `next` sau login chỉ được nhận khi là path nội bộ bắt �
 - Thêm trang công khai (danh sách sản phẩm, bài viết…) dùng `generateMetadata` và ISR để tận dụng SEO.
 - Mutation cần đăng nhập: viết thêm Server Action gọi `apiFetch`, không mở endpoint proxy chung chung.
 - Cần dữ liệu cập nhật liên tục ở phía client: cân nhắc TanStack Query cho riêng phần đó — nhưng khi ấy phải đi qua Route Handler của Next.js, không gọi thẳng API.
+
+## Checkpoint cuối chương
+
+Bạn đã hiểu boundary của Client khi có thể giải thích nơi session cookie được đọc, nơi access token tồn tại, vì sao Server Component gọi API khác SPA và lúc nào mới cần Client Component. Hãy thử lần flow chưa đăng nhập vào `/me`: middleware phải chặn trước khi trang riêng tư render.
