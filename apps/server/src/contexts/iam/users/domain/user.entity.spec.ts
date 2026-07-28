@@ -49,6 +49,30 @@ describe('UserEntity', () => {
     expect(user.updatedBy).toBe('admin-id');
   });
 
+  it('does not revoke access tokens for a profile-only update', () => {
+    const user = registerUser();
+    const initialTokenVersion = user.tokenVersion;
+
+    user.updateInfo('new@example.com', 'new-user', '/avatar.png', 'admin-id');
+
+    expect(user.tokenVersion).toBe(initialTokenVersion);
+  });
+
+  it('revokes access tokens once only when the assigned role set changes', () => {
+    const user = registerUser();
+    const initialTokenVersion = user.tokenVersion;
+
+    user.updateRoles(['USER'], 'admin-id');
+    expect(user.tokenVersion).toBe(initialTokenVersion);
+
+    user.updateRoles(['AUDITOR', 'USER', 'AUDITOR'], 'admin-id');
+    expect(user.roles).toEqual(['AUDITOR', 'USER']);
+    expect(user.tokenVersion).toBe(initialTokenVersion + 1);
+
+    user.updateRoles(['USER', 'AUDITOR'], 'admin-id');
+    expect(user.tokenVersion).toBe(initialTokenVersion + 1);
+  });
+
   it('soft deletes and restores the user', () => {
     const user = registerUser();
 

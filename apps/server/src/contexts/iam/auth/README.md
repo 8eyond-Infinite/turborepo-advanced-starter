@@ -110,7 +110,9 @@ Email không tồn tại và password sai đều phải trả về cùng một l
 
 Token có chữ ký đúng vẫn có thể bị từ chối. Chữ ký chỉ chứng minh token do server cấp; còn trạng thái user trong database mới chứng minh token vẫn còn hiệu lực.
 
-Khi profile, role hoặc trạng thái truy cập thay đổi, Users aggregate tăng tokenVersion. Tất cả access token cũ lập tức không còn khớp.
+Khi role hoặc trạng thái truy cập thay đổi, Users aggregate tăng tokenVersion. Tất cả access token cũ lập tức không còn khớp. Thay đổi profile như email, username hoặc avatar không làm quyền truy cập thay đổi nên không tăng version và không tạo một vòng `401 → refresh → retry` không cần thiết.
+
+Khi refresh, handler luôn tải User hiện tại từ database và dùng email hiện tại để ký cả access token lẫn refresh token mới. Email nằm trong refresh token cũ chỉ là claim tại thời điểm token đó được cấp; nó không được dùng làm nguồn dữ liệu sau khi profile đã thay đổi.
 
 ## 6. Refresh rotation
 
