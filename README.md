@@ -14,29 +14,18 @@ Không phải mọi phần đều có cùng mức hoàn thiện. Backend và Adm
 
 ## Bản đồ tài liệu
 
-Người mới vào repo: bắt đầu từ [Lộ trình học từ đầu](docs/getting-started-path.md) và mở kèm [Bảng thuật ngữ](docs/glossary.md) — hai tài liệu này dẫn bạn qua toàn bộ hệ thống theo thứ tự có chủ đích, kèm bài tập tự kiểm tra. Các tài liệu còn lại là tra cứu theo nhu cầu.
+Nếu mới vào dự án, đừng chọn ngẫu nhiên một README rồi cố hiểu. Hãy dùng một trong các cửa sau:
 
-| Tài liệu                                                                       | Đọc khi cần                                                                         |
-| ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- |
-| [Mục lục Handbook](docs/README.md)                                             | Đọc dự án như một cuốn sách gồm 18 chương theo đúng thứ tự                          |
-| [Lộ trình học từ đầu](docs/getting-started-path.md)                            | Mới vào repo, muốn học có thứ tự với bài tập thực hành và câu hỏi tự kiểm tra       |
-| [Bảng thuật ngữ](docs/glossary.md)                                             | Tra nghĩa mọi thuật ngữ trong docs, mỗi khái niệm kèm ví dụ trong chính repo        |
-| [Thư viện dùng để làm gì](docs/tech-stack.md)                                  | Mỗi dependency giải quyết việc gì, vì sao chọn, và nằm ở đâu trong code             |
-| [Kiến trúc hệ thống](docs/architecture.md)                                     | Hiểu ranh giới app/package, backend layers, frontend layers và flow liên ứng dụng   |
-| [Phát triển và triển khai](docs/development-and-deployment.md)                 | Cài môi trường, chạy Docker/host, migration, CI và production topology              |
-| [Triển khai không phụ thuộc nhà cung cấp](docs/provider-neutral-deployment.md) | Compose production-like, VPS, migration, GHCR và rollback                           |
-| [Triển khai backend trên Render](docs/render-deployment.md)                    | Blueprint API/worker/Postgres/Redis, migration, secret và smoke test                |
-| [Sổ tay vận hành](docs/operations-runbook.md)                                  | Đang có sự cố thì làm gì: triage, ngưỡng cảnh báo, phát hành, rollback, xoay secret |
-| [Quy trình phát hành](docs/release-process.md)                                 | Phiên bản tính thế nào, release PR là gì, tag image trên GHCR và cách quay lui      |
-| [Backend handbook](apps/server/README.md)                                      | Đọc code NestJS, request flow, CQRS, outbox, auth và testing                        |
-| [Admin handbook](apps/admin/README.md)                                         | Đọc React Admin, routing, query cache, auth refresh, RBAC và realtime               |
-| [Client handbook](apps/client/README.md)                                       | Trạng thái hiện tại và quy ước phát triển Next.js client                            |
-| [Auth context](apps/server/src/contexts/iam/auth/README.md)                    | Login, refresh rotation, logout, session và token revocation                        |
-| [Users context](apps/server/src/contexts/iam/users/README.md)                  | User aggregate, commands, repository transaction và domain events                   |
-| [Roles context](apps/server/src/contexts/iam/roles/README.md)                  | Role, permission catalog và RBAC behavior                                           |
-| [Audit context](apps/server/src/contexts/audit/README.md)                      | Audit port, persistence và query flow                                               |
-| [Đóng góp](CONTRIBUTING.md)                                                    | Quy trình branch/commit/PR, quality gate và các ranh giới không thương lượng        |
-| [Chính sách bảo mật](SECURITY.md)                                              | Cách báo cáo lỗ hổng một cách có trách nhiệm                                        |
+| Bạn đang cần gì?                        | Bắt đầu ở đâu?                                                                                     |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Chạy dự án và học từ con số không       | [Lộ trình học từ đầu](docs/getting-started-path.md)                                                |
+| Đọc tài liệu như một cuốn sách          | [Mục lục Handbook](docs/README.md)                                                                 |
+| Tra một từ kiến trúc vừa gặp            | [Bảng thuật ngữ](docs/glossary.md)                                                                 |
+| Hiểu đường đi từ giao diện tới database | [Kiến trúc hệ thống](docs/architecture.md)                                                         |
+| Sửa backend, Admin hoặc Client          | [Backend](apps/server/README.md) · [Admin](apps/admin/README.md) · [Client](apps/client/README.md) |
+| Hệ thống đang lỗi và cần xử lý ngay     | [Sổ tay vận hành](docs/operations-runbook.md)                                                      |
+
+[Mục lục Handbook](docs/README.md) chứa đủ 18 chương, gồm cả tài liệu cho từng nhóm nghiệp vụ, Docker, deployment và release. Root README chỉ giúp bạn chọn đúng cửa vào; nó không cố nhét toàn bộ handbook vào một trang.
 
 ## Thành phần trong monorepo
 
@@ -58,7 +47,16 @@ turborepo-advanced-starter/
 └── pnpm-workspace.yaml         # Workspace membership
 ```
 
-## Kiến trúc ở mức hệ thống
+## Hệ thống chạy như thế nào?
+
+Khi một quản trị viên bấm “Tạo user”, đường đi chính là:
+
+1. Admin gửi HTTP request tới API.
+2. API xác định người gọi và kiểm tra quyền.
+3. API kiểm tra dữ liệu rồi lưu user vào PostgreSQL.
+4. API ghi lại rằng một số việc nền cần được thực hiện.
+5. Worker nhận việc qua Redis/BullMQ và gửi email.
+6. Admin nhận response hoặc tín hiệu realtime rồi tải dữ liệu mới.
 
 ```mermaid
 flowchart LR
@@ -73,13 +71,17 @@ flowchart LR
     Outbox --> SideEffects[Cache / Queue / Realtime]
 ```
 
-Backend chia theo bounded context (mỗi mảng nghiệp vụ là một khu riêng) và theo kiểu Ports & Adapters (phần nghiệp vụ nói chuyện với thế giới bên ngoài qua các cổng trừu tượng). Admin chia theo feature; mỗi feature tự giữ API adapter và query-key factory ở ranh giới của mình. Package dùng chung chỉ chứa những contract thực sự cần chia sẻ; không đặt code nghiệp vụ của riêng một app vào package chung.
+Backend không được viết thành một thư mục lớn chứa mọi nghiệp vụ. Code tài khoản, phiên đăng nhập, quyền, thông báo và audit nằm ở những khu riêng. Mỗi khu giữ quy tắc của mình và chỉ giao tiếp qua những đầu vào đã định nghĩa.
 
-Đọc [docs/architecture.md](docs/architecture.md) để hiểu dependency direction và flow chi tiết.
+Admin cũng chia theo tính năng: Users, Roles, Sessions, Notifications. Package dùng chung chỉ giữ kiểu dữ liệu hoặc hằng số mà nhiều ứng dụng thật sự cần; code nghiệp vụ riêng của một ứng dụng không được đẩy vào `packages`.
+
+Các cách chia này có tên kỹ thuật như bounded context, Ports & Adapters và feature boundary. [Chương kiến trúc](docs/architecture.md) giới thiệu từng tên sau khi giải thích vấn đề mà nó giải quyết.
 
 ## Quick start
 
-Workflow mặc định là chạy application trên host và chỉ chạy infrastructure bằng Docker. Yêu cầu sẵn có: Node.js 20, pnpm 9 (`corepack enable` là đủ), Docker Desktop đang chạy.
+Ở môi trường phát triển, ba application chạy trực tiếp trên máy để sửa code nhanh. Docker chỉ chạy PostgreSQL, Redis và Maildev.
+
+Máy cần Node.js 20, pnpm 9 và Docker Desktop. Nếu chưa có pnpm, `corepack enable` sẽ bật đúng package manager được repository khai báo.
 
 Từ clone tới chạy được là **một lệnh**:
 
@@ -88,7 +90,16 @@ corepack enable
 pnpm bootstrap
 ```
 
-Lệnh này tạo các file `.env` từ `.env.example` (tự sinh JWT secret, session secret, mật khẩu admin — file đã có thì giữ nguyên), khởi động Postgres/Redis/Maildev bằng Docker, cài dependency, áp migration và seed dữ liệu ban đầu. Chạy lại bao nhiêu lần cũng an toàn. Xong nó in ra tài khoản admin để đăng nhập.
+`pnpm bootstrap` chuẩn bị một máy mới theo đúng thứ tự:
+
+1. Tạo file cấu hình local từ các file mẫu.
+2. Sinh secret và mật khẩu admin nếu chúng chưa tồn tại.
+3. Khởi động PostgreSQL, Redis và Maildev.
+4. Cài dependency.
+5. Tạo Prisma Client và cập nhật cấu trúc database.
+6. Nạp permission, role, menu và tài khoản admin ban đầu.
+
+Script giữ lại file cấu hình đã có nên có thể chạy lại khi setup bị gián đoạn. Khi hoàn tất, terminal in địa chỉ ứng dụng và tài khoản đăng nhập.
 
 > Vì sao là `bootstrap` mà không phải `setup`? Vì `pnpm setup` là lệnh có sẵn của pnpm — script trùng tên sẽ bị lệnh built-in che mất.
 
@@ -105,7 +116,9 @@ pnpm --filter=admin exec playwright install chromium # lần đầu
 pnpm e2e:admin
 ```
 
-### Làm từng bước bằng tay (khi muốn hiểu bootstrap làm gì)
+### Làm từng bước bằng tay
+
+Chỉ dùng phần này khi muốn học hoặc chẩn đoán một bước bootstrap bị lỗi:
 
 ```powershell
 pnpm install --frozen-lockfile
@@ -126,9 +139,9 @@ PORT=3001
 CORS_ORIGINS=http://localhost:5173,http://localhost:3005
 ```
 
-`db:deploy` áp các migration đã có (bootstrap dùng lệnh này); `db:migrate` là để tạo migration mới khi thay đổi schema; `db:push` chỉ dành cho database tạm/prototype và không thay thế migration.
+`db:deploy` chạy những file thay đổi database đã được commit. `db:migrate` tạo một file thay đổi mới khi lập trình viên sửa schema. `db:push` bỏ qua lịch sử migration nên chỉ dành cho database tạm; không dùng nó để chuẩn bị môi trường thật.
 
-Seed yêu cầu `SEED_ADMIN_PASSWORD` (tối thiểu 12 ký tự) trong `.env` root để tạo tài khoản admin lần đầu; nếu thiếu, seed vẫn chạy nhưng bỏ qua bước tạo admin. Re-seed không bao giờ reset mật khẩu admin đang tồn tại, và menu chỉ được seed khi bảng `menus` rỗng.
+Seed cần `SEED_ADMIN_PASSWORD` dài ít nhất 12 ký tự để tạo admin lần đầu. Nếu tài khoản đã tồn tại, chạy seed lại không đổi mật khẩu. Đây là chốt an toàn để một lần setup hoặc deploy không vô tình khóa tài khoản quản trị.
 
 ### Các địa chỉ sau khi chạy
 
@@ -150,9 +163,9 @@ pnpm dev:admin
 pnpm dev:client
 ```
 
-## Task graph và quality gate
+## Kiểm tra code trước khi push
 
-Turborepo chạy task theo đồ thị phụ thuộc: package dùng chung phải được build xong trước, rồi app dùng nó mới được build.
+Các lệnh sau kiểm tra format, kiểu TypeScript, test và khả năng build. Turborepo tự chạy package dùng chung trước application phụ thuộc vào nó:
 
 ```powershell
 pnpm lint
@@ -162,29 +175,30 @@ pnpm --filter=server verify
 pnpm --filter=admin verify
 ```
 
-Admin `verify` chạy lint, Vitest và production build. Server `verify` chạy lint, build, typecheck và unit tests. E2E backend là task riêng vì cần test database.
+`admin verify` chạy lint, test và production build của Admin. `server verify` làm tương tự cho backend. E2E là nhóm test riêng vì cần database và Redis thật.
 
-## Quy tắc kiến trúc
+## Năm nguyên tắc cần nhớ trước khi sửa code
 
-1. Domain backend không phụ thuộc NestJS, Prisma, Redis hoặc HTTP.
-2. Controller chỉ làm việc chuyển đổi: nhận input từ HTTP/WebSocket, đổi thành command/query, rồi đổi kết quả thành response trả về.
-3. Thay đổi trên aggregate và domain event kèm theo phải được ghi trong cùng một transaction (atomic) thông qua transactional outbox — hoặc cả hai cùng được lưu, hoặc không gì cả.
-4. Frontend component không gọi raw `fetch`; endpoint nằm trong feature API adapter.
-5. Feature frontend khác chỉ được truy cập qua public `index.ts`.
-6. Permission string lấy từ `@repo/contracts`.
-7. Dữ liệu lấy từ server do TanStack Query quản; phiên đăng nhập do Zustand quản; trạng thái tương tác ngắn hạn nằm ngay trong component.
-8. Package dùng chung không trở thành nơi đổ code chỉ vì một đoạn code được dùng ở hai chỗ.
-9. Migration đã commit là lịch sử của database; không chỉnh sửa migration đã được môi trường khác chạy.
-10. Tài liệu phải mô tả hành vi đang thực sự tồn tại và chỉ rõ nợ kỹ thuật (technical debt).
+1. **Đặt code đúng chủ sở hữu.** Quy tắc tài khoản ở Users; phiên đăng nhập ở Auth; giao diện Users ở feature Users của Admin.
+2. **Giữ nghiệp vụ độc lập với công cụ.** Quy tắc “user có được vô hiệu hóa hay không” không nằm trong controller hoặc câu lệnh Prisma.
+3. **Không để dữ liệu và sự kiện lệch nhau.** Nếu lưu user thành công thì lời nhắc gửi email cũng phải được lưu; nếu một phần lỗi thì cả hai cùng rollback.
+4. **Dùng chung contract, không dùng chung bừa nghiệp vụ.** Permission và kiểu response có thể nằm trong package chung; logic riêng của một app phải ở lại app đó.
+5. **Code, test và tài liệu thay đổi cùng nhau.** Khi endpoint, flow, command, port hoặc hạ tầng đổi, tài liệu sở hữu phần đó phải đổi trong cùng PR.
 
-## Trạng thái và technical debt quan trọng
+Các quy tắc chi tiết về controller, repository, frontend cache, migration và import boundary nằm trong [chương kiến trúc](docs/architecture.md) và handbook của từng application.
 
-- API development container trong Docker Compose nằm sau profile `container-dev`; `docker compose up -d` mặc định chỉ khởi động infrastructure. Container bind mount source code nhưng giữ toàn bộ dependency Linux trong các named volume `*_node_modules` ổn định, vì vậy recreate container không ghi symlink vào Windows hoặc tích tụ anonymous volume. Xem hướng dẫn vận hành trước khi reset volume hay chuyển workflow.
+## Một giới hạn dễ gây nhầm khi chạy Docker
 
-Danh sách này là phần của kiến trúc hiện tại, không phải ghi chú tùy chọn.
+`docker compose up -d` chỉ khởi động PostgreSQL, Redis và Maildev. API container nằm trong profile `container-dev` và không chạy nếu bạn không chọn profile đó. Workflow mặc định vẫn là Docker chạy hạ tầng, còn `pnpm dev` chạy application trên máy.
+
+Dependency Linux của container nằm trong named volume riêng để không ghi symlink vào filesystem Windows. Đừng xóa volume theo phỏng đoán; đọc [chương Development và Docker](docs/development-and-deployment.md) trước khi reset.
 
 ## Khi bắt đầu một thay đổi
 
-Trước khi sửa code, xác định hành vi cần sửa thuộc về app hoặc bounded context nào. Đọc handbook tương ứng, tìm ranh giới công khai (public boundary) và bài test gần nhất với chỗ định sửa. Sau khi sửa, cập nhật tài liệu nếu flow, contract, command, port hoặc cách vận hành thay đổi.
+Trước khi sửa code, trả lời ba câu:
 
-Nếu một thay đổi chạm cả backend và frontend, contract phải được sửa trước hoặc trong cùng một đợt thay đổi; không để mỗi bên tự đoán response theo một kiểu.
+1. Hành vi này thuộc application và nhóm nghiệp vụ nào?
+2. File public nào là cửa vào của nhóm đó?
+3. Test gần nhất đang chứng minh điều gì?
+
+Nếu thay đổi chạm cả backend và frontend, hãy sửa contract trong cùng đợt. Không để mỗi phía tự đoán response theo một kiểu. Khi flow hoặc cách vận hành đổi, cập nhật tài liệu trong cùng PR.
