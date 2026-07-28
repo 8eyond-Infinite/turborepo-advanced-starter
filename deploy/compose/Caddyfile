@@ -1,0 +1,21 @@
+{
+	email {$ACME_EMAIL:off}
+}
+
+{$API_ADDRESS:http://localhost} {
+	encode zstd gzip
+
+	reverse_proxy api:3001
+
+	header {
+		-Server
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy no-referrer
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}

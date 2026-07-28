@@ -29,6 +29,17 @@ pnpm verify:render
 
 Topology, biến môi trường và quy trình provision nằm tại [Render deployment](render-deployment.md).
 
+Với single-node Compose, dùng cùng hai endpoint và xem trạng thái/log bằng:
+
+```bash
+cd deploy/compose
+docker compose --env-file .env.production -f compose.production.yaml ps
+docker compose --env-file .env.production -f compose.production.yaml logs --tail 100 api worker caddy
+ADMIN_ORIGIN=https://<admin-host> scripts/verify.sh
+```
+
+Quy trình deploy/rollback và giới hạn single-node nằm tại [Triển khai backend không phụ thuộc nhà cung cấp](provider-neutral-deployment.md).
+
 Cách đọc kết quả:
 
 | Kết quả                                                 | Nghĩa là                                  | Đi tiếp tới |

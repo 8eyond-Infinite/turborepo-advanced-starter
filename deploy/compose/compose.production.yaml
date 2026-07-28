@@ -1,0 +1,167 @@
+name: ${COMPOSE_PROJECT_NAME:-turborepo-starter}
+
+x-server-environment: &server-environment
+  NODE_ENV: production
+  PORT: 3001
+  DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+  REDIS_URL: redis://default:${REDIS_PASSWORD:?REDIS_PASSWORD is required}@redis:6379
+  JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?JWT_ACCESS_SECRET is required}
+  JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET is required}
+  CORS_ORIGINS: ${CORS_ORIGINS:?CORS_ORIGINS is required}
+  REFRESH_COOKIE_SAME_SITE: ${REFRESH_COOKIE_SAME_SITE:-lax}
+  OUTBOX_POLL_INTERVAL_MS: ${OUTBOX_POLL_INTERVAL_MS:-100}
+  OUTBOX_RETENTION_DAYS: ${OUTBOX_RETENTION_DAYS:-30}
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  MAIL_HOST: ${MAIL_HOST:-}
+  MAIL_PORT: ${MAIL_PORT:-587}
+  MAIL_FROM: ${MAIL_FROM:-}
+  STORAGE_PROVIDER: ${STORAGE_PROVIDER:-local}
+  S3_REGION: ${S3_REGION:-}
+  S3_BUCKET_NAME: ${S3_BUCKET_NAME:-}
+  S3_ENDPOINT: ${S3_ENDPOINT:-}
+  S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+  S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+
+x-server-service: &server-service
+  image: ${SERVER_IMAGE:?SERVER_IMAGE is required}:${SERVER_IMAGE_TAG:?SERVER_IMAGE_TAG is required}
+  build:
+    context: ../..
+    dockerfile: apps/server/Dockerfile
+  restart: unless-stopped
+  init: true
+  environment: *server-environment
+  networks:
+    - application
+    - data
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  security_opt:
+    - no-new-privileges:true
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-starter}
+      POSTGRES_USER: ${POSTGRES_USER:-starter}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - data
+    healthcheck:
+      test:
+        ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command:
+      [
+        'redis-server',
+        '--appendonly',
+        'yes',
+        '--requirepass',
+        '${REDIS_PASSWORD:?REDIS_PASSWORD is required}',
+      ]
+    volumes:
+      - redis_data:/data
+    networks:
+      - data
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'redis-cli -a "$${REDIS_PASSWORD}" --no-auth-warning ping | grep PONG',
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+    security_opt:
+      - no-new-privileges:true
+
+  migrate:
+    <<: *server-service
+    profiles: [tools]
+    restart: 'no'
+    command: ['node', 'scripts/migrate.mjs']
+
+  seed:
+    <<: *server-service
+    profiles: [tools]
+    restart: 'no'
+    command: ['node', 'scripts/seed.mjs']
+    environment:
+      <<: *server-environment
+      ALLOW_PRODUCTION_SEED: ${ALLOW_PRODUCTION_SEED:-false}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+
+  api:
+    <<: *server-service
+    command: ['node', 'dist/main.js']
+    volumes:
+      - uploads_data:/app/public/uploads
+    expose:
+      - '3001'
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:3001/health/ready']
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  worker:
+    <<: *server-service
+    command: ['node', 'dist/worker.js']
+    # The image healthcheck probes the HTTP API. A queue worker intentionally
+    # does not listen on that port, so process state/logs are its local signal.
+    healthcheck:
+      disable: true
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      API_ADDRESS: ${API_ADDRESS:-http://localhost}
+      ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL is required}
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - application
+    depends_on:
+      api:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  application:
+  data:
+    internal: true
+
+volumes:
+  postgres_data:
+  redis_data:
+  caddy_data:
+  caddy_config:
+  uploads_data:
