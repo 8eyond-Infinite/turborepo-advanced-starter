@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import type { User } from "@repo/types";
 import { PERMISSIONS } from "@repo/contracts";
@@ -63,6 +63,28 @@ export const UserTable = () => {
     search,
     loadRoles: access.canCreateUser || access.canUpdateUser,
   });
+
+  useEffect(() => {
+    if (usersState.isLoading || usersState.isError) return;
+    const lastAvailablePage = Math.max(1, usersState.meta.totalPages);
+    if (currentPage <= lastAvailablePage) return;
+
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        if (lastAvailablePage === 1) next.delete("page");
+        else next.set("page", String(lastAvailablePage));
+        return next;
+      },
+      { replace: true },
+    );
+  }, [
+    currentPage,
+    setSearchParams,
+    usersState.isError,
+    usersState.isLoading,
+    usersState.meta.totalPages,
+  ]);
 
   return (
     <div className="space-y-6 bg-background text-foreground">

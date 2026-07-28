@@ -216,6 +216,8 @@ Query screen phải phân biệt bốn trạng thái: loading, error có retry, 
 
 Form tạo và sửa validate cùng các bất biến công khai của backend trước khi gửi: email hợp lệ, username dài 3–50 ký tự, mật khẩu tạo mới tối thiểu 6 ký tự và phải chọn ít nhất một role. Create mặc định chọn `USER` nếu role này tồn tại; Edit không tự thêm role giả định mà phản chiếu đúng tập role backend trả về. Đây là lớp phản hồi sớm cho UX; backend vẫn là security/domain boundary cuối cùng. Avatar chỉ nhận JPG, PNG, WEBP hoặc GIF tối đa 5 MB, đồng bộ với giới hạn upload phía server.
 
+Trang và từ khóa tìm kiếm nằm trong URL. Nếu mutation hoặc thay đổi dữ liệu làm `page` hiện tại lớn hơn `totalPages` mới, `UserTable` dùng replace navigation để đưa URL về trang cuối còn tồn tại mà vẫn giữ từ khóa. Nếu không hiệu chỉnh, xóa user cuối cùng của một trang có thể để người vận hành mắc kẹt ở một bảng rỗng dù trang trước vẫn có dữ liệu.
+
 Các thao tác phá hủy hoặc đổi trạng thái phải chờ Promise mutation hoàn tất. `ConfirmDialog` giữ dialog mở, khóa nút trong lúc pending, chỉ đóng sau khi mutation và cache invalidation thành công; nếu thất bại dialog giữ nguyên ngữ cảnh để người dùng thử lại. Không được dùng mutation fire-and-forget cho flow cần xác nhận.
 
 Users mutations trả cả pending tổng và identity đang xử lý (`togglingUserId`, `deletingUserId`). Bảng dùng identity để thông báo đúng row; action xung đột vẫn bị khóa trong thời gian command chạy. Form create/edit chỉ đóng sau khi mutation cùng invalidation thành công. Lỗi mutation do hook thông báo, còn draft form được giữ nguyên để sửa hoặc thử lại.
