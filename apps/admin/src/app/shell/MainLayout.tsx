@@ -17,21 +17,12 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-
-const breadcrumbItems = [
-  { path: "/", label: "Tổng quan" },
-  { path: "/users", label: "Quản lý Users" },
-  { path: "/roles", label: "Phân quyền Roles" },
-  { path: "/sessions", label: "Phiên đăng nhập" },
-  { path: "/audit-logs", label: "Nhật ký hoạt động" },
-] as const;
+import { getAdminRouteLabel } from "@/routes/route-manifest";
 
 export const MainLayout = () => {
   const location = useLocation();
 
-  const currentLabel =
-    breadcrumbItems.find((item) => item.path === location.pathname)?.label ||
-    "Dashboard";
+  const currentLabel = getAdminRouteLabel(location.pathname);
 
   return (
     <SidebarProvider>

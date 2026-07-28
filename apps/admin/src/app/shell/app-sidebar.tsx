@@ -1,9 +1,13 @@
 import * as React from "react";
-import { HelpCircle, Settings2, Shield, type LucideIcon } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { ApiClient } from "@/lib/api-client";
 import { NavMain } from "./nav-main";
 import { NavUser } from "./nav-user";
+import {
+  buildNavigation,
+  type MenuGroup,
+  type NavigationGroup,
+} from "./navigation";
 import { useAuthStore } from "@/features/auth";
 import { usePermission } from "@/app/access/usePermission";
 import {
@@ -18,57 +22,22 @@ import {
 } from "@/components/ui/sidebar";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { user: authUser } = useAuthStore();
+  const authUser = useAuthStore((state) => state.user);
   const { can } = usePermission();
 
-  interface MenuItem {
-    title: string;
-    url: string;
-    permission?: string;
-  }
-
-  interface MenuGroup {
-    title: string;
-    url: string;
-    icon?: string;
-    items?: MenuItem[];
-  }
-
-  interface NavigationGroup extends Omit<MenuGroup, "icon"> {
-    icon: LucideIcon;
-  }
-
-  const iconRegistry: Record<string, LucideIcon> = {
-    HelpCircle,
-    Settings2,
-    Shield,
-  };
-
-  const { data: rawMenuData } = useQuery<NavigationGroup[]>({
+  const {
+    data: rawMenuData,
+    isPending,
+    isError,
+    isFetching,
+    refetch,
+  } = useQuery<MenuGroup[]>({
     queryKey: ["sidebar-menus"],
-    queryFn: async () => {
-      const response = await ApiClient.get<MenuGroup[]>("/menus");
-      return response.map((group) => ({
-        ...group,
-        icon: group.icon ? iconRegistry[group.icon] || Shield : Shield,
-        items: group.items,
-      }));
-    },
+    queryFn: () => ApiClient.get<MenuGroup[]>("/menus"),
   });
 
-  const filteredMenuData = React.useMemo(() => {
-    if (!rawMenuData) return [];
-    return rawMenuData
-      .map((group) => {
-        const filteredItems = (group.items || []).filter((item) =>
-          can(item.permission),
-        );
-        return {
-          ...group,
-          items: filteredItems,
-        };
-      })
-      .filter((group) => (group.items || []).length > 0);
+  const navigation = React.useMemo<NavigationGroup[]>(() => {
+    return buildNavigation(rawMenuData ?? [], can);
   }, [rawMenuData, can]);
 
   const user = authUser
@@ -104,7 +73,31 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
 
       <SidebarContent>
-        <NavMain items={filteredMenuData} />
+        {isPending ? (
+          <p className="px-4 py-3 text-sm text-muted-foreground" role="status">
+            Đang tải menu…
+          </p>
+        ) : isError ? (
+          <div className="space-y-2 px-4 py-3 text-sm" role="alert">
+            <p className="text-muted-foreground">
+              Không thể tải menu quản trị.
+            </p>
+            <button
+              type="button"
+              className="font-medium text-primary hover:underline disabled:opacity-50"
+              disabled={isFetching}
+              onClick={() => void refetch()}
+            >
+              {isFetching ? "Đang thử lại…" : "Thử lại"}
+            </button>
+          </div>
+        ) : navigation.length > 0 ? (
+          <NavMain items={navigation} />
+        ) : (
+          <p className="px-4 py-3 text-sm text-muted-foreground">
+            Tài khoản không có menu được cấp quyền.
+          </p>
+        )}
       </SidebarContent>
 
       <SidebarFooter className="p-2 border-t border-zinc-800">

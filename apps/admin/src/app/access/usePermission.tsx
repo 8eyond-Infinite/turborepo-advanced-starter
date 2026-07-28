@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useMemo } from "react";
 import { useAuthStore } from "@/features/auth";
 import {
   hasPermission,
@@ -18,14 +18,12 @@ export interface PermissionEvaluator {
 }
 
 /**
- * Enterprise usePermission hook:
- *
- * Usage Option 1 (Evaluator object with methods):
+ * Usage option 1 (evaluator object):
  * const { can, any, all } = usePermission();
  * if (can(PERMISSIONS.USER.CREATE)) { ... }
  * if (any([PERMISSIONS.USER.UPDATE, PERMISSIONS.USER.DELETE])) { ... }
  *
- * Usage Option 2 (Semantic map object):
+ * Usage option 2 (named decisions):
  * const access = usePermission({
  *   canManageUsers: [PERMISSIONS.USER.UPDATE, PERMISSIONS.USER.DELETE],
  *   canCreateUser: PERMISSIONS.USER.CREATE,
@@ -39,37 +37,51 @@ export function usePermission<T extends Record<string, PermissionInput>>(
 export function usePermission<T extends Record<string, PermissionInput>>(
   permissionMap?: T,
 ): PermissionEvaluator | Record<keyof T, boolean> {
-  const { user } = useAuthStore();
+  const user = useAuthStore((state) => state.user);
 
-  const can = (permission?: string) => hasPermission(user, permission);
-  const any = (permissions?: string[]) => hasAnyPermission(user, permissions);
-  const all = (permissions?: string[]) => hasAllPermissions(user, permissions);
+  const can = useCallback(
+    (permission?: string) => hasPermission(user, permission),
+    [user],
+  );
+  const any = useCallback(
+    (permissions?: string[]) => hasAnyPermission(user, permissions),
+    [user],
+  );
+  const all = useCallback(
+    (permissions?: string[]) => hasAllPermissions(user, permissions),
+    [user],
+  );
 
-  if (!permissionMap) {
-    return { can, any, all };
-  }
+  const evaluator = useMemo(() => ({ can, any, all }), [all, any, can]);
 
-  const result = {} as Record<keyof T, boolean>;
-  for (const key in permissionMap) {
-    const val = permissionMap[key];
-    if (typeof val === "string") {
-      result[key] = can(val);
-    } else if (Array.isArray(val)) {
-      result[key] = any(val);
-    } else if (val && typeof val === "object") {
-      if (val.all) {
-        result[key] = all(val.all);
-      } else if (val.any) {
-        result[key] = any(val.any);
+  const decisions = useMemo(() => {
+    const result = {} as Record<keyof T, boolean>;
+    if (!permissionMap) {
+      return result;
+    }
+
+    for (const key in permissionMap) {
+      const val = permissionMap[key];
+      if (typeof val === "string") {
+        result[key] = can(val);
+      } else if (Array.isArray(val)) {
+        result[key] = any(val);
+      } else if (val && typeof val === "object") {
+        if (val.all) {
+          result[key] = all(val.all);
+        } else if (val.any) {
+          result[key] = any(val.any);
+        } else {
+          result[key] = false;
+        }
       } else {
         result[key] = false;
       }
-    } else {
-      result[key] = false;
     }
-  }
+    return result;
+  }, [all, any, can, permissionMap]);
 
-  return result;
+  return permissionMap ? decisions : evaluator;
 }
 
 // Alias for backward compatibility

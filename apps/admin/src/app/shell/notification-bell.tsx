@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { useNotifications } from "@/features/notifications";
 import { Bell, CheckCheck } from "lucide-react";
 import {
@@ -10,6 +11,7 @@ import { getFriendlyErrorMessage } from "@/lib/error-handler";
 import { NotificationItemButton } from "./NotificationItemButton";
 
 export const NotificationBell = () => {
+  const unreadDescriptionId = useId();
   const {
     notifications,
     unreadCount,
@@ -24,6 +26,10 @@ export const NotificationBell = () => {
     markingNotificationId,
   } = useNotifications();
 
+  const handleMarkAllAsRead = () => {
+    void markAllAsRead().catch(() => undefined);
+  };
+
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -32,12 +38,18 @@ export const NotificationBell = () => {
           size="icon"
           className="relative rounded-full cursor-pointer"
           aria-label="Mở danh sách thông báo"
-          aria-description={`${unreadCount} thông báo chưa đọc`}
+          aria-describedby={unreadDescriptionId}
           title="Thông báo"
         >
           <Bell className="w-5 h-5" />
+          <span id={unreadDescriptionId} className="sr-only">
+            {unreadCount} thông báo chưa đọc
+          </span>
           {unreadCount > 0 && (
-            <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-destructive text-[10px] font-bold text-destructive-foreground flex items-center justify-center rounded-full animate-pulse">
+            <span
+              aria-hidden="true"
+              className="absolute top-1.5 right-1.5 w-4 h-4 bg-destructive text-[10px] font-bold text-destructive-foreground flex items-center justify-center rounded-full animate-pulse"
+            >
               {unreadCount > 9 ? "9+" : unreadCount}
             </span>
           )}
@@ -47,17 +59,23 @@ export const NotificationBell = () => {
       <PopoverContent
         align="end"
         sideOffset={8}
+        aria-labelledby="notification-popover-title"
         className="w-80 p-0 max-h-[480px] bg-popover text-popover-foreground border-border rounded-xl shadow-xl overflow-hidden flex flex-col"
       >
         {/* Header */}
         <div className="p-4 border-b border-border flex items-center justify-between bg-muted/30">
-          <h4 className="font-bold text-sm text-foreground">Thông báo</h4>
+          <h4
+            id="notification-popover-title"
+            className="font-bold text-sm text-foreground"
+          >
+            Thông báo
+          </h4>
           {unreadCount > 0 && (
             <Button
               variant="ghost"
               size="sm"
               disabled={isMarkingAllAsRead}
-              onClick={() => void markAllAsRead()}
+              onClick={handleMarkAllAsRead}
               className="h-auto p-0 text-xs text-primary hover:text-primary/80 hover:bg-transparent flex items-center gap-1 font-semibold transition-colors duration-200 cursor-pointer"
             >
               <CheckCheck className="w-3.5 h-3.5" />
@@ -72,11 +90,12 @@ export const NotificationBell = () => {
             <div
               className="p-8 text-center text-sm text-muted-foreground"
               role="status"
+              aria-label="Đang tải thông báo"
             >
               Đang tải thông báo...
             </div>
           ) : isError ? (
-            <div className="space-y-3 p-6 text-center">
+            <div className="space-y-3 p-6 text-center" role="alert">
               <p className="text-sm font-medium">Không thể tải thông báo</p>
               <p className="text-xs text-muted-foreground">
                 {getFriendlyErrorMessage(error)}
