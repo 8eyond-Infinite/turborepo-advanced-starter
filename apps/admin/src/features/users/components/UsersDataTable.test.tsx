@@ -20,6 +20,7 @@ function renderTable(
 ) {
   const props: ComponentProps<typeof UsersDataTable> = {
     users: [listedUser],
+    currentUserId: "admin-user",
     search: "",
     currentPage: 1,
     totalPages: 1,
@@ -88,6 +89,27 @@ describe("<UsersDataTable />", () => {
         name: "Xóa tài khoản member@example.com",
       }),
     ).not.toBeInTheDocument();
+  });
+
+  it("prevents status changes and deletion for the signed-in account", () => {
+    renderTable({ currentUserId: listedUser.id });
+
+    expect(screen.getByText("Tài khoản của bạn")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("switch", {
+        name: "Khóa tài khoản member@example.com",
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: "Xóa tài khoản member@example.com",
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: "Chỉnh sửa tài khoản member@example.com",
+      }),
+    ).toBeInTheDocument();
   });
 
   it("marks only the active row mutation as pending", () => {

@@ -22,6 +22,7 @@ import { resolveAvatarUrl } from "../utils/avatar-url";
 
 interface UsersDataTableProps {
   users: User[];
+  currentUserId: string | null;
   search: string;
   currentPage: number;
   totalPages: number;
@@ -44,6 +45,7 @@ interface UsersDataTableProps {
 
 export const UsersDataTable = ({
   users,
+  currentUserId,
   search,
   currentPage,
   totalPages,
@@ -124,6 +126,7 @@ export const UsersDataTable = ({
             </TableRow>
           ) : (
             users.map((user) => {
+              const isCurrentUser = user.id === currentUserId;
               const isThisUserToggling =
                 isToggling && togglingUserId === user.id;
               const isThisUserDeleting =
@@ -173,11 +176,19 @@ export const UsersDataTable = ({
                           Không có vai trò
                         </span>
                       )}
+                      {isCurrentUser && (
+                        <Badge
+                          variant="secondary"
+                          className="px-2 py-0 text-[10px]"
+                        >
+                          Tài khoản của bạn
+                        </Badge>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell className="text-center">
                     <div className="flex items-center justify-center gap-2">
-                      {canUpdate && (
+                      {canUpdate && !isCurrentUser && (
                         <Switch
                           checked={user.isActive}
                           onCheckedChange={() => onToggle(user)}
@@ -231,7 +242,7 @@ export const UsersDataTable = ({
                             />
                           </Button>
                         )}
-                        {canDelete && (
+                        {canDelete && !isCurrentUser && (
                           <ConfirmDialog
                             trigger={
                               <Button

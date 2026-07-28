@@ -38,6 +38,8 @@ Aggregate bảo vệ state transition:
 - `deactivate()` tắt truy cập, tăng tokenVersion và phát `UserDeactivatedEvent`.
 - `activate()`, `softDelete()` và `restore()` thay trạng thái và làm token cũ hết hiệu lực bằng cách tăng tokenVersion.
 
+Application layer còn bảo vệ một quy tắc liên quan đến người thực hiện thao tác: admin không được tự vô hiệu hóa, tự đổi trạng thái active hoặc tự xóa chính tài khoản đang đăng nhập. Ba command handler kiểm tra `target user id === adminId` trước khi đọc hay ghi repository và trả `USER_SELF_MUTATION_FORBIDDEN` (HTTP 409). Quy tắc phải nằm ở backend vì client, script hoặc công cụ API đều có thể gọi endpoint mà không đi qua giao diện Admin.
+
 tokenVersion thuộc aggregate vì nó là số phiên bản của quyền truy cập user — quyền đổi thì số tăng — chứ không phải một chi tiết kỹ thuật của JWT.
 
 > **Tóm lại:**

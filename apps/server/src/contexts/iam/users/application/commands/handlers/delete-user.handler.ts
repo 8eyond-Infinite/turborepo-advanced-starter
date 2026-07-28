@@ -4,6 +4,7 @@ import { DeleteUserCommand } from '../delete-user.command';
 import { Result } from '@shared/domain/result';
 import { DomainException } from '@shared/domain/exceptions/domain.exception';
 import { UserNotFoundException } from '@iam/users/domain/exceptions/user-not-found.exception';
+import { UserSelfMutationForbiddenException } from '@iam/users/domain/exceptions/user-self-mutation-forbidden.exception';
 import {
   USER_REPOSITORY,
   type UserRepository,
@@ -23,6 +24,10 @@ export class DeleteUserCommandHandler implements ICommandHandler<
     command: DeleteUserCommand,
   ): Promise<Result<void, DomainException>> {
     const { id, adminId } = command;
+
+    if (id === adminId) {
+      return Result.fail(new UserSelfMutationForbiddenException('delete'));
+    }
 
     const user = await this.userRepository.findById(id);
     if (!user) {

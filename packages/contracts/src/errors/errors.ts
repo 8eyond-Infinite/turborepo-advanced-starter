@@ -32,6 +32,11 @@ export const Errors = {
     translationKey: 'exceptions.user.deactivated',
     statusCode: 403,
   },
+  USER_SELF_MUTATION_FORBIDDEN: {
+    code: 'USER_SELF_MUTATION_FORBIDDEN',
+    translationKey: 'exceptions.user.self.mutation.forbidden',
+    statusCode: 409,
+  },
 
   // Role
   ROLE_ALREADY_EXISTS: {

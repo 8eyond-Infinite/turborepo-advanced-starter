@@ -6,6 +6,7 @@ import { UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog, PageCard, PageHeader } from "@/components";
 import { usePermissions } from "@/app/access/usePermission";
+import { useAuthStore } from "@/features/auth";
 import { useUsers } from "../hooks/useUsers";
 import { AddUserCard } from "./AddUserCard";
 import { EditUserModal } from "./EditUserModal";
@@ -18,6 +19,7 @@ const parsePage = (value: string | null): number => {
 };
 
 export const UserTable = () => {
+  const currentUserId = useAuthStore((state) => state.user?.id ?? null);
   const [searchParams, setSearchParams] = useSearchParams();
   const search = searchParams.get("q") ?? "";
   const currentPage = parsePage(searchParams.get("page"));
@@ -128,6 +130,7 @@ export const UserTable = () => {
         </div>
         <UsersDataTable
           users={usersState.users}
+          currentUserId={currentUserId}
           search={search}
           currentPage={usersState.meta.currentPage}
           totalPages={usersState.meta.totalPages}
