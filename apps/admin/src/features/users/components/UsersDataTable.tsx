@@ -18,7 +18,7 @@ import {
   QueryErrorState,
   TablePagination,
 } from "@/components";
-import { adminEnvironment } from "@/config/environment";
+import { resolveAvatarUrl } from "../utils/avatar-url";
 
 interface UsersDataTableProps {
   users: User[];
@@ -41,12 +41,6 @@ interface UsersDataTableProps {
   onToggle: (user: User) => void;
   onDelete: (userId: string) => Promise<void>;
 }
-
-const getAvatarUrl = (avatarPath?: string | null) => {
-  if (!avatarPath) return undefined;
-  if (avatarPath.startsWith("http")) return avatarPath;
-  return `${adminEnvironment.apiUrl}${avatarPath}`;
-};
 
 export const UsersDataTable = ({
   users,
@@ -140,7 +134,10 @@ export const UsersDataTable = ({
                   <TableCell className="py-3 pl-6">
                     <div className="flex items-center gap-3">
                       <Avatar className="h-9 w-9 border border-border">
-                        <AvatarImage src={getAvatarUrl(user.avatar)} alt="" />
+                        <AvatarImage
+                          src={resolveAvatarUrl(user.avatar)}
+                          alt=""
+                        />
                         <AvatarFallback className="text-xs font-semibold uppercase">
                           {user.username?.substring(0, 2) || "US"}
                         </AvatarFallback>

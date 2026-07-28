@@ -4,7 +4,7 @@ import { ApiClient } from "@/lib/api-client";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { getFriendlyErrorMessage } from "@/lib/error-handler";
-import { adminEnvironment } from "@/config/environment";
+import { resolveAvatarUrl } from "../utils/avatar-url";
 
 interface AvatarUploadProps {
   value?: string | null;
@@ -19,12 +19,6 @@ const ACCEPTED_AVATAR_TYPES = new Set([
   "image/webp",
   "image/gif",
 ]);
-
-const getAvatarUrl = (avatarPath?: string | null) => {
-  if (!avatarPath) return undefined;
-  if (avatarPath.startsWith("http")) return avatarPath;
-  return `${adminEnvironment.apiUrl}${avatarPath}`;
-};
 
 export const AvatarUpload: React.FC<AvatarUploadProps> = ({
   value,
@@ -60,6 +54,9 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
         "/storage/upload",
         formData,
       );
+      if (!resolveAvatarUrl(res.url)) {
+        throw new Error("Storage returned an invalid avatar URL");
+      }
       onChange(res.url);
       toast.success("Tải ảnh đại diện lên thành công!");
     } catch (error: unknown) {
@@ -75,7 +72,7 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
       <div className="relative h-12 w-12 rounded-full shrink-0">
         <Avatar className="h-full w-full rounded-full">
           <AvatarImage
-            src={getAvatarUrl(value)}
+            src={resolveAvatarUrl(value)}
             alt={`Ảnh đại diện của ${username}`}
           />
           <AvatarFallback className="rounded-full bg-muted text-muted-foreground font-bold">

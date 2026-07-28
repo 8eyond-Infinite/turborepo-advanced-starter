@@ -214,7 +214,9 @@ Query screen phải phân biệt bốn trạng thái: loading, error có retry, 
 
 `useUsers` là application hook của feature. Hook sở hữu query danh sách, mutation tạo/sửa/khóa/xóa và invalidation. Danh sách role chỉ được tải khi principal có quyền mở form tạo hoặc sửa; người dùng read-only không phát sinh request `/roles` trái quyền ở background. Lỗi tải role được hiển thị thành trạng thái retry trong form, không được biến âm thầm thành danh sách rỗng.
 
-Form tạo và sửa validate cùng các bất biến công khai của backend trước khi gửi: email hợp lệ, username dài 3–50 ký tự, mật khẩu tạo mới tối thiểu 6 ký tự và phải chọn ít nhất một role. Create mặc định chọn `USER` nếu role này tồn tại; Edit không tự thêm role giả định mà phản chiếu đúng tập role backend trả về. Đây là lớp phản hồi sớm cho UX; backend vẫn là security/domain boundary cuối cùng. Avatar chỉ nhận JPG, PNG, WEBP hoặc GIF tối đa 5 MB, đồng bộ với giới hạn upload phía server.
+Form tạo và sửa validate cùng các bất biến công khai của backend trước khi gửi: email hợp lệ, username dài 3–50 ký tự, mật khẩu tạo mới tối thiểu 6 ký tự và phải chọn ít nhất một role. Create mặc định chọn `USER` nếu role này tồn tại; Edit không tự thêm role giả định mà phản chiếu đúng tập role backend trả về. Đây là lớp phản hồi sớm cho UX; backend vẫn là security/domain boundary cuối cùng.
+
+Avatar chỉ nhận JPG, PNG, WEBP hoặc GIF tối đa 5 MB, đúng bằng giới hạn của endpoint `POST /storage/upload`. Sau khi upload, Admin chỉ chấp nhận đường dẫn bắt đầu bằng `/` do API trả về hoặc URL tuyệt đối dùng HTTP(S). Một resolver dùng chung ghép đường dẫn nội bộ với `VITE_API_URL`, nên form và bảng người dùng luôn hiển thị avatar theo cùng một quy tắc. Nếu upload lỗi hoặc storage trả URL không hợp lệ, giá trị avatar hiện tại được giữ nguyên.
 
 Trang và từ khóa tìm kiếm nằm trong URL. Nếu mutation hoặc thay đổi dữ liệu làm `page` hiện tại lớn hơn `totalPages` mới, `UserTable` dùng replace navigation để đưa URL về trang cuối còn tồn tại mà vẫn giữ từ khóa. Nếu không hiệu chỉnh, xóa user cuối cùng của một trang có thể để người vận hành mắc kẹt ở một bảng rỗng dù trang trước vẫn có dữ liệu.
 
