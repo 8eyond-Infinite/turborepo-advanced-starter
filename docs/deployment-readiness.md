@@ -28,6 +28,7 @@ Nguồn thực thi là [`deploy/compose/compose.production.yaml`](../deploy/comp
 Từ repository root:
 
 ```bash
+pnpm verify:env
 pnpm verify:compose
 pnpm verify:docs
 pnpm --filter=server verify
