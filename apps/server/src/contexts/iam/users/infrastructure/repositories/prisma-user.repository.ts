@@ -117,7 +117,7 @@ export class PrismaUserRepository implements UserRepository {
 
   async getPermissions(userId: string): Promise<string[]> {
     const userRoles = await this.prisma.userRole.findMany({
-      where: { userId },
+      where: { userId, role: { isDeleted: false } },
       include: {
         role: {
           include: {

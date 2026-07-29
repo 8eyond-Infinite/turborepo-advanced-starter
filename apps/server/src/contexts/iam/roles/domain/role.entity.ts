@@ -70,7 +70,16 @@ export class RoleEntity extends AggregateRoot {
   }
 
   public updatePermissions(permissions: string[], updatedBy?: string): void {
-    this.props.permissions = permissions;
+    const nextPermissions = [...new Set(permissions)];
+    const permissionsChanged =
+      nextPermissions.length !== this.props.permissions.length ||
+      nextPermissions.some(
+        (permission) => !this.props.permissions.includes(permission),
+      );
+
+    if (!permissionsChanged) return;
+
+    this.props.permissions = nextPermissions;
     this.trackUpdate(updatedBy);
   }
 

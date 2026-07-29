@@ -121,30 +121,30 @@ Tạo role trùng tên phải trả về domain error có mã lỗi rõ ràng, k
 
 ## 6. Update permissions flow
 
-`PUT /roles/:id/permissions` nhận một mảng string. Handler tải aggregate, gán tập quyền mới cho nó, rồi repository cập nhật bảng nối RolePermission cho khớp.
+`PUT /roles/:id/permissions` nhận một mảng string và coi nó là toàn bộ trạng thái đích: sau request, role phải có đúng tập permission này. Đây là thao tác **replace**, không phải danh sách thêm/bớt.
 
-Mảng permission gửi lên được hiểu là trạng thái đích (“role này từ giờ có đúng những quyền này”), không phải danh sách thêm/bớt từng phần. Repository chỉ lấy những permission thực sự tồn tại trong database; tên không tồn tại hiện bị lặng lẽ bỏ qua. Đây là hành vi hiện tại, chưa lý tưởng, vì client gõ sai tên permission sẽ không nhận được lỗi nào.
+Handler bỏ giá trị trùng rồi đối chiếu toàn bộ tên với permission catalog. Chỉ cần một tên không tồn tại, cả thao tác thất bại với `INVALID_ROLE_PERMISSIONS` (HTTP 400); mapping cũ được giữ nguyên. Vì vậy lỗi chính tả không thể bị bỏ qua trong im lặng.
 
-Hướng sửa tiếp theo: kiểm tra toàn bộ danh sách tên trước khi thay bảng nối, và trả domain error nếu có tên không tồn tại. Chừng nào chưa làm phần đó, tài liệu và API không được tuyên bố rằng input đã được kiểm tra chặt.
+Khi tập permission thực sự thay đổi, `replacePermissionsAndRevokeAffectedUsers()` thực hiện trong một transaction:
 
-Khi nội dung một role thay đổi, các access token đã cấp có thể vẫn mang danh sách permission cũ, cho tới khi tokenVersion của từng user liên quan tăng. Hiện tại tokenVersion chỉ tăng khi role của chính user đó bị gán lại, chứ không tự lan ra mọi user đang mang role vừa sửa. Nếu sản phẩm yêu cầu thu hồi token ngay cho tất cả user thuộc role đó, cần viết thêm một use case/outbox flow rõ ràng; đừng ngầm coi như tính năng này đã có.
+1. cập nhật metadata của role;
+2. thay bảng nối `RolePermission`;
+3. tăng `tokenVersion` của mọi user đang mang role đó.
 
-> **Tóm lại (hai giới hạn thật cần nhớ):**
+Nếu một bước thất bại, cả ba rollback. Access token cũ đang chứa permission cũ bị từ chối ngay ở request kế tiếp; refresh session vẫn có thể cấp token mới từ permission hiện tại. Gửi lại cùng một tập permission, kể cả khác thứ tự, không ghi lại bảng nối và không revoke token.
+
+> **Tóm lại:**
 >
-> - Gửi permission string sai chính tả hiện bị **âm thầm bỏ qua**, không báo lỗi — đừng tin rằng "gọi API thành công nghĩa là mọi permission đã được gán".
-> - Sửa NỘI DUNG một role **không** tự thu hồi token của những user đang mang role đó; chỉ sửa ASSIGNMENT của từng user mới bump tokenVersion.
+> - API thành công nghĩa là toàn bộ permission gửi lên đều tồn tại và đã trở thành trạng thái đích.
+> - Thay đổi nội dung role và thu hồi access token liên quan là cùng một transaction, không có khoảng thời gian mapping mới nhưng token cũ vẫn hợp lệ.
 
 ## 7. Delete semantics
 
 Xóa role đi qua command/repository như một thao tác nghiệp vụ và chỉ đánh dấu xóa mềm (soft-delete), không xóa hẳn khỏi database. `ADMIN` và `USER` là hai system role được khai báo tập trung trong `@repo/contracts`; delete handler từ chối chúng bằng `SYSTEM_ROLE_DELETE_FORBIDDEN`. UI ẩn nút xóa để có trải nghiệm đúng, nhưng invariant thực sự nằm ở backend nên gọi thẳng API cũng không thể vượt qua.
 
-Các chính sách còn cần quyết định rõ:
+Custom role chỉ được xóa khi không còn gán cho user nào. Handler gọi `countAssignedUsers()` trước khi xóa; nếu còn assignment, API trả `ROLE_IN_USE` (HTTP 409) cùng tên role và số user liên quan. Admin phải chuyển các user sang role khác trước, vì hệ thống không được tự đoán role thay thế.
 
-- role đang gắn cho user có được xóa không;
-- user mất role sẽ được thay bằng role nào;
-- token của các user liên quan bị thu hồi bằng cách nào.
-
-Các chính sách này phải nằm trong tầng domain/application, không chôn trong Prisma adapter.
+Repository đọc permission của user cũng lọc role đã soft-delete như lớp phòng vệ thứ hai. Tuy vậy, luồng chuẩn vẫn là chặn xóa role đang dùng; không dựa vào bộ lọc này để âm thầm làm user mất quyền.
 
 ## 8. API surface
 
@@ -180,11 +180,12 @@ Khi thêm permission:
 ## 11. Những quy tắc luôn phải đúng
 
 - Tên role không được trùng; quy tắc này do domain/repository giữ.
-- Chỉ permission có trong danh mục mới được lưu; tên lạ hiện bị bỏ qua trong im lặng — đây là điểm cần siết lại.
+- Chỉ permission có trong danh mục mới được lưu; một tên lạ làm toàn bộ replace thất bại.
 - Controller không được tự sửa bảng nối RolePermission.
 - Không viết chuỗi tên role/permission rải rác trong code; luôn dùng hằng số từ contracts.
 - Backend không tin việc UI đã ẩn nút; guard luôn chặn ở phía server.
-- Thay đổi nào ảnh hưởng token của user phải nói rõ token bị thu hồi khi nào, bằng cách nào.
+- Đổi tập permission phải tăng tokenVersion của mọi user mang role trong cùng transaction.
+- Role đang gán cho user không được xóa; admin phải gỡ hoặc chuyển assignment trước.
 
 ## 12. Anti-pattern
 
@@ -193,7 +194,7 @@ Khi thêm permission:
 - Chấp nhận chuỗi permission tùy ý rồi âm thầm bỏ qua giá trị sai.
 - Sửa bảng nối RolePermission ở nơi khác ngoài repository.
 - Xóa role hệ thống mà không có quy tắc chặn.
-- Cho rằng sửa nội dung Role tự động thu hồi token trong khi tính năng đó chưa tồn tại.
+- Cập nhật RolePermission và tokenVersion bằng hai transaction tách rời.
 
 ## 13. Checklist review Roles
 

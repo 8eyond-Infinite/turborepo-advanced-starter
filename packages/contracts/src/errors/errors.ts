@@ -54,6 +54,16 @@ export const Errors = {
     translationKey: 'exceptions.role.system.delete.forbidden',
     statusCode: 409,
   },
+  INVALID_ROLE_PERMISSIONS: {
+    code: 'INVALID_ROLE_PERMISSIONS',
+    translationKey: 'exceptions.role.permissions.invalid',
+    statusCode: 400,
+  },
+  ROLE_IN_USE: {
+    code: 'ROLE_IN_USE',
+    translationKey: 'exceptions.role.in.use',
+    statusCode: 409,
+  },
 
   // Validation
   INVALID_EMAIL: {

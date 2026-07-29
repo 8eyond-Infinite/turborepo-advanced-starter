@@ -9,10 +9,27 @@ export class PrismaRoleRepository implements RoleRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async save(role: RoleEntity): Promise<void> {
+    await this.persist(role, false);
+  }
+
+  async replacePermissionsAndRevokeAffectedUsers(
+    role: RoleEntity,
+  ): Promise<void> {
+    await this.persist(role, true);
+  }
+
+  private async persist(
+    role: RoleEntity,
+    revokeAffectedUsers: boolean,
+  ): Promise<void> {
     const data = role.toPrimitives();
 
     await this.prisma.$transaction(async (tx) => {
       const exists = await tx.role.count({ where: { id: data.id } });
+      const currentRolePermissions = await tx.rolePermission.findMany({
+        where: { roleId: data.id },
+        select: { permissionId: true },
+      });
 
       if (exists > 0) {
         await tx.role.update({
@@ -43,18 +60,41 @@ export class PrismaRoleRepository implements RoleRepository {
       });
 
       const targetPermissionIds = dbPermissions.map((p) => p.id);
+      const currentPermissionIds = new Set(
+        currentRolePermissions.map(({ permissionId }) => permissionId),
+      );
+      const permissionsChanged =
+        targetPermissionIds.length !== currentPermissionIds.size ||
+        targetPermissionIds.some(
+          (permissionId) => !currentPermissionIds.has(permissionId),
+        );
 
-      await tx.rolePermission.deleteMany({
-        where: { roleId: data.id },
-      });
-
-      if (targetPermissionIds.length > 0) {
-        await tx.rolePermission.createMany({
-          data: targetPermissionIds.map((permId) => ({
-            roleId: data.id,
-            permissionId: permId,
-          })),
+      if (permissionsChanged) {
+        await tx.rolePermission.deleteMany({
+          where: { roleId: data.id },
         });
+
+        if (targetPermissionIds.length > 0) {
+          await tx.rolePermission.createMany({
+            data: targetPermissionIds.map((permId) => ({
+              roleId: data.id,
+              permissionId: permId,
+            })),
+          });
+        }
+
+        if (revokeAffectedUsers) {
+          await tx.user.updateMany({
+            where: {
+              userRoles: {
+                some: { roleId: data.id },
+              },
+            },
+            data: {
+              tokenVersion: { increment: 1 },
+            },
+          });
+        }
       }
     });
   }
@@ -157,6 +197,18 @@ export class PrismaRoleRepository implements RoleRepository {
       where: { id, isDeleted: false },
     });
     return count > 0;
+  }
+
+  async findExistingPermissionNames(names: string[]): Promise<string[]> {
+    const permissions = await this.prisma.permission.findMany({
+      where: { name: { in: names } },
+      select: { name: true },
+    });
+    return permissions.map(({ name }) => name);
+  }
+
+  async countAssignedUsers(roleId: string): Promise<number> {
+    return this.prisma.userRole.count({ where: { roleId } });
   }
 
   async findAllPermissions(): Promise<
