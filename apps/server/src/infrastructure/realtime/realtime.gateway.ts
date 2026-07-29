@@ -11,12 +11,10 @@ import { ConfigService } from '@nestjs/config';
 import { Logger, OnApplicationShutdown } from '@nestjs/common';
 import { createAdapter } from '@socket.io/redis-adapter';
 import Redis from 'ioredis';
-import type { JwtPayload } from '@repo/contracts';
+import { REALTIME_AUTH_ERROR_CODE, type JwtPayload } from '@repo/contracts';
 import { parseCorsOrigins } from '../../config/environment';
 import { buildRedisConnection } from '../cache/redis-connection';
 import { AccessTokenValidator } from '@iam/auth/application/services/access-token-validator.service';
-
-export const REALTIME_AUTH_ERROR_CODE = 'REALTIME_AUTHENTICATION_FAILED';
 
 // Decorator options are evaluated at import time; main.ts loads dotenv first
 // so CORS_ORIGINS is available here. Same allowlist as the HTTP layer —
