@@ -9,6 +9,7 @@ import {
   USER_REPOSITORY,
   type UserRepository,
 } from '@iam/users/domain/ports/user.repository';
+import { LastAdministratorRequiredException } from '@iam/users/domain/exceptions/last-administrator-required.exception';
 
 @CommandHandler(UpdateUserCommand)
 export class UpdateUserCommandHandler implements ICommandHandler<
@@ -51,7 +52,11 @@ export class UpdateUserCommandHandler implements ICommandHandler<
     user.updateInfo(email, username, avatar, updatedBy);
     user.updateRoles(roles, updatedBy);
 
-    await this.userRepository.save(user);
+    const saved =
+      await this.userRepository.savePreservingLastAdministrator(user);
+    if (!saved) {
+      return Result.fail(new LastAdministratorRequiredException());
+    }
 
     return Result.ok(undefined);
   }

@@ -6,9 +6,25 @@
     "deactivated": "User account \"{{email}}\" has been deactivated.",
     "already": {
       "exists": "This email address is already in use."
+    },
+    "self": {
+      "mutation": {
+        "forbidden": "You cannot deactivate or delete the account you are currently using."
+      }
+    },
+    "last": {
+      "administrator": {
+        "required": "The system must retain at least one active administrator. Assign ADMIN to another account first."
+      }
     }
   },
   "role": {
+    "permissions": {
+      "invalid": "The list contains an unknown permission. No changes were saved."
+    },
+    "in": {
+      "use": "This role is still assigned to users. Move those accounts to another role first."
+    },
     "system": {
       "delete": {
         "forbidden": "The system role \"{{roleName}}\" cannot be deleted."

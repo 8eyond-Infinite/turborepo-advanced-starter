@@ -37,6 +37,11 @@ export const Errors = {
     translationKey: 'exceptions.user.self.mutation.forbidden',
     statusCode: 409,
   },
+  LAST_ADMINISTRATOR_REQUIRED: {
+    code: 'LAST_ADMINISTRATOR_REQUIRED',
+    translationKey: 'exceptions.user.last.administrator.required',
+    statusCode: 409,
+  },
 
   // Role
   ROLE_ALREADY_EXISTS: {

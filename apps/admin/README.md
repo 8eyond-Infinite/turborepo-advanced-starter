@@ -220,6 +220,8 @@ Avatar chỉ nhận JPG, PNG, WEBP hoặc GIF tối đa 5 MB, đúng bằng gi�
 
 Trong bảng Users, tài khoản đang đăng nhập có nhãn “Tài khoản của bạn”. Giao diện không hiển thị công tắc trạng thái và nút xóa cho hàng này, nhưng vẫn cho sửa thông tin nếu có quyền. Đây là UX guard để tránh thao tác nhầm; backend độc lập chặn cả tự toggle, tự deactivate và tự delete bằng error contract `USER_SELF_MUTATION_FORBIDDEN`.
 
+Backend còn bảo vệ một invariant rộng hơn UI: hệ thống luôn phải còn ít nhất một user mang role `ADMIN`, đang active và chưa bị xóa. Vì vậy bỏ role `ADMIN`, deactivate, chuyển sang inactive hoặc xóa administrator cuối cùng đều trả `LAST_ADMINISTRATOR_REQUIRED` (HTTP 409). Admin UI không tự suy đoán ai là “người cuối cùng”, vì dữ liệu có thể đổi đồng thời; nó gửi command và hiển thị lỗi nghiệp vụ do transaction backend quyết định.
+
 Trang và từ khóa tìm kiếm nằm trong URL. Nếu mutation hoặc thay đổi dữ liệu làm `page` hiện tại lớn hơn `totalPages` mới, `UserTable` dùng replace navigation để đưa URL về trang cuối còn tồn tại mà vẫn giữ từ khóa. Nếu không hiệu chỉnh, xóa user cuối cùng của một trang có thể để người vận hành mắc kẹt ở một bảng rỗng dù trang trước vẫn có dữ liệu.
 
 Các thao tác phá hủy hoặc đổi trạng thái phải chờ Promise mutation hoàn tất. `ConfirmDialog` giữ dialog mở, khóa nút trong lúc pending, chỉ đóng sau khi mutation và cache invalidation thành công; nếu thất bại dialog giữ nguyên ngữ cảnh để người dùng thử lại. Không được dùng mutation fire-and-forget cho flow cần xác nhận.

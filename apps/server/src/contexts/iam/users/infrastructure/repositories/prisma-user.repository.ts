@@ -15,76 +15,126 @@ export class PrismaUserRepository implements UserRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async save(user: UserEntity): Promise<void> {
+    await this.prisma.$transaction((tx) => this.persist(tx, user));
+    user.clearDomainEvents();
+  }
+
+  async savePreservingLastAdministrator(user: UserEntity): Promise<boolean> {
     const data = user.toPrimitives();
-    const outboxEvents = user.getDomainEvents().map(serializeDomainEvent);
 
-    await this.prisma.$transaction(async (tx) => {
-      const isNewUser = !(await tx.user.findFirst({ where: { id: data.id } }));
+    const saved = await this.prisma.$transaction(async (tx) => {
+      // Serialize every operation that may remove an active ADMIN. A plain
+      // count followed by a write is vulnerable to concurrent write skew.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(73194621)`;
 
-      await tx.user.upsert({
+      const current = await tx.user.findFirst({
         where: { id: data.id },
-        update: {
-          email: data.email,
-          username: data.username,
-          password: data.password,
-          avatar: data.avatar,
-          isActive: data.isActive,
-          isDeleted: data.isDeleted,
-          tokenVersion: data.tokenVersion,
-          updatedBy: data.updatedBy,
-        },
-        create: {
-          id: data.id,
-          email: data.email,
-          username: data.username,
-          password: data.password,
-          avatar: data.avatar,
-          isActive: data.isActive,
-          isDeleted: data.isDeleted,
-          tokenVersion: data.tokenVersion,
-          createdBy: data.createdBy,
+        select: {
+          isActive: true,
+          isDeleted: true,
+          userRoles: {
+            where: { role: { name: 'ADMIN', isDeleted: false } },
+            select: { roleId: true },
+          },
         },
       });
+      const wasActiveAdministrator =
+        Boolean(current?.isActive) &&
+        !current?.isDeleted &&
+        Boolean(current?.userRoles.length);
+      const willBeActiveAdministrator =
+        data.isActive && !data.isDeleted && data.roles.includes('ADMIN');
 
-      // Synchronize User Roles
-      await tx.userRole.deleteMany({
-        where: { userId: data.id },
-      });
-
-      if (data.roles && data.roles.length > 0) {
-        const dbRoles = await tx.role.findMany({
-          where: { name: { in: data.roles } },
-        });
-        if (dbRoles.length > 0) {
-          await tx.userRole.createMany({
-            data: dbRoles.map((r) => ({
-              userId: data.id,
-              roleId: r.id,
-            })),
-          });
-        }
-      } else if (isNewUser) {
-        const defaultRole = await tx.role.findFirst({
-          where: { name: 'USER' },
-        });
-        if (defaultRole) {
-          await tx.userRole.create({
-            data: {
-              userId: data.id,
-              roleId: defaultRole.id,
+      if (wasActiveAdministrator && !willBeActiveAdministrator) {
+        const activeAdministratorCount = await tx.user.count({
+          where: {
+            isActive: true,
+            isDeleted: false,
+            userRoles: {
+              some: { role: { name: 'ADMIN', isDeleted: false } },
             },
-          });
-        }
+          },
+        });
+        if (activeAdministratorCount <= 1) return false;
       }
 
-      if (outboxEvents.length > 0) {
-        await tx.outboxEvent.createMany({
-          data: outboxEvents,
-        });
-      }
+      await this.persist(tx, user);
+      return true;
     });
 
-    user.clearDomainEvents();
+    if (saved) user.clearDomainEvents();
+    return saved;
+  }
+
+  private async persist(
+    tx: Prisma.TransactionClient,
+    user: UserEntity,
+  ): Promise<void> {
+    const data = user.toPrimitives();
+    const outboxEvents = user.getDomainEvents().map(serializeDomainEvent);
+    const isNewUser = !(await tx.user.findFirst({ where: { id: data.id } }));
+
+    await tx.user.upsert({
+      where: { id: data.id },
+      update: {
+        email: data.email,
+        username: data.username,
+        password: data.password,
+        avatar: data.avatar,
+        isActive: data.isActive,
+        isDeleted: data.isDeleted,
+        tokenVersion: data.tokenVersion,
+        updatedBy: data.updatedBy,
+      },
+      create: {
+        id: data.id,
+        email: data.email,
+        username: data.username,
+        password: data.password,
+        avatar: data.avatar,
+        isActive: data.isActive,
+        isDeleted: data.isDeleted,
+        tokenVersion: data.tokenVersion,
+        createdBy: data.createdBy,
+      },
+    });
+
+    // Synchronize User Roles
+    await tx.userRole.deleteMany({
+      where: { userId: data.id },
+    });
+
+    if (data.roles && data.roles.length > 0) {
+      const dbRoles = await tx.role.findMany({
+        where: { name: { in: data.roles } },
+      });
+      if (dbRoles.length > 0) {
+        await tx.userRole.createMany({
+          data: dbRoles.map((r) => ({
+            userId: data.id,
+            roleId: r.id,
+          })),
+        });
+      }
+    } else if (isNewUser) {
+      const defaultRole = await tx.role.findFirst({
+        where: { name: 'USER' },
+      });
+      if (defaultRole) {
+        await tx.userRole.create({
+          data: {
+            userId: data.id,
+            roleId: defaultRole.id,
+          },
+        });
+      }
+    }
+
+    if (outboxEvents.length > 0) {
+      await tx.outboxEvent.createMany({
+        data: outboxEvents,
+      });
+    }
   }
 
   async findById(id: string): Promise<UserEntity | null> {
