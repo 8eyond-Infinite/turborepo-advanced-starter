@@ -44,6 +44,7 @@ describe('RefreshCommandHandler', () => {
     userRepository.nextIdentity.mockReturnValue('new-jti');
     sessionStore.getRefreshTokenSession.mockResolvedValue({
       jti: 'old-jti',
+      sessionId: 'stable-session-id',
       ip: '127.0.0.1',
       userAgent: 'test',
       createdAt: new Date().toISOString(),
@@ -69,6 +70,13 @@ describe('RefreshCommandHandler', () => {
       'old-jti',
       'new-jti',
       expect.objectContaining({ jti: 'new-jti' }),
+      604800,
+    );
+    expect(sessionStore.rotateRefreshToken).toHaveBeenCalledWith(
+      'user-id',
+      'old-jti',
+      'new-jti',
+      expect.objectContaining({ sessionId: 'stable-session-id' }),
       604800,
     );
     expect(jwtService.sign).toHaveBeenNthCalledWith(

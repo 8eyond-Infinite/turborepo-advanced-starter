@@ -83,6 +83,7 @@ export class LoginCommandHandler implements ICommandHandler<
 
     const sessionData = {
       jti,
+      sessionId: jti,
       ip: command.ip || 'Unknown',
       userAgent: command.userAgent || 'Unknown',
       createdAt: new Date().toISOString(),

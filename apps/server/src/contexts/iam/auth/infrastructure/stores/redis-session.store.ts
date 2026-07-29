@@ -54,14 +54,17 @@ export class RedisSessionStore implements ISessionStore {
 
   async revokeOtherUserSessions(
     userId: string,
-    currentJti: string,
+    currentSessionId: string,
   ): Promise<void> {
-    const currentKey = this.buildKey(userId, currentJti);
     const keys = await this.cache.scan(`refresh_token:${userId}:*`);
     await Promise.all(
-      keys
-        .filter((key) => key !== currentKey)
-        .map((key) => this.cache.del(key)),
+      keys.map(async (key) => {
+        const session = await this.cache.get<SessionData>(key);
+        const sessionId = session?.sessionId ?? session?.jti;
+        if (session && sessionId !== currentSessionId) {
+          await this.cache.del(key);
+        }
+      }),
     );
   }
 
@@ -77,7 +80,10 @@ export class RedisSessionStore implements ISessionStore {
     for (const key of keys) {
       const data = await this.cache.get<SessionData>(key);
       if (data) {
-        sessions.push(data);
+        sessions.push({
+          ...data,
+          sessionId: data.sessionId ?? data.jti,
+        });
       }
     }
 

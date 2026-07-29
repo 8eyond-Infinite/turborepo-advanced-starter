@@ -64,6 +64,7 @@ export class RefreshCommandHandler implements ICommandHandler<
 
     let sessionData = {
       jti: newJti,
+      sessionId: oldJti,
       ip: 'Unknown',
       userAgent: 'Unknown',
       createdAt: new Date().toISOString(),
@@ -77,6 +78,7 @@ export class RefreshCommandHandler implements ICommandHandler<
       sessionData = {
         ...oldData,
         jti: newJti,
+        sessionId: oldData.sessionId ?? oldData.jti,
       };
     }
 
