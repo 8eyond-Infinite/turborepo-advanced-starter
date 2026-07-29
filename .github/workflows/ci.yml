@@ -40,6 +40,9 @@ jobs:
       - name: Validate production Compose manifest
         run: pnpm verify:compose
 
+      - name: Validate environment contract examples
+        run: pnpm verify:env
+
       - name: Validate documentation chapters and links
         run: pnpm verify:docs
 
