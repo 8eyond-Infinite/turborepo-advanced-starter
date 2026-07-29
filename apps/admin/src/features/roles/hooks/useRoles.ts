@@ -1,4 +1,3 @@
-import { useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { getFriendlyErrorMessage } from "@/lib/error-handler";
@@ -9,7 +8,6 @@ import type { CreateRoleInput } from "../api/role.api";
 
 export const useRoles = () => {
   const queryClient = useQueryClient();
-  const permissionMutationLock = useRef(false);
 
   const rolesQuery = useQuery({
     queryKey: roleKeys.list(),
@@ -72,29 +70,11 @@ export const useRoles = () => {
     },
   });
 
-  const toggleRolePermission = async (
+  const updateRolePermissions = async (
     roleId: string,
-    permissionName: string,
+    permissions: string[],
   ) => {
-    if (permissionMutationLock.current) return;
-
-    const role = roles.find((r) => r.id === roleId);
-    if (!role) return;
-
-    const isChecked = role.permissions.includes(permissionName);
-    const newPermissions = isChecked
-      ? role.permissions.filter((p) => p !== permissionName)
-      : [...role.permissions, permissionName];
-
-    permissionMutationLock.current = true;
-    try {
-      await updatePermissionsMutation.mutateAsync({
-        roleId,
-        permissions: newPermissions,
-      });
-    } finally {
-      permissionMutationLock.current = false;
-    }
+    await updatePermissionsMutation.mutateAsync({ roleId, permissions });
   };
 
   return {
@@ -102,7 +82,7 @@ export const useRoles = () => {
     systemPermissions,
     createRole,
     deleteRole,
-    toggleRolePermission,
+    updateRolePermissions,
     isLoading: rolesQuery.isLoading || permissionsQuery.isLoading,
     isError: rolesQuery.isError || permissionsQuery.isError,
     error: rolesQuery.error || permissionsQuery.error,
@@ -111,6 +91,7 @@ export const useRoles = () => {
       await Promise.all([rolesQuery.refetch(), permissionsQuery.refetch()]);
     },
     isSaving: updatePermissionsMutation.isPending,
+    savingRoleId: updatePermissionsMutation.variables?.roleId ?? null,
     isCreating: createRoleMutation.isPending,
     isDeleting: deleteRoleMutation.isPending,
   };

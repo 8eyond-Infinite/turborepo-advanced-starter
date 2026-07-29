@@ -232,7 +232,13 @@ Màn hình Roles ghép hai server query độc lập: danh sách role và catalo
 
 Form tạo role là UI state của `RolesManagement`; `useRoles` chỉ nhận command đã chuẩn hóa và quản lý mutation/cache. Form phản chiếu constraint backend: tên dài 2–50 ký tự, mô tả tối đa 255 ký tự. Hai role hệ thống `ADMIN` và `USER` không bao giờ hiển thị thao tác xóa; backend vẫn kiểm tra lại invariant này.
 
-Thay đổi checkbox là replace operation: API nhận toàn bộ tập permission mới của role, không phải một delta đơn lẻ. Vì mỗi tập mới được tính từ snapshot hiện tại, các update song song có thể ghi đè lẫn nhau. Frontend vì vậy dùng mutation lock và khóa ma trận cho tới khi request cùng cache refetch hoàn tất. Đây là quy tắc concurrency bắt buộc cho mọi UI thực hiện read-modify-write trên một collection.
+Khi người vận hành chọn hoặc bỏ một checkbox, màn hình mới chỉ sửa bản nháp của cột vai trò đó; chưa có request nào được gửi. Nút **Lưu** gửi toàn bộ tập quyền trong bản nháp lên backend, còn **Hủy** bỏ bản nháp và trả checkbox về dữ liệu gần nhất từ server. Nếu request lưu thất bại, bản nháp được giữ lại để người vận hành có thể kiểm tra và thử lại.
+
+API cập nhật quyền là một replace operation: mảng gửi lên trở thành toàn bộ tập quyền mới của vai trò, không phải danh sách các quyền cần thêm hoặc bớt. Backend kiểm tra tất cả tên quyền trước khi thay thế; chỉ một tên không tồn tại cũng khiến cả request bị từ chối và dữ liệu cũ được giữ nguyên. Khi tập quyền thực sự thay đổi, backend cập nhật quan hệ role-permission và tăng `tokenVersion` của tất cả user đang mang vai trò đó trong cùng một transaction. Access token cũ của những user này vì thế bị thu hồi.
+
+Khi một request tiếp theo nhận lỗi token đã bị thu hồi, API client dùng refresh cookie để lấy access token mới rồi phát sự kiện `auth:token-refreshed`. `App.tsx` nhận sự kiện và tải lại `/users/me`. Bước tải lại này rất quan trọng: token mới chỉ sửa thông tin xác thực gửi lên server, còn `/users/me` mới cập nhật danh sách role và permission trong Zustand để route, menu và nút thao tác phản ánh quyền mới. Việc refresh token thành công nhưng bỏ qua user snapshot sẽ làm giao diện tiếp tục hiển thị quyền cũ.
+
+Trong lúc một vai trò đang được lưu, ma trận được khóa để ngăn hai replace operation chồng lên nhau. Backend cũng từ chối xóa vai trò đang được gán cho user; người vận hành phải chuyển các user sang vai trò phù hợp trước rồi mới xóa.
 
 Nhóm permission được đóng/mở bằng `button` có `aria-expanded`, dùng được bằng bàn phím. Ma trận nằm trong vùng cuộn ngang để số lượng role tăng lên không làm cắt mất cột hoặc phá layout.
 
