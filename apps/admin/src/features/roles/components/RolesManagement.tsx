@@ -28,6 +28,8 @@ import {
   ShieldCheck,
   Folder,
   FolderOpen,
+  Save,
+  X,
 } from "lucide-react";
 import { useRoles } from "../hooks/useRoles";
 import { Can, usePermissions } from "@/app/access/usePermission";
@@ -56,19 +58,24 @@ const groupPermissions = (perms: PermissionRecord[]) => {
   }));
 };
 
+const hasSamePermissions = (left: string[], right: string[]) =>
+  left.length === right.length &&
+  left.every((permission) => right.includes(permission));
+
 export const RolesManagement = () => {
   const {
     roles,
     systemPermissions,
     createRole,
     deleteRole,
-    toggleRolePermission,
+    updateRolePermissions,
     isLoading,
     isError,
     error,
     refetch,
     isFetching,
     isSaving,
+    savingRoleId,
     isCreating,
     isDeleting,
   } = useRoles();
@@ -86,12 +93,49 @@ export const RolesManagement = () => {
   const [newRoleName, setNewRoleName] = useState("");
   const [newRoleDesc, setNewRoleDesc] = useState("");
   const [formErrors, setFormErrors] = useState<RoleFormErrors>({});
+  const [permissionDrafts, setPermissionDrafts] = useState<
+    Record<string, string[]>
+  >({});
 
   const toggleCategory = (categoryKey: string) => {
     setCollapsedCategories((prev) => ({
       ...prev,
       [categoryKey]: !prev[categoryKey],
     }));
+  };
+
+  const togglePermissionDraft = (
+    roleId: string,
+    currentPermissions: string[],
+    permissionName: string,
+  ) => {
+    setPermissionDrafts((current) => {
+      const draft = current[roleId] ?? currentPermissions;
+      const next = draft.includes(permissionName)
+        ? draft.filter((permission) => permission !== permissionName)
+        : [...draft, permissionName];
+      return { ...current, [roleId]: next };
+    });
+  };
+
+  const discardPermissionDraft = (roleId: string) => {
+    setPermissionDrafts((current) => {
+      const next = { ...current };
+      delete next[roleId];
+      return next;
+    });
+  };
+
+  const savePermissionDraft = async (roleId: string) => {
+    const permissions = permissionDrafts[roleId];
+    if (!permissions) return;
+
+    try {
+      await updateRolePermissions(roleId, permissions);
+      discardPermissionDraft(roleId);
+    } catch {
+      // Mutation hook owns the domain error toast; keep the draft for retry.
+    }
   };
 
   const handleCreateRoleSubmit = async (e: React.FormEvent) => {
@@ -275,8 +319,9 @@ export const RolesManagement = () => {
             (Permission Grid)
           </CardTitle>
           <CardDescription className="text-xs text-muted-foreground">
-            Click vào tiêu đề nhóm để đóng/mở danh sách quyền. Tích chọn
-            checkbox để lập tức cấp hoặc thu hồi quyền hạn.
+            Thay đổi checkbox được giữ nháp theo từng vai trò. Kiểm tra lại rồi
+            bấm Lưu để thay toàn bộ tập quyền, hoặc Hủy để trở về dữ liệu đã
+            lưu.
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0 overflow-x-auto">
@@ -286,55 +331,92 @@ export const RolesManagement = () => {
                 <TableHead className="w-[340px] font-bold text-foreground py-4 pl-6">
                   Quyền hạn / Nguồn tài nguyên
                 </TableHead>
-                {roles.map((role) => (
-                  <TableHead
-                    key={role.id}
-                    className="text-center font-bold text-foreground py-4 min-w-[120px]"
-                  >
-                    <div className="flex flex-col items-center gap-1 group">
-                      <span className="text-sm font-bold uppercase tracking-wider flex items-center gap-1.5">
-                        <ShieldCheck className="h-3.5 w-3.5 text-primary" />
-                        {role.name}
-                      </span>
-                      <span
-                        className="text-[10px] text-muted-foreground font-normal max-w-[140px] truncate"
-                        title={role.description || ""}
-                      >
-                        {role.description || "Không có mô tả"}
-                      </span>
-                      {!isSystemRole(role.name) && (
-                        <Can I={PERMISSIONS.ROLE.DELETE}>
-                          <ConfirmDialog
-                            trigger={
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6 mt-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
-                                disabled={isDeleting}
-                                aria-label={`Xóa vai trò ${role.name}`}
-                                title={`Xóa vai trò ${role.name}`}
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            }
-                            title="Bạn có chắc chắn muốn xóa?"
-                            description={
-                              <span>
-                                Hành động này không thể hoàn tác. Vai trò{" "}
-                                <strong>{role.name}</strong> sẽ bị xóa vĩnh viễn
-                                khỏi hệ thống.
-                              </span>
-                            }
-                            confirmText="Xác nhận xóa"
-                            pendingText="Đang xóa..."
-                            variant="destructive"
-                            onConfirm={() => deleteRole(role.id, role.name)}
-                          />
-                        </Can>
-                      )}
-                    </div>
-                  </TableHead>
-                ))}
+                {roles.map((role) => {
+                  const draft = permissionDrafts[role.id] ?? role.permissions;
+                  const isDirty = !hasSamePermissions(draft, role.permissions);
+                  const isThisRoleSaving = isSaving && savingRoleId === role.id;
+
+                  return (
+                    <TableHead
+                      key={role.id}
+                      className="text-center font-bold text-foreground py-4 min-w-[120px]"
+                    >
+                      <div className="flex flex-col items-center gap-1 group">
+                        <span className="text-sm font-bold uppercase tracking-wider flex items-center gap-1.5">
+                          <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+                          {role.name}
+                        </span>
+                        {isDirty && (
+                          <div className="mt-1 flex items-center gap-1">
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="h-7 px-2 text-[11px]"
+                              disabled={isSaving}
+                              onClick={() => void savePermissionDraft(role.id)}
+                              aria-label={`Lưu thay đổi quyền cho vai trò ${role.name}`}
+                            >
+                              {isThisRoleSaving ? (
+                                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                              ) : (
+                                <Save className="mr-1 h-3 w-3" />
+                              )}
+                              Lưu
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              disabled={isSaving}
+                              onClick={() => discardPermissionDraft(role.id)}
+                              aria-label={`Hủy thay đổi quyền cho vai trò ${role.name}`}
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        )}
+                        <span
+                          className="text-[10px] text-muted-foreground font-normal max-w-[140px] truncate"
+                          title={role.description || ""}
+                        >
+                          {role.description || "Không có mô tả"}
+                        </span>
+                        {!isSystemRole(role.name) && (
+                          <Can I={PERMISSIONS.ROLE.DELETE}>
+                            <ConfirmDialog
+                              trigger={
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 mt-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
+                                  disabled={isDeleting}
+                                  aria-label={`Xóa vai trò ${role.name}`}
+                                  title={`Xóa vai trò ${role.name}`}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              }
+                              title="Xóa vai trò chưa được sử dụng?"
+                              description={
+                                <span>
+                                  Vai trò <strong>{role.name}</strong> sẽ được
+                                  đánh dấu xóa. Nếu vẫn còn user mang vai trò
+                                  này, backend sẽ từ chối và yêu cầu chuyển
+                                  assignment trước.
+                                </span>
+                              }
+                              confirmText="Xác nhận xóa"
+                              pendingText="Đang xóa..."
+                              variant="destructive"
+                              onConfirm={() => deleteRole(role.id, role.name)}
+                            />
+                          </Can>
+                        )}
+                      </div>
+                    </TableHead>
+                  );
+                })}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -404,9 +486,9 @@ export const RolesManagement = () => {
                               </div>
                             </TableCell>
                             {roles.map((role) => {
-                              const isChecked = role.permissions.includes(
-                                perm.id,
-                              );
+                              const draft =
+                                permissionDrafts[role.id] ?? role.permissions;
+                              const isChecked = draft.includes(perm.id);
                               return (
                                 <TableCell
                                   key={role.id}
@@ -421,8 +503,9 @@ export const RolesManagement = () => {
                                         isSaving
                                       }
                                       onCheckedChange={() =>
-                                        void toggleRolePermission(
+                                        togglePermissionDraft(
                                           role.id,
+                                          role.permissions,
                                           perm.id,
                                         )
                                       }

@@ -24,6 +24,7 @@ interface AuthState {
   isLoading: boolean;
   isInitializing?: boolean;
   clearAuth: () => void;
+  refreshCurrentUser: () => Promise<void>;
   initialize: () => Promise<void>;
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => Promise<void>;
@@ -48,6 +49,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       isLoading: false,
       isInitializing: false,
     });
+  },
+  refreshCurrentUser: async () => {
+    if (!get().isAuthenticated) return;
+
+    try {
+      const user = await ApiClient.get<User>("/users/me");
+      set({ user });
+    } catch (error) {
+      reportError(error, {
+        source: "auth",
+        route: window.location.pathname,
+        operation: "refresh-current-user",
+      });
+    }
   },
   initialize: async () => {
     if (get().isInitializing) {

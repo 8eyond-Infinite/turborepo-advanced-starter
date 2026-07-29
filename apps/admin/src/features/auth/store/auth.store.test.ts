@@ -47,6 +47,20 @@ describe("auth store", () => {
     expect(ApiClient.setToken).toHaveBeenCalledWith("access-token");
   });
 
+  it("refreshes the current user snapshot after token rotation", async () => {
+    const refreshedUser = {
+      ...user,
+      permissions: ["role:read"],
+    };
+    useAuthStore.setState({ user, isAuthenticated: true });
+    vi.spyOn(ApiClient, "get").mockResolvedValue(refreshedUser);
+
+    await useAuthStore.getState().refreshCurrentUser();
+
+    expect(ApiClient.get).toHaveBeenCalledWith("/users/me");
+    expect(useAuthStore.getState().user).toEqual(refreshedUser);
+  });
+
   it("rolls back and revokes a newly-created session when profile loading fails", async () => {
     const profileError = new Error("Profile unavailable");
     const post = vi

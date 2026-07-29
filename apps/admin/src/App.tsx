@@ -15,6 +15,7 @@ const queryClient = createAdminQueryClient();
 function App() {
   const initialize = useAuthStore((state) => state.initialize);
   const clearAuth = useAuthStore((state) => state.clearAuth);
+  const refreshCurrentUser = useAuthStore((state) => state.refreshCurrentUser);
   const isLoading = useAuthStore((state) => state.isLoading);
 
   useEffect(() => {
@@ -27,14 +28,19 @@ function App() {
       clearAuth();
       router.navigate("/login");
     };
+    const handleTokenRefresh = () => {
+      void refreshCurrentUser();
+    };
 
     window.addEventListener("auth:logout", handleGlobalLogout);
+    window.addEventListener("auth:token-refreshed", handleTokenRefresh);
 
     return () => {
       unsubscribeFromAuthCacheCleanup();
       window.removeEventListener("auth:logout", handleGlobalLogout);
+      window.removeEventListener("auth:token-refreshed", handleTokenRefresh);
     };
-  }, [initialize, clearAuth]);
+  }, [initialize, clearAuth, refreshCurrentUser]);
 
   if (isLoading) {
     return (

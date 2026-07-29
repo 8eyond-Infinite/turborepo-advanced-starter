@@ -37,6 +37,16 @@ export const Errors = {
     translationKey: 'exceptions.user.self.mutation.forbidden',
     statusCode: 409,
   },
+  LAST_ADMINISTRATOR_REQUIRED: {
+    code: 'LAST_ADMINISTRATOR_REQUIRED',
+    translationKey: 'exceptions.user.last.administrator.required',
+    statusCode: 409,
+  },
+  INVALID_USER_ROLES: {
+    code: 'INVALID_USER_ROLES',
+    translationKey: 'exceptions.user.roles.invalid',
+    statusCode: 400,
+  },
 
   // Role
   ROLE_ALREADY_EXISTS: {
@@ -52,6 +62,16 @@ export const Errors = {
   SYSTEM_ROLE_DELETE_FORBIDDEN: {
     code: 'SYSTEM_ROLE_DELETE_FORBIDDEN',
     translationKey: 'exceptions.role.system.delete.forbidden',
+    statusCode: 409,
+  },
+  INVALID_ROLE_PERMISSIONS: {
+    code: 'INVALID_ROLE_PERMISSIONS',
+    translationKey: 'exceptions.role.permissions.invalid',
+    statusCode: 400,
+  },
+  ROLE_IN_USE: {
+    code: 'ROLE_IN_USE',
+    translationKey: 'exceptions.role.in.use',
     statusCode: 409,
   },
 

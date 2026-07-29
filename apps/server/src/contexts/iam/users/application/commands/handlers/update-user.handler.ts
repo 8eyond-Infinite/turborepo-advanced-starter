@@ -9,6 +9,8 @@ import {
   USER_REPOSITORY,
   type UserRepository,
 } from '@iam/users/domain/ports/user.repository';
+import { LastAdministratorRequiredException } from '@iam/users/domain/exceptions/last-administrator-required.exception';
+import { InvalidUserRolesException } from '@iam/users/domain/exceptions/invalid-user-roles.exception';
 
 @CommandHandler(UpdateUserCommand)
 export class UpdateUserCommandHandler implements ICommandHandler<
@@ -35,23 +37,24 @@ export class UpdateUserCommandHandler implements ICommandHandler<
       return Result.fail(new UserAlreadyExistsException(email));
     }
 
-    // Update fields
-    // Since Email is a value object, we can update props inside entity using mapping or a domain method.
-    // Let's see: we can set email directly if user has a method, or add updateInfo method.
-    // Wait, UserEntity properties are private read-only in props interface, but let's see how we can update Email.
-    // In UserEntity, we can add:
-    // public updateInfo(email: string, updatedBy?: string) {
-    //     this.props.email = new Email(email);
-    //     this.trackUpdate(updatedBy);
-    // }
-    // Let's add that to user.entity.ts or do it in handler. Since properties are private/internal, let's check user.entity.ts structure.
-    // UserEntity has `props` as private. So we MUST add a domain method `updateInfo(email: string, updatedBy?: string)` inside UserEntity!
-    // That is the correct DDD way!
+    const uniqueRoles = [...new Set(roles)];
+    const existingRoles =
+      await this.userRepository.findExistingRoleNames(uniqueRoles);
+    const unknownRoles = uniqueRoles.filter(
+      (role) => !existingRoles.includes(role),
+    );
+    if (uniqueRoles.length === 0 || unknownRoles.length > 0) {
+      return Result.fail(new InvalidUserRolesException(unknownRoles));
+    }
 
     user.updateInfo(email, username, avatar, updatedBy);
-    user.updateRoles(roles, updatedBy);
+    user.updateRoles(uniqueRoles, updatedBy);
 
-    await this.userRepository.save(user);
+    const saved =
+      await this.userRepository.savePreservingLastAdministrator(user);
+    if (!saved) {
+      return Result.fail(new LastAdministratorRequiredException());
+    }
 
     return Result.ok(undefined);
   }

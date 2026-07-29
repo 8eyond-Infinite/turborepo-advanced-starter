@@ -5,6 +5,7 @@ import { Result } from '@shared/domain/result';
 import { DomainException } from '@shared/domain/exceptions/domain.exception';
 import { RoleNotFoundException } from '@iam/roles/domain/exceptions/role-not-found.exception';
 import { SystemRoleDeleteForbiddenException } from '@iam/roles/domain/exceptions/system-role-delete-forbidden.exception';
+import { RoleInUseException } from '@iam/roles/domain/exceptions/role-in-use.exception';
 import { isSystemRole } from '@repo/contracts';
 import {
   ROLE_REPOSITORY,
@@ -33,6 +34,11 @@ export class DeleteRoleCommandHandler implements ICommandHandler<
 
     if (isSystemRole(role.name)) {
       return Result.fail(new SystemRoleDeleteForbiddenException(role.name));
+    }
+
+    const assignedUserCount = await this.roleRepository.countAssignedUsers(id);
+    if (assignedUserCount > 0) {
+      return Result.fail(new RoleInUseException(role.name, assignedUserCount));
     }
 
     await this.roleRepository.delete(id);

@@ -44,13 +44,14 @@ const makeRolesState = (overrides: Record<string, unknown> = {}) => ({
   ],
   createRole: vi.fn(),
   deleteRole: vi.fn(),
-  toggleRolePermission: vi.fn(),
+  updateRolePermissions: vi.fn(),
   isLoading: false,
   isError: false,
   error: null,
   refetch: vi.fn(),
   isFetching: false,
   isSaving: false,
+  savingRoleId: null,
   isCreating: false,
   isDeleting: false,
   ...overrides,
@@ -102,6 +103,93 @@ describe("<RolesManagement /> permissions", () => {
         name: "Cấp quyền Đọc người dùng cho vai trò SUPPORT",
       }),
     ).toBeDisabled();
+  });
+
+  it("keeps permission edits local until the role draft is saved", async () => {
+    const updateRolePermissions = vi.fn().mockResolvedValue(undefined);
+    useRoles.mockReturnValue(makeRolesState({ updateRolePermissions }));
+    setPermissions([PERMISSIONS.ROLE.UPDATE]);
+    const user = userEvent.setup();
+    render(<RolesManagement />);
+
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: "Cấp quyền Đọc người dùng cho vai trò SUPPORT",
+      }),
+    );
+
+    expect(updateRolePermissions).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", {
+        name: "Lưu thay đổi quyền cho vai trò SUPPORT",
+      }),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Lưu thay đổi quyền cho vai trò SUPPORT",
+      }),
+    );
+
+    expect(updateRolePermissions).toHaveBeenCalledWith("custom-support", [
+      "user:read",
+    ]);
+  });
+
+  it("discards a permission draft without sending an update", async () => {
+    const updateRolePermissions = vi.fn();
+    useRoles.mockReturnValue(makeRolesState({ updateRolePermissions }));
+    setPermissions([PERMISSIONS.ROLE.UPDATE]);
+    const user = userEvent.setup();
+    render(<RolesManagement />);
+
+    const permissionCheckbox = screen.getByRole("checkbox", {
+      name: "Cấp quyền Đọc người dùng cho vai trò SUPPORT",
+    });
+    await user.click(permissionCheckbox);
+    expect(permissionCheckbox).toBeChecked();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Hủy thay đổi quyền cho vai trò SUPPORT",
+      }),
+    );
+
+    expect(permissionCheckbox).not.toBeChecked();
+    expect(updateRolePermissions).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole("button", {
+        name: "Lưu thay đổi quyền cho vai trò SUPPORT",
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps a failed permission draft available for retry", async () => {
+    const updateRolePermissions = vi
+      .fn()
+      .mockRejectedValue(new Error("Request failed"));
+    useRoles.mockReturnValue(makeRolesState({ updateRolePermissions }));
+    setPermissions([PERMISSIONS.ROLE.UPDATE]);
+    const user = userEvent.setup();
+    render(<RolesManagement />);
+
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: "Cấp quyền Đọc người dùng cho vai trò SUPPORT",
+      }),
+    );
+    const saveButton = screen.getByRole("button", {
+      name: "Lưu thay đổi quyền cho vai trò SUPPORT",
+    });
+    await user.click(saveButton);
+
+    expect(updateRolePermissions).toHaveBeenCalledTimes(1);
+    expect(saveButton).toBeInTheDocument();
+    expect(
+      screen.getByRole("checkbox", {
+        name: "Thu hồi quyền Đọc người dùng cho vai trò SUPPORT",
+      }),
+    ).toBeChecked();
   });
 
   it("exposes permission groups as keyboard-operable disclosure buttons", async () => {

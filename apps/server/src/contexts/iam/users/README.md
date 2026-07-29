@@ -170,6 +170,20 @@ Domain events chỉ được clear sau commit. Nếu clear trước commit và t
 
 Repository không tự quyết định chuyện chuyển trạng thái nghiệp vụ. Nó chỉ lưu xuống trạng thái mà aggregate đã xác nhận là hợp lệ.
 
+### Vì sao không được làm mất administrator cuối cùng?
+
+Một hệ thống không còn tài khoản `ADMIN` đang hoạt động sẽ không thể tự quản trị qua giao diện. Tình huống này có thể xảy ra theo bốn đường khác nhau: bỏ role `ADMIN` khi sửa user, deactivate user, chuyển trạng thái sang inactive hoặc soft-delete user.
+
+Các command trên đều lưu qua `savePreservingLastAdministrator()`. Repository chỉ áp dụng guard khi user trong database hiện là một `ADMIN` đang hoạt động nhưng trạng thái mới không còn thỏa điều kiện đó. Trong transaction, repository lấy PostgreSQL advisory lock dùng chung, đếm số administrator đang hoạt động rồi mới ghi. Nếu chỉ còn một người, transaction không thay đổi User, UserRole hay OutboxEvent và handler trả lỗi `LAST_ADMINISTRATOR_REQUIRED` (HTTP 409).
+
+Lock là phần bắt buộc của invariant, không phải tối ưu hiệu năng. Nếu hai request cùng đọc “còn 2 admin” rồi đồng thời vô hiệu hóa mỗi người, một phép đếm thông thường có thể cho cả hai đi qua và kết quả vẫn là 0 admin. Advisory lock buộc các thao tác có khả năng loại admin chạy lần lượt, nên request thứ hai sẽ nhìn thấy dữ liệu đã commit của request thứ nhất và bị từ chối.
+
+### Role assignment được kiểm tra trước khi ghi
+
+Create và update user đều coi mảng `roles` là toàn bộ tập vai trò cần gán. Mảng phải có ít nhất một phần tử và mọi tên role phải tồn tại, chưa bị xóa. Handler loại tên trùng, tải các tên đang tồn tại rồi so sánh toàn bộ tập trước khi hash password hoặc thay đổi aggregate. Nếu mảng rỗng hoặc có tên lạ, cả command bị từ chối bằng `INVALID_USER_ROLES` (HTTP 400); repository không được phép âm thầm bỏ tên sai và lưu phần còn lại.
+
+Quy tắc “từ chối toàn bộ” giữ response, aggregate và các row `UserRole` nhất quán. Ví dụ `["USER", "MISSING"]` không được biến thành `["USER"]`, vì người gọi sẽ tưởng cả hai assignment đã thành công.
+
 ## 8. Read flow và response safety
 
 `GetUsersQuery` hỗ trợ phân trang, tìm kiếm, và chỉ cho sắp xếp theo một danh sách cột định sẵn (allowlist). DTO không cho client truyền tên cột tùy ý. Repository dùng kiểu input có sẵn của Prisma thay vì `any`.

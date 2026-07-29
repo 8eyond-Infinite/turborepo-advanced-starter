@@ -9,6 +9,7 @@ import {
   USER_REPOSITORY,
   type UserRepository,
 } from '@iam/users/domain/ports/user.repository';
+import { LastAdministratorRequiredException } from '@iam/users/domain/exceptions/last-administrator-required.exception';
 
 @CommandHandler(DeleteUserCommand)
 export class DeleteUserCommandHandler implements ICommandHandler<
@@ -35,7 +36,11 @@ export class DeleteUserCommandHandler implements ICommandHandler<
     }
 
     user.softDelete(adminId);
-    await this.userRepository.save(user);
+    const saved =
+      await this.userRepository.savePreservingLastAdministrator(user);
+    if (!saved) {
+      return Result.fail(new LastAdministratorRequiredException());
+    }
 
     return Result.ok(undefined);
   }

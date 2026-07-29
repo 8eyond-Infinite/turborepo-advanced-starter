@@ -6,9 +6,28 @@
     "deactivated": "Tài khoản \"{{email}}\" đã bị khóa hoặc vô hiệu hóa.",
     "already": {
       "exists": "Tài khoản email này đã được sử dụng."
+    },
+    "self": {
+      "mutation": {
+        "forbidden": "Bạn không thể tự khóa hoặc xóa tài khoản đang đăng nhập."
+      }
+    },
+    "last": {
+      "administrator": {
+        "required": "Hệ thống phải còn ít nhất một quản trị viên đang hoạt động. Hãy cấp vai trò ADMIN cho một tài khoản khác trước."
+      }
+    },
+    "roles": {
+      "invalid": "Mỗi tài khoản phải có ít nhất một vai trò hợp lệ. Danh sách vai trò không tồn tại: {{unknownRoles}}."
     }
   },
   "role": {
+    "permissions": {
+      "invalid": "Danh sách chứa quyền không tồn tại. Không có thay đổi nào được lưu."
+    },
+    "in": {
+      "use": "Vai trò vẫn đang được gán cho người dùng. Hãy chuyển các tài khoản đó sang vai trò khác trước."
+    },
     "system": {
       "delete": {
         "forbidden": "Không thể xóa vai trò hệ thống \"{{roleName}}\"."

@@ -9,6 +9,7 @@ import {
   ROLE_REPOSITORY,
   type RoleRepository,
 } from '@iam/roles/domain/ports/role.repository';
+import { PERMISSIONS } from '@repo/contracts';
 
 @CommandHandler(CreateRoleCommand)
 export class CreateRoleCommandHandler implements ICommandHandler<
@@ -34,7 +35,7 @@ export class CreateRoleCommandHandler implements ICommandHandler<
       id: this.roleRepository.nextIdentity(),
       name,
       description,
-      permissions: ['user:read'],
+      permissions: [PERMISSIONS.USER.READ],
       createdBy,
     });
 

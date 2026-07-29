@@ -49,6 +49,7 @@ vi.mock("@/components/ui/sonner", () => ({
 describe("<App /> lifecycle", () => {
   const initialize = vi.fn(async () => undefined);
   const clearAuth = vi.fn();
+  const refreshCurrentUser = vi.fn(async () => undefined);
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -59,6 +60,7 @@ describe("<App /> lifecycle", () => {
       isInitializing: false,
       initialize,
       clearAuth,
+      refreshCurrentUser,
     });
   });
 
@@ -104,6 +106,16 @@ describe("<App /> lifecycle", () => {
     expect(navigate).toHaveBeenCalledWith("/login");
   });
 
+  it("refreshes the current authorization snapshot after token rotation", () => {
+    render(<App />);
+
+    act(() => {
+      window.dispatchEvent(new Event("auth:token-refreshed"));
+    });
+
+    expect(refreshCurrentUser).toHaveBeenCalledOnce();
+  });
+
   it("removes global subscriptions when the application unmounts", () => {
     const { unmount } = render(<App />);
 
@@ -112,6 +124,8 @@ describe("<App /> lifecycle", () => {
     expect(unsubscribeFromCacheCleanup).toHaveBeenCalledOnce();
 
     window.dispatchEvent(new Event("auth:logout"));
+    window.dispatchEvent(new Event("auth:token-refreshed"));
     expect(clearAuth).not.toHaveBeenCalled();
+    expect(refreshCurrentUser).not.toHaveBeenCalled();
   });
 });

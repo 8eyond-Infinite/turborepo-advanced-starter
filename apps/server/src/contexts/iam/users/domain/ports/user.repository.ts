@@ -14,8 +14,10 @@ export interface FindAllOptions {
 
 export interface UserRepository {
   save(user: UserEntity): Promise<void>;
+  savePreservingLastAdministrator(user: UserEntity): Promise<boolean>;
   findById(id: string): Promise<UserEntity | null>;
   findByEmail(email: string): Promise<UserEntity | null>;
+  findExistingRoleNames(names: string[]): Promise<string[]>;
   getPermissions(userId: string): Promise<string[]>;
   findAll(
     options?: FindAllOptions,

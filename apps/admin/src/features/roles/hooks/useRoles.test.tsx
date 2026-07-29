@@ -68,28 +68,20 @@ describe("useRoles", () => {
     expect(toast.error).toHaveBeenCalledOnce();
   });
 
-  it("serializes permission updates to prevent stale-snapshot writes", async () => {
-    let resolveUpdate!: (value: {
-      id: string;
-      name: string;
-      permissions: string[];
-    }) => void;
-    roleApi.updatePermissions.mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          resolveUpdate = resolve;
-        }),
-    );
+  it("replaces a role permission set and updates the cached role", async () => {
+    roleApi.updatePermissions.mockResolvedValue({
+      id: "support",
+      name: "SUPPORT",
+      permissions: ["user:read", "user:update"],
+    });
     const { result } = renderHook(() => useRoles(), { wrapper });
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-    let firstUpdate!: Promise<void>;
     await act(async () => {
-      firstUpdate = result.current.toggleRolePermission(
-        "support",
+      await result.current.updateRolePermissions("support", [
+        "user:read",
         "user:update",
-      );
-      await result.current.toggleRolePermission("support", "user:delete");
+      ]);
     });
 
     expect(roleApi.updatePermissions).toHaveBeenCalledOnce();
@@ -97,14 +89,6 @@ describe("useRoles", () => {
       roleId: "support",
       permissions: ["user:read", "user:update"],
     });
-
-    resolveUpdate({
-      id: "support",
-      name: "SUPPORT",
-      permissions: ["user:read", "user:update"],
-    });
-    await act(async () => {
-      await firstUpdate;
-    });
+    expect(toast.success).toHaveBeenCalledOnce();
   });
 });

@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsArray,
+  ArrayMinSize,
   IsEmail,
   IsOptional,
   IsString,
@@ -30,6 +31,7 @@ export class CreateUserDto {
   @ApiPropertyOptional({ type: [String], default: ['USER'] })
   @IsOptional()
   @IsArray()
+  @ArrayMinSize(1)
   @IsString({ each: true })
   roles?: string[];
 }
