@@ -3,15 +3,11 @@ import type { Socket } from "socket.io-client";
 import { toast } from "sonner";
 import { notificationKeys } from "@/features/notifications";
 import { reportError } from "@/lib/observability";
-
-const REALTIME_AUTH_ERROR_CODE = "REALTIME_AUTHENTICATION_FAILED";
-
-interface NotificationReceived {
-  id: string;
-  title: string;
-  content: string;
-  type?: string;
-}
+import {
+  REALTIME_AUTH_ERROR_CODE,
+  REALTIME_EVENTS,
+  type NotificationReceivedEvent,
+} from "@repo/contracts";
 
 interface NotificationMessage {
   message: string;
@@ -43,7 +39,7 @@ export const registerRealtimeEventHandlers = ({
     void logout();
   };
 
-  const handleNotificationReceived = (data: NotificationReceived) => {
+  const handleNotificationReceived = (data: NotificationReceivedEvent) => {
     showNotification(
       `${data.title}: ${data.content}`,
       (data.type || "info").toLowerCase(),
@@ -78,14 +74,17 @@ export const registerRealtimeEventHandlers = ({
   };
 
   socket.on("connect_error", handleConnectError);
-  socket.on("force_logout", handleForceLogout);
-  socket.on("notification_received", handleNotificationReceived);
-  socket.on("notification", handleNotification);
+  socket.on(REALTIME_EVENTS.FORCE_LOGOUT, handleForceLogout);
+  socket.on(REALTIME_EVENTS.NOTIFICATION_RECEIVED, handleNotificationReceived);
+  socket.on(REALTIME_EVENTS.NOTIFICATION, handleNotification);
 
   return () => {
     socket.off("connect_error", handleConnectError);
-    socket.off("force_logout", handleForceLogout);
-    socket.off("notification_received", handleNotificationReceived);
-    socket.off("notification", handleNotification);
+    socket.off(REALTIME_EVENTS.FORCE_LOGOUT, handleForceLogout);
+    socket.off(
+      REALTIME_EVENTS.NOTIFICATION_RECEIVED,
+      handleNotificationReceived,
+    );
+    socket.off(REALTIME_EVENTS.NOTIFICATION, handleNotification);
   };
 };

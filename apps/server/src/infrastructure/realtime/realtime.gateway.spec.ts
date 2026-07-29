@@ -2,7 +2,8 @@ import type { ConfigService } from '@nestjs/config';
 import type { JwtService } from '@nestjs/jwt';
 import type { Socket } from 'socket.io';
 import type { AccessTokenValidator } from '@iam/auth/application/services/access-token-validator.service';
-import { REALTIME_AUTH_ERROR_CODE, RealtimeGateway } from './realtime.gateway';
+import { REALTIME_AUTH_ERROR_CODE } from '@repo/contracts';
+import { RealtimeGateway } from './realtime.gateway';
 
 describe('RealtimeGateway authentication', () => {
   const jwtService = {

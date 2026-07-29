@@ -75,6 +75,8 @@ Transactional outbox bảo đảm không có trạng thái “database đã có 
 
 Admin tải page đầu tối đa 50 item cho popover nhưng dùng `unreadCount` từ server cho badge. Mark-read dùng optimistic cache update để phản hồi ngay, lưu snapshot trước mutation và rollback nếu request thất bại. Sau thành công, root key `notificationKeys.all` được invalidate để đối chiếu lại với server.
 
+Payload `notification_received`, tên event và mã lỗi handshake realtime nằm trong `packages/contracts/src/realtime/events.ts`. Server outbox router và Admin event handler cùng import contract này; không tạo lại interface payload hoặc string event riêng trong từng ứng dụng.
+
 Event realtime chỉ invalidate root key. Nó không tự chèn payload vào cache vì event không mang toàn bộ read model và có thể đến trùng hoặc sai thứ tự.
 
 ## 7. Những quy tắc luôn phải đúng

@@ -3,6 +3,7 @@ import type { Socket } from "socket.io-client";
 import { describe, expect, it, vi } from "vitest";
 import { registerRealtimeEventHandlers } from "./realtime-event-handlers";
 import { reportError } from "@/lib/observability";
+import { REALTIME_AUTH_ERROR_CODE, REALTIME_EVENTS } from "@repo/contracts";
 
 vi.mock("sonner", () => ({
   toast: {
@@ -34,12 +35,14 @@ describe("realtime event handlers", () => {
       queryClient,
       logout,
     });
-    handlers.get("notification_received")?.({
+    handlers.get(REALTIME_EVENTS.NOTIFICATION_RECEIVED)?.({
       id: "notification-1",
       title: "Title",
       content: "Content",
     } as never);
-    handlers.get("force_logout")?.({ message: "Revoked" } as never);
+    handlers.get(REALTIME_EVENTS.FORCE_LOGOUT)?.({
+      message: "Revoked",
+    } as never);
 
     expect(invalidate).toHaveBeenCalledWith({
       queryKey: ["notifications"],
@@ -67,7 +70,7 @@ describe("realtime event handlers", () => {
     });
     handlers.get("connect_error")?.({
       message: "Authentication failed",
-      data: { code: "REALTIME_AUTHENTICATION_FAILED" },
+      data: { code: REALTIME_AUTH_ERROR_CODE },
     } as never);
 
     expect(logout).toHaveBeenCalledOnce();

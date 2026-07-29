@@ -22,6 +22,10 @@ import {
 import { NotificationCreatedEvent } from '@/contexts/notifications/domain/events/notification-created.event';
 import { CreateNotificationCommand } from '@/contexts/notifications/application/commands/create-notification.command';
 import { Result } from '@shared/domain/result';
+import {
+  REALTIME_EVENTS,
+  type NotificationReceivedEvent,
+} from '@repo/contracts';
 
 @Injectable()
 export class OutboxEventRouter {
@@ -56,7 +60,7 @@ export class OutboxEventRouter {
     }
 
     if (event instanceof UserDeactivatedEvent) {
-      this.realtime.sendToUser(event.userId, 'force_logout', {
+      this.realtime.sendToUser(event.userId, REALTIME_EVENTS.FORCE_LOGOUT, {
         message: 'Your account has been deactivated.',
       });
       await Promise.all([
@@ -79,15 +83,20 @@ export class OutboxEventRouter {
     }
 
     if (event instanceof NotificationCreatedEvent) {
-      this.realtime.sendToUser(event.userId, 'notification_received', {
+      const payload: NotificationReceivedEvent = {
         id: event.id,
         userId: event.userId,
         title: event.title,
         content: event.content,
         type: event.type,
         isRead: event.isRead,
-        createdAt: event.createdAt,
-      });
+        createdAt: event.createdAt.toISOString(),
+      };
+      this.realtime.sendToUser(
+        event.userId,
+        REALTIME_EVENTS.NOTIFICATION_RECEIVED,
+        payload,
+      );
       return;
     }
 
