@@ -25,7 +25,7 @@ Nếu mới vào dự án, đừng chọn ngẫu nhiên một README rồi cố 
 | Sửa backend, Admin hoặc Client          | [Backend](apps/server/README.md) · [Admin](apps/admin/README.md) · [Client](apps/client/README.md) |
 | Hệ thống đang lỗi và cần xử lý ngay     | [Sổ tay vận hành](docs/operations-runbook.md)                                                      |
 
-[Mục lục Handbook](docs/README.md) chứa đủ 18 chương, gồm cả tài liệu cho từng nhóm nghiệp vụ, Docker, deployment và release. Root README chỉ giúp bạn chọn đúng cửa vào; nó không cố nhét toàn bộ handbook vào một trang.
+[Mục lục Handbook](docs/README.md) chứa đủ các chương, gồm tài liệu cho từng nhóm nghiệp vụ, Docker, deployment và release. [Deployment readiness](docs/deployment-readiness.md) giải thích vì sao local Ubuntu production-like là gate bắt buộc, còn Vercel Preview/backend public chỉ là integration tùy chọn. Root README chỉ giúp bạn chọn đúng cửa vào; nó không cố nhét toàn bộ handbook vào một trang.
 
 ## Thành phần trong monorepo
 

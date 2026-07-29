@@ -61,8 +61,9 @@ Phần này trả lời cách đưa code từ máy lập trình viên đến m�
 14. [Chương 14 — Development, Docker và database](development-and-deployment.md)
 15. [Chương 15 — Deployment không phụ thuộc nhà cung cấp](provider-neutral-deployment.md)
 16. [Chương 16 — Render là một deployment adapter](render-deployment.md)
-17. [Chương 17 — Release và version](release-process.md)
-18. [Chương 18 — Operations Runbook](operations-runbook.md)
+17. [Chương 17 — Kiểm tra khả năng triển khai](deployment-readiness.md)
+18. [Chương 17 — Release và version](release-process.md)
+19. [Chương 18 — Operations Runbook](operations-runbook.md)
 
 Không đọc runbook như giáo trình nhập môn. Nó được thiết kế để tra nhanh khi hệ thống lỗi. Muốn hiểu lý do đằng sau các lệnh vận hành, hãy đọc Chương 14–17 trước.
 
