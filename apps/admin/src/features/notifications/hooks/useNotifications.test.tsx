@@ -60,6 +60,7 @@ describe("useNotifications", () => {
 
     expect(result.current.notifications).toHaveLength(1);
     expect(result.current.unreadCount).toBe(57);
+    expect(result.current.isMarkingNotification).toBe(false);
   });
 
   it("optimistically marks one item read and rolls back on failure", async () => {

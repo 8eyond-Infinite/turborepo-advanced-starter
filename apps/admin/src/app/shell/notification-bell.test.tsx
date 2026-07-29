@@ -30,6 +30,7 @@ const createState = () => ({
   isFetching: false,
   refetch: vi.fn().mockResolvedValue(undefined),
   isMarkingAllAsRead: false,
+  isMarkingNotification: false,
   markingNotificationId: null,
 });
 
