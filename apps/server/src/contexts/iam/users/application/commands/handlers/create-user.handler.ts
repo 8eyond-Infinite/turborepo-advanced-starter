@@ -13,6 +13,7 @@ import {
   PASSWORD_HASHER,
   type PasswordHasher,
 } from '@iam/users/domain/ports/password-hasher';
+import { InvalidUserRolesException } from '@iam/users/domain/exceptions/invalid-user-roles.exception';
 
 @CommandHandler(CreateUserCommand)
 export class CreateUserCommandHandler implements ICommandHandler<
@@ -36,6 +37,16 @@ export class CreateUserCommandHandler implements ICommandHandler<
       return Result.fail(new UserAlreadyExistsException(email));
     }
 
+    const uniqueRoles = [...new Set(roles)];
+    const existingRoles =
+      await this.userRepository.findExistingRoleNames(uniqueRoles);
+    const unknownRoles = uniqueRoles.filter(
+      (role) => !existingRoles.includes(role),
+    );
+    if (uniqueRoles.length === 0 || unknownRoles.length > 0) {
+      return Result.fail(new InvalidUserRolesException(unknownRoles));
+    }
+
     const hashedPassword = await this.passwordHasher.hash(passwordHash);
 
     const user = UserEntity.register({
@@ -44,7 +55,7 @@ export class CreateUserCommandHandler implements ICommandHandler<
       username,
       passwordHash: hashedPassword,
       avatar,
-      roles,
+      roles: uniqueRoles,
       createdBy,
     });
 

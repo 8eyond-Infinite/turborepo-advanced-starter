@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsArray,
+  ArrayMinSize,
   IsEmail,
   IsOptional,
   IsString,
@@ -24,6 +25,7 @@ export class UpdateUserDto {
 
   @ApiProperty({ type: [String] })
   @IsArray()
+  @ArrayMinSize(1)
   @IsString({ each: true })
   roles!: string[];
 }

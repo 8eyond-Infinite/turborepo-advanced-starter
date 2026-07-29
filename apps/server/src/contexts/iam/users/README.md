@@ -178,6 +178,12 @@ Các command trên đều lưu qua `savePreservingLastAdministrator()`. Reposito
 
 Lock là phần bắt buộc của invariant, không phải tối ưu hiệu năng. Nếu hai request cùng đọc “còn 2 admin” rồi đồng thời vô hiệu hóa mỗi người, một phép đếm thông thường có thể cho cả hai đi qua và kết quả vẫn là 0 admin. Advisory lock buộc các thao tác có khả năng loại admin chạy lần lượt, nên request thứ hai sẽ nhìn thấy dữ liệu đã commit của request thứ nhất và bị từ chối.
 
+### Role assignment được kiểm tra trước khi ghi
+
+Create và update user đều coi mảng `roles` là toàn bộ tập vai trò cần gán. Mảng phải có ít nhất một phần tử và mọi tên role phải tồn tại, chưa bị xóa. Handler loại tên trùng, tải các tên đang tồn tại rồi so sánh toàn bộ tập trước khi hash password hoặc thay đổi aggregate. Nếu mảng rỗng hoặc có tên lạ, cả command bị từ chối bằng `INVALID_USER_ROLES` (HTTP 400); repository không được phép âm thầm bỏ tên sai và lưu phần còn lại.
+
+Quy tắc “từ chối toàn bộ” giữ response, aggregate và các row `UserRole` nhất quán. Ví dụ `["USER", "MISSING"]` không được biến thành `["USER"]`, vì người gọi sẽ tưởng cả hai assignment đã thành công.
+
 ## 8. Read flow và response safety
 
 `GetUsersQuery` hỗ trợ phân trang, tìm kiếm, và chỉ cho sắp xếp theo một danh sách cột định sẵn (allowlist). DTO không cho client truyền tên cột tùy ý. Repository dùng kiểu input có sẵn của Prisma thay vì `any`.

@@ -165,6 +165,16 @@ export class PrismaUserRepository implements UserRepository {
     return raw ? PrismaUserMapper.toDomain(raw) : null;
   }
 
+  async findExistingRoleNames(names: string[]): Promise<string[]> {
+    if (names.length === 0) return [];
+
+    const roles = await this.prisma.role.findMany({
+      where: { name: { in: names }, isDeleted: false },
+      select: { name: true },
+    });
+    return roles.map((role) => role.name);
+  }
+
   async getPermissions(userId: string): Promise<string[]> {
     const userRoles = await this.prisma.userRole.findMany({
       where: { userId, role: { isDeleted: false } },

@@ -222,6 +222,8 @@ Trong bảng Users, tài khoản đang đăng nhập có nhãn “Tài khoản c
 
 Backend còn bảo vệ một invariant rộng hơn UI: hệ thống luôn phải còn ít nhất một user mang role `ADMIN`, đang active và chưa bị xóa. Vì vậy bỏ role `ADMIN`, deactivate, chuyển sang inactive hoặc xóa administrator cuối cùng đều trả `LAST_ADMINISTRATOR_REQUIRED` (HTTP 409). Admin UI không tự suy đoán ai là “người cuối cùng”, vì dữ liệu có thể đổi đồng thời; nó gửi command và hiển thị lỗi nghiệp vụ do transaction backend quyết định.
 
+Create/Edit User gửi toàn bộ role đang được chọn. Form bắt buộc chọn ít nhất một role; backend vẫn tải lại role catalog và từ chối toàn bộ request nếu có tên không tồn tại hoặc đã bị xóa. Không được coi danh sách role là “gợi ý” rồi âm thầm lưu những tên hợp lệ, vì giao diện sẽ hiển thị một kết quả khác với command người vận hành vừa gửi.
+
 Trang và từ khóa tìm kiếm nằm trong URL. Nếu mutation hoặc thay đổi dữ liệu làm `page` hiện tại lớn hơn `totalPages` mới, `UserTable` dùng replace navigation để đưa URL về trang cuối còn tồn tại mà vẫn giữ từ khóa. Nếu không hiệu chỉnh, xóa user cuối cùng của một trang có thể để người vận hành mắc kẹt ở một bảng rỗng dù trang trước vẫn có dữ liệu.
 
 Các thao tác phá hủy hoặc đổi trạng thái phải chờ Promise mutation hoàn tất. `ConfirmDialog` giữ dialog mở, khóa nút trong lúc pending, chỉ đóng sau khi mutation và cache invalidation thành công; nếu thất bại dialog giữ nguyên ngữ cảnh để người dùng thử lại. Không được dùng mutation fire-and-forget cho flow cần xác nhận.

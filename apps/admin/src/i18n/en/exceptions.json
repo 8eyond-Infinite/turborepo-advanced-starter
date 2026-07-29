@@ -16,6 +16,9 @@
       "administrator": {
         "required": "The system must retain at least one active administrator. Assign ADMIN to another account first."
       }
+    },
+    "roles": {
+      "invalid": "Every account must have at least one valid role. Unknown roles: {{unknownRoles}}."
     }
   },
   "role": {

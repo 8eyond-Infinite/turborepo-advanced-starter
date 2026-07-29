@@ -16,6 +16,9 @@
       "administrator": {
         "required": "Hệ thống phải còn ít nhất một quản trị viên đang hoạt động. Hãy cấp vai trò ADMIN cho một tài khoản khác trước."
       }
+    },
+    "roles": {
+      "invalid": "Mỗi tài khoản phải có ít nhất một vai trò hợp lệ. Danh sách vai trò không tồn tại: {{unknownRoles}}."
     }
   },
   "role": {

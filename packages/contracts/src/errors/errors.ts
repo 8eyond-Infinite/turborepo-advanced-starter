@@ -42,6 +42,11 @@ export const Errors = {
     translationKey: 'exceptions.user.last.administrator.required',
     statusCode: 409,
   },
+  INVALID_USER_ROLES: {
+    code: 'INVALID_USER_ROLES',
+    translationKey: 'exceptions.user.roles.invalid',
+    statusCode: 400,
+  },
 
   // Role
   ROLE_ALREADY_EXISTS: {

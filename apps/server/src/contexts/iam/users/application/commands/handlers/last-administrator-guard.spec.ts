@@ -24,6 +24,7 @@ describe('last administrator application guard', () => {
     ({
       findById: jest.fn().mockResolvedValue(user),
       findByEmail: jest.fn().mockResolvedValue(user),
+      findExistingRoleNames: jest.fn().mockResolvedValue(['USER']),
       savePreservingLastAdministrator: jest.fn().mockResolvedValue(false),
     }) as unknown as jest.Mocked<UserRepository>;
 
