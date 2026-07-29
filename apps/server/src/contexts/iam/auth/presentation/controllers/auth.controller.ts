@@ -191,10 +191,10 @@ export class AuthController {
   )
   async revokeOtherSessions(
     @GetUser('id') userId: string,
-    @GetUser('jti') currentJti: string,
+    @GetUser('sessionId') currentSessionId: string,
   ) {
     const result = await this.commandBus.execute(
-      new RevokeOtherSessionsCommand(userId, currentJti),
+      new RevokeOtherSessionsCommand(userId, currentSessionId),
     );
     result.unwrap();
     return { success: true };

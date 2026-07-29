@@ -15,6 +15,10 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { UserNotFoundException } from '@iam/users/domain/exceptions/user-not-found.exception';
 import { RefreshSessionConsumedException } from '../../../domain/exceptions/refresh-session-consumed.exception';
+import {
+  getRefreshSessionAbsoluteExpiry,
+  getRemainingSessionTtlSeconds,
+} from '../../../domain/session-policy';
 
 @CommandHandler(RefreshCommand)
 export class RefreshCommandHandler implements ICommandHandler<
@@ -43,6 +47,24 @@ export class RefreshCommandHandler implements ICommandHandler<
     }
     const permissions = await this.userRepository.getPermissions(userId);
     const newJti = this.userRepository.nextIdentity();
+    const oldData = await this.sessionStore.getRefreshTokenSession(
+      userId,
+      oldJti,
+    );
+    if (!oldData) {
+      return Result.fail(new RefreshSessionConsumedException());
+    }
+
+    const absoluteExpiresAt =
+      oldData.absoluteExpiresAt ??
+      getRefreshSessionAbsoluteExpiry(oldData.createdAt);
+    const remainingTtlSeconds =
+      getRemainingSessionTtlSeconds(absoluteExpiresAt);
+    if (remainingTtlSeconds <= 0) {
+      await this.sessionStore.revokeRefreshToken(userId, oldJti);
+      return Result.fail(new RefreshSessionConsumedException());
+    }
+
     const accessPayload = {
       sub: userId,
       email: user.email,
@@ -59,33 +81,22 @@ export class RefreshCommandHandler implements ICommandHandler<
 
     const refreshToken = this.jwtService.sign(refreshPayload, {
       secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
-      expiresIn: '7d',
+      expiresIn: remainingTtlSeconds,
     });
 
-    let sessionData = {
+    const sessionData = {
+      ...oldData,
       jti: newJti,
-      ip: 'Unknown',
-      userAgent: 'Unknown',
-      createdAt: new Date().toISOString(),
+      sessionId: oldData.sessionId ?? oldData.jti,
+      absoluteExpiresAt,
     };
-
-    const oldData = await this.sessionStore.getRefreshTokenSession(
-      userId,
-      oldJti,
-    );
-    if (oldData) {
-      sessionData = {
-        ...oldData,
-        jti: newJti,
-      };
-    }
 
     const rotated = await this.sessionStore.rotateRefreshToken(
       userId,
       oldJti,
       newJti,
       sessionData,
-      604800,
+      remainingTtlSeconds,
     );
     if (!rotated) {
       return Result.fail(new RefreshSessionConsumedException());

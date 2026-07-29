@@ -16,6 +16,7 @@ describe('RefreshCommandHandler', () => {
   const sessionStore = {
     getRefreshTokenSession: jest.fn(),
     rotateRefreshToken: jest.fn(),
+    revokeRefreshToken: jest.fn(),
   } as unknown as jest.Mocked<ISessionStore>;
   const jwtService = {
     sign: jest.fn(),
@@ -32,6 +33,8 @@ describe('RefreshCommandHandler', () => {
   );
 
   beforeEach(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-07-29T00:00:00.000Z'));
     jest.clearAllMocks();
     user = UserEntity.register({
       id: 'user-id',
@@ -44,13 +47,19 @@ describe('RefreshCommandHandler', () => {
     userRepository.nextIdentity.mockReturnValue('new-jti');
     sessionStore.getRefreshTokenSession.mockResolvedValue({
       jti: 'old-jti',
+      sessionId: 'stable-session-id',
       ip: '127.0.0.1',
       userAgent: 'test',
-      createdAt: new Date().toISOString(),
+      createdAt: '2026-07-29T00:00:00.000Z',
+      absoluteExpiresAt: '2026-08-05T00:00:00.000Z',
     });
     jwtService.sign
       .mockReturnValueOnce('new-access')
       .mockReturnValueOnce('new-refresh');
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it('returns tokens only when the old session is atomically consumed', async () => {
@@ -69,6 +78,13 @@ describe('RefreshCommandHandler', () => {
       'old-jti',
       'new-jti',
       expect.objectContaining({ jti: 'new-jti' }),
+      604800,
+    );
+    expect(sessionStore.rotateRefreshToken).toHaveBeenCalledWith(
+      'user-id',
+      'old-jti',
+      'new-jti',
+      expect.objectContaining({ sessionId: 'stable-session-id' }),
       604800,
     );
     expect(jwtService.sign).toHaveBeenNthCalledWith(
@@ -108,5 +124,59 @@ describe('RefreshCommandHandler', () => {
     expect(() => result.unwrap()).toThrow(
       'Refresh token has already been used, revoked, or expired',
     );
+  });
+
+  it('keeps the original absolute expiry instead of granting another seven days', async () => {
+    sessionStore.getRefreshTokenSession.mockResolvedValue({
+      jti: 'old-jti',
+      sessionId: 'stable-session-id',
+      ip: '127.0.0.1',
+      userAgent: 'test',
+      createdAt: '2026-07-28T00:00:00.000Z',
+      absoluteExpiresAt: '2026-07-29T01:00:00.000Z',
+    });
+    sessionStore.rotateRefreshToken.mockResolvedValue(true);
+
+    await handler.execute(
+      new RefreshCommand('user-id', 'user@example.com', 'old-jti'),
+    );
+
+    expect(jwtService.sign).toHaveBeenNthCalledWith(
+      2,
+      expect.any(Object),
+      expect.objectContaining({ expiresIn: 3600 }),
+    );
+    expect(sessionStore.rotateRefreshToken).toHaveBeenCalledWith(
+      'user-id',
+      'old-jti',
+      'new-jti',
+      expect.objectContaining({
+        absoluteExpiresAt: '2026-07-29T01:00:00.000Z',
+      }),
+      3600,
+    );
+  });
+
+  it('revokes and rejects a session past its absolute expiry', async () => {
+    sessionStore.getRefreshTokenSession.mockResolvedValue({
+      jti: 'old-jti',
+      sessionId: 'stable-session-id',
+      ip: '127.0.0.1',
+      userAgent: 'test',
+      createdAt: '2026-07-21T00:00:00.000Z',
+      absoluteExpiresAt: '2026-07-28T00:00:00.000Z',
+    });
+
+    const result = await handler.execute(
+      new RefreshCommand('user-id', 'user@example.com', 'old-jti'),
+    );
+
+    expect(result.isFailure).toBe(true);
+    expect(sessionStore.revokeRefreshToken).toHaveBeenCalledWith(
+      'user-id',
+      'old-jti',
+    );
+    expect(jwtService.sign).not.toHaveBeenCalled();
+    expect(sessionStore.rotateRefreshToken).not.toHaveBeenCalled();
   });
 });

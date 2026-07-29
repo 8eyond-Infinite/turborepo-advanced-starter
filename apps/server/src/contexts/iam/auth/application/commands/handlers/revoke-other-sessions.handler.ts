@@ -23,7 +23,7 @@ export class RevokeOtherSessionsCommandHandler implements ICommandHandler<
   ): Promise<Result<void, DomainException>> {
     await this.sessionStore.revokeOtherUserSessions(
       command.userId,
-      command.currentJti,
+      command.currentSessionId,
     );
     return Result.ok(undefined);
   }

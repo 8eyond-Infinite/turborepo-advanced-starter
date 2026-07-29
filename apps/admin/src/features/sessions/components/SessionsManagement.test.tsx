@@ -41,6 +41,7 @@ describe("<SessionsManagement /> permissions", () => {
           ip: "10.0.0.1",
           userAgent: "Mozilla/5.0 Windows Chrome",
           createdAt: "2026-07-27T00:00:00.000Z",
+          absoluteExpiresAt: "2026-08-03T00:00:00.000Z",
           isCurrent: true,
         },
         {
@@ -49,10 +50,22 @@ describe("<SessionsManagement /> permissions", () => {
           userAgent: "Mozilla/5.0 iPhone Safari",
           createdAt: "2026-07-27T00:00:00.000Z",
         },
+        {
+          jti: "session-3",
+          ip: "10.0.0.3",
+          userAgent: "Mozilla/5.0 Linux Android Chrome",
+          createdAt: "2026-07-27T00:00:00.000Z",
+        },
+        {
+          jti: "session-4",
+          ip: "10.0.0.4",
+          userAgent: "Mozilla/5.0 Windows Chrome Edg/126",
+          createdAt: "2026-07-27T00:00:00.000Z",
+        },
       ],
       meta: {
-        totalItems: 2,
-        itemCount: 2,
+        totalItems: 4,
+        itemCount: 4,
         itemsPerPage: 10,
         totalPages: 1,
         currentPage: 1,
@@ -75,6 +88,9 @@ describe("<SessionsManagement /> permissions", () => {
     renderSessions();
 
     expect(screen.getByText("IP: 10.0.0.1")).toBeInTheDocument();
+    expect(screen.getByText(/Hết hạn:/i)).toBeInTheDocument();
+    expect(screen.getByText("Android • Google Chrome")).toBeInTheDocument();
+    expect(screen.getByText("Windows • Microsoft Edge")).toBeInTheDocument();
     expect(
       screen.queryByRole("button", {
         name: "Đăng xuất thiết bị tại IP 10.0.0.1",

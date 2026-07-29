@@ -2,9 +2,11 @@ export const SESSION_STORE = Symbol('SESSION_STORE');
 
 export interface SessionData {
   jti: string;
+  sessionId: string;
   ip: string;
   userAgent: string;
   createdAt: string;
+  absoluteExpiresAt?: string;
 }
 
 export interface ISessionStore {
@@ -27,7 +29,10 @@ export interface ISessionStore {
   ): Promise<boolean>;
   revokeRefreshToken(userId: string, jti: string): Promise<void>;
   revokeAllUserSessions(userId: string): Promise<void>;
-  revokeOtherUserSessions(userId: string, currentJti: string): Promise<void>;
+  revokeOtherUserSessions(
+    userId: string,
+    currentSessionId: string,
+  ): Promise<void>;
   isRefreshTokenValid(userId: string, jti: string): Promise<boolean>;
   getUserSessions(userId: string): Promise<SessionData[]>;
 }

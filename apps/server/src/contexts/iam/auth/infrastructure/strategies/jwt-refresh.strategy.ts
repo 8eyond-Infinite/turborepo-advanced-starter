@@ -47,11 +47,11 @@ export class JwtRefreshStrategy extends PassportStrategy(
       throw new UnauthorizedException('User is inactive or no longer exists');
     }
 
-    const isValid = await this.sessionStore.isRefreshTokenValid(
+    const session = await this.sessionStore.getRefreshTokenSession(
       payload.sub,
       payload.jti,
     );
-    if (!isValid) {
+    if (!session) {
       throw new UnauthorizedException(
         'Refresh token has been revoked or expired',
       );
@@ -67,6 +67,7 @@ export class JwtRefreshStrategy extends PassportStrategy(
       email: user.email,
       roles: user.roles,
       jti: payload.jti,
+      sessionId: session.sessionId ?? session.jti,
       refreshToken,
     };
   }

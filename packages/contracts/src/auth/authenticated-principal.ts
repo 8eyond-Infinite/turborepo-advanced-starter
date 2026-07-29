@@ -7,4 +7,5 @@ export interface AuthenticatedPrincipal {
   permissions: Permission[];
   tokenVersion: number;
   jti?: string;
+  sessionId?: string;
 }

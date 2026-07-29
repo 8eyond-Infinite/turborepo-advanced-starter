@@ -250,9 +250,15 @@ Nhóm permission được đóng/mở bằng `button` có `aria-expanded`, dùng
 
 Access token mang JTI của refresh session đã sinh ra nó. `GET /auth/sessions` so sánh JTI này với các session trong Redis và trả `isCurrent`, nhờ đó Admin đánh dấu “Phiên hiện tại” và không hiển thị thao tác tự thu hồi phiên đang dùng.
 
-“Hủy tất cả phiên khác” gọi `POST /auth/sessions/revoke-others` bằng refresh cookie HttpOnly. Backend xóa mọi Redis session ngoại trừ JTI hiện tại, không clear cookie và không tăng `tokenVersion`; tab hiện tại vì vậy tiếp tục hoạt động. Endpoint này tuyệt đối không được thay bằng `/auth/logout/global`: global logout xóa toàn bộ session, tăng token version và kết thúc cả tab đang thao tác.
+Backend đối chiếu JTI của mọi access token với session trong Redis ở từng authenticated request. Vì vậy xóa một session làm cả refresh token và access token của thiết bị đó bị từ chối ngay, không có khoảng chờ 15 phút. Điều này cũng có nghĩa Redis là dependency fail-closed của request đã đăng nhập: backend không được bỏ qua kiểm tra session khi Redis gặp sự cố.
+
+“Hủy tất cả phiên khác” gọi `POST /auth/sessions/revoke-others` bằng refresh cookie HttpOnly. Backend xóa mọi Redis session ngoại trừ định danh ổn định của phiên hiện tại, không clear cookie và không tăng `tokenVersion`; tab hiện tại vì vậy tiếp tục hoạt động. Endpoint này tuyệt đối không được thay bằng `/auth/logout/global`: global logout xóa toàn bộ session, tăng token version và kết thúc cả tab đang thao tác.
+
+Ở tầng lưu trữ, backend không nhận diện phiên hiện tại chỉ bằng refresh JTI vì JTI đổi sau mỗi lần rotate. Mỗi lần đăng nhập có thêm một `sessionId` ổn định và mọi thế hệ refresh token của cùng thiết bị giữ nguyên id đó. Nhờ vậy một request refresh chạy đồng thời với “Hủy tất cả phiên khác” không làm backend xóa nhầm phiên vừa được xoay vòng.
 
 Danh sách Sessions dùng `page` trong URL làm nguồn sự thật. Revoke mutation trả Promise tới `ConfirmDialog`; dialog chỉ đóng sau khi cache session đã invalidate/refetch. Nút của session đang xử lý bị khóa để tránh gửi lặp.
+
+Mỗi session mới có deadline tuyệt đối 7 ngày tính từ lần login và màn hình hiển thị thời điểm “Hết hạn”. Refresh rotation không đẩy deadline này ra xa hơn. Field deadline là optional trong shared frontend type để Admin vẫn đọc được các session Redis cũ; backend suy ra deadline cũ từ `createdAt` trong lần refresh kế tiếp.
 
 ### Flow đọc Audit Logs
 

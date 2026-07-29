@@ -58,15 +58,17 @@ Access token đại diện cho một người dùng đã đăng nhập thành c�
 - `email`;
 - permissions tại thời điểm cấp token;
 - `tokenVersion`;
-- JTI nếu flow cần.
+- `jti`: định danh session đã sinh ra token.
 
-Refresh token cũng có JTI. JTI chỉ hợp lệ khi Redis còn session tại:
+Access token và refresh token của cùng một lần cấp dùng chung JTI. JTI chỉ hợp lệ khi Redis còn session tại:
 
 ```text
 refresh_token:{userId}:{jti}
 ```
 
-Giá trị lưu tại key đó là `SessionData`, gồm JTI, IP, user-agent và thời điểm tạo. Redis không phải nguồn sự thật về User; nó chỉ là cuốn sổ ghi những phiên refresh đang còn hiệu lực, để khi cần có thể xóa từng phiên (tức thu hồi refresh token đó).
+Giá trị lưu tại key đó là `SessionData`, gồm JTI, `sessionId`, IP, user-agent và thời điểm tạo. JTI đổi sau mỗi lần refresh; `sessionId` giữ nguyên trong suốt vòng đời đăng nhập của một thiết bị. Redis không phải nguồn sự thật về User; nó là registry của các phiên đang hoạt động. Xóa key làm mất hiệu lực cả refresh token lẫn access token mang JTI đó.
+
+Mỗi session còn có `absoluteExpiresAt`, được ấn định bằng thời điểm login cộng 7 ngày. Refresh token mới chỉ sống bằng số giây còn lại tới deadline này và Redis key mới dùng cùng TTL còn lại. Vì vậy refresh rotation không biến session thành sliding session tồn tại vô hạn. Dữ liệu Redis cũ chưa có field này được suy ra bằng `createdAt + 7 ngày`; không cần migration hoặc xóa toàn bộ phiên khi deploy.
 
 ## 4. Login flow
 
@@ -100,15 +102,16 @@ Email không tồn tại và password sai đều phải trả về cùng một l
 
 ## 5. Access request validation
 
-`JwtStrategy` chấp nhận tốn thêm một lần đọc database ở mỗi request để đổi lấy khả năng thu hồi token có hiệu lực ngay lập tức:
+`JwtStrategy` chấp nhận đọc cả database và Redis ở mỗi request để đổi lấy khả năng thu hồi token có hiệu lực ngay lập tức:
 
 1. verify chữ ký bằng `JWT_ACCESS_SECRET`;
 2. tải User hiện tại bằng `sub`;
 3. từ chối nếu User không tồn tại, inactive hoặc deleted;
 4. so sánh `payload.tokenVersion` với `user.tokenVersion`;
-5. tạo `AuthenticatedPrincipal` có kiểu và gắn vào request.
+5. kiểm tra Redis còn session `refresh_token:{sub}:{jti}`;
+6. tạo `AuthenticatedPrincipal` có kiểu và gắn vào request.
 
-Token có chữ ký đúng vẫn có thể bị từ chối. Chữ ký chỉ chứng minh token do server cấp; còn trạng thái user trong database mới chứng minh token vẫn còn hiệu lực.
+Token có chữ ký đúng vẫn có thể bị từ chối. Chữ ký chỉ chứng minh token do server cấp; trạng thái user trong database và session trong Redis mới chứng minh token vẫn còn hiệu lực. Đây là fail-closed dependency: nếu không kiểm tra được session store, backend không được chấp nhận access token dựa riêng vào chữ ký.
 
 Khi role assignment, nội dung permission của role hoặc trạng thái truy cập thay đổi, hệ thống tăng tokenVersion của các user bị ảnh hưởng. Tất cả access token cũ lập tức không còn khớp. Users aggregate xử lý thay đổi assignment/trạng thái của một user; Roles transaction xử lý mọi user đang mang role vừa đổi permission. Thay đổi profile như email, username hoặc avatar không làm quyền truy cập thay đổi nên không tăng version và không tạo một vòng `401 → refresh → retry` không cần thiết.
 
@@ -150,13 +153,19 @@ Redis không cho request khác chen vào giữa script. Vì vậy, nếu hai req
 
 Không thay script bằng ba lệnh rời `GET → SET → DEL`. Request thứ hai có thể chen vào giữa các lệnh và làm một refresh token sinh ra nhiều phiên mới; lỗi cạnh tranh như vậy gọi là **race condition**.
 
+Rotation copy `sessionId` cũ sang session mới. Đây không phải field trang trí: command “thu hồi mọi phiên khác” dùng định danh ổn định này để nhận ra phiên hiện tại. Nếu command chỉ giữ lại key có JTI cũ, một refresh chạy đồng thời có thể thay key đó bằng JTI mới; lệnh revoke sau đó sẽ xóa nhầm chính phiên vừa rotate.
+
+Rotation cũng giữ nguyên `absoluteExpiresAt`. Ví dụ session đã tồn tại 6 ngày 23 giờ thì refresh token mới chỉ có tối đa 1 giờ, không được nhận thêm 7 ngày. Session đã qua deadline bị xóa và request refresh trả 401 trước khi ký token mới.
+
 ## 7. Logout và session management
 
-`LogoutCommand` thu hồi JTI hiện tại. `LogoutAllCommand` xóa mọi key của user và tăng `tokenVersion`, vì vậy đây là thao tác đăng xuất toàn cục thật sự. `RevokeOtherSessionsCommand` xóa mọi refresh session ngoại trừ JTI hiện tại và không tăng `tokenVersion`; tab đang thao tác tiếp tục hoạt động. `RevokeSessionCommand` cho phép người dùng thu hồi một thiết bị cụ thể. `GetActiveSessionsQuery` trả danh sách session có phân trang và đánh dấu `isCurrent` bằng JTI nằm trong access token.
+`LogoutCommand` thu hồi JTI hiện tại. `LogoutAllCommand` xóa mọi key của user và tăng `tokenVersion`, vì vậy đây là thao tác đăng xuất toàn cục thật sự. `RevokeOtherSessionsCommand` xóa mọi session có `sessionId` khác phiên hiện tại và không tăng `tokenVersion`; tab đang thao tác tiếp tục hoạt động ngay cả khi refresh rotation xảy ra đồng thời. `RevokeSessionCommand` cho phép người dùng thu hồi một thiết bị cụ thể. `GetActiveSessionsQuery` trả danh sách session có phân trang và đánh dấu `isCurrent` bằng JTI nằm trong access token.
 
 Khi cần tìm các key theo mẫu tên, code dùng lệnh Redis `SCAN` (duyệt dần từng nhóm key), không dùng `KEYS`. `KEYS` quét toàn bộ key trong một lần nên có thể làm Redis đứng hình khi số key lớn — không chấp nhận được cho production.
 
-Logout một phiên hoặc thu hồi các phiên khác chỉ đảm bảo refresh token tương ứng không dùng tiếp được; access token của thiết bị bị thu hồi còn sống tối đa tới TTL 15 phút. Global logout là use case mạnh hơn: vừa xóa toàn bộ refresh session vừa tăng `tokenVersion`, nên mọi access token đã phát bị từ chối ngay.
+`SCAN` chỉ trả một ảnh chụp lỏng (weakly consistent): session có thể hết TTL hoặc bị revoke trước lệnh `GET` kế tiếp. Adapter bỏ qua key không còn dữ liệu, không tự dựng một session “Unknown”. Dữ liệu giả sẽ làm tổng phân trang sai và khiến UI hiển thị một thiết bị thực tế đã đăng xuất.
+
+Vì `JwtStrategy` đối chiếu JTI với Redis trên từng request, logout một phiên hoặc thu hồi các phiên khác làm access token và refresh token của thiết bị đó chết ngay. Global logout vẫn tăng thêm `tokenVersion`: lớp bảo vệ thứ hai này thu hồi mọi access token của user kể cả khi một session key bị tạo lại do lỗi vận hành hoặc một flow cấp token mới được bổ sung sau này.
 
 ## 8. API surface
 
@@ -189,7 +198,7 @@ Hai strategy là chỗ Passport cắm vào để kiểm tra token cho từng req
 - Secret dùng cho production phải qua được bước kiểm tra độ dài tối thiểu.
 - Không log password, access token, refresh token hoặc giá trị session trong Redis.
 - Refresh token chỉ được chấp nhận khi JTI của nó vẫn còn nằm trong store.
-- Người mang access token phải khớp trạng thái User và tokenVersion hiện tại trong database.
+- Người mang access token phải khớp trạng thái User/tokenVersion trong database và JTI session trong Redis.
 - Thông báo lỗi không được giúp kẻ tấn công dò ra email nào có tài khoản (account enumeration).
 - IP và user-agent của client chỉ là thông tin ghi kèm để truy vết, không phải bằng chứng xác thực.
 
@@ -214,7 +223,7 @@ Use case mới cần:
 - Gọi `RedisService` trực tiếp trong handler thay vì đi qua `ISessionStore`.
 - Trả nguyên object User của domain (còn chứa password hash) ra controller.
 - Đọc `process.env` hoặc đặt secret dự phòng rải rác trong code.
-- Coi logout là bằng chứng access token đã chết ngay lập tức (thực tế logout chỉ vô hiệu refresh token).
+- Chỉ xóa refresh session nhưng không đối chiếu JTI khi xác thực access token; cách đó để thiết bị đã bị thu hồi tiếp tục gọi API tới khi access token hết hạn.
 
 ## 13. Checklist review Auth
 
