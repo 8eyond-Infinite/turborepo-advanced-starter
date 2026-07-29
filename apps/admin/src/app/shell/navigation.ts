@@ -1,5 +1,5 @@
 import { HelpCircle, Settings2, Shield, type LucideIcon } from "lucide-react";
-import { adminRouteManifest } from "@/routes/route-manifest";
+import { adminRouteManifest, getAdminRoute } from "@/routes/route-manifest";
 
 export interface MenuItem {
   title: string;
@@ -44,9 +44,20 @@ export function buildNavigation(
   can: (permission?: string) => boolean,
 ): NavigationGroup[] {
   return groups.flatMap((group) => {
-    const items = (group.items ?? []).filter(
-      (item) => routablePaths.has(item.url) && can(item.permission),
-    );
+    const items = (group.items ?? []).flatMap((item) => {
+      if (!routablePaths.has(item.url)) {
+        return [];
+      }
+
+      const route = getAdminRoute(item.url);
+      if (!route || !can(route.permission)) {
+        return [];
+      }
+
+      // Path và tiêu đề vẫn do menu backend điều khiển, nhưng capability để
+      // mở route phải đến từ manifest frontend — cùng nguồn với route guard.
+      return [{ ...item, permission: route.permission }];
+    });
 
     if (items.length === 0) {
       return [];

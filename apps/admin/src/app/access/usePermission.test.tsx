@@ -65,6 +65,36 @@ describe("<Can /> application permission gating", () => {
     expect(screen.getByText("allowed")).toBeInTheDocument();
   });
 
+  it("denies an explicitly empty `any` requirement", () => {
+    loginAs(["user:update"]);
+    const { result } = renderHook(() =>
+      usePermission({ canMutate: { any: [] } }),
+    );
+
+    expect(result.current.canMutate).toBe(false);
+  });
+
+  it("requires both groups when `all` and `any` are declared together", () => {
+    loginAs(["user:read", "user:update"]);
+    const { result } = renderHook(() =>
+      usePermission({
+        canMutate: {
+          all: ["user:read"],
+          any: ["user:update", "user:delete"],
+        },
+        cannotMutate: {
+          all: ["user:read"],
+          any: ["role:update", "role:delete"],
+        },
+      }),
+    );
+
+    expect(result.current).toEqual({
+      canMutate: true,
+      cannotMutate: false,
+    });
+  });
+
   it("renders children when no requirement is declared (documented fail-open)", () => {
     loginAs([]);
     render(<Can>public-for-authenticated</Can>);

@@ -35,7 +35,8 @@ export function hasAnyPermission(
   user: UserWithPermissions | null | undefined,
   permissions?: string[],
 ): boolean {
-  if (!permissions || permissions.length === 0) return true;
+  if (!permissions) return true;
+  if (permissions.length === 0) return false;
   if (!user || !Array.isArray(user.permissions)) return false;
   return permissions.some((p) => user.permissions!.includes(p as Permission));
 }
