@@ -183,13 +183,20 @@ test.describe("Admin authentication boundaries", () => {
       .first();
     const grantLabel = await permissionCheckbox.getAttribute("aria-label");
     expect(grantLabel).toBeTruthy();
+    await permissionCheckbox.click();
+
+    const savePermissionsButton = page.getByRole("button", {
+      name: `Lưu thay đổi quyền cho vai trò ${roleName}`,
+    });
+    await expect(savePermissionsButton).toBeVisible();
+
     const updateResponse = page.waitForResponse(
       (response) =>
         response.url().includes("/roles/") &&
         response.url().endsWith("/permissions") &&
         response.request().method() === "PUT",
     );
-    await permissionCheckbox.click();
+    await savePermissionsButton.click();
     expect((await updateResponse).ok()).toBeTruthy();
     await expect(
       page.getByRole("checkbox", {
