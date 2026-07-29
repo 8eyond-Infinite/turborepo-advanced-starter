@@ -7,7 +7,7 @@ import { RealtimeProvider } from "./realtime-provider";
 
 const { createRealtimeSocket, updateRealtimeToken, registerHandlers, socket } =
   vi.hoisted(() => {
-    const socket = { disconnect: vi.fn() };
+    const socket = { connect: vi.fn(), disconnect: vi.fn() };
     return {
       socket,
       createRealtimeSocket: vi.fn(() => socket),
@@ -46,6 +46,10 @@ describe("<RealtimeProvider />", () => {
 
     expect(screen.getByText("Application")).toBeInTheDocument();
     expect(createRealtimeSocket).toHaveBeenCalledWith("access-token");
+    expect(socket.connect).toHaveBeenCalledOnce();
+    expect(registerHandlers.mock.invocationCallOrder[0]).toBeLessThan(
+      socket.connect.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
+    );
 
     act(() => {
       window.dispatchEvent(

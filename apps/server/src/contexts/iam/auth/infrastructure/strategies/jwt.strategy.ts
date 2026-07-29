@@ -1,25 +1,15 @@
-import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import type { AuthenticatedPrincipal, JwtPayload } from '@repo/contracts';
-import {
-  USER_REPOSITORY,
-  type UserRepository,
-} from '@iam/users/domain/ports/user.repository';
-import {
-  SESSION_STORE,
-  type ISessionStore,
-} from '../../domain/ports/session-store.port';
+import { AccessTokenValidator } from '../../application/services/access-token-validator.service';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(
     private readonly configService: ConfigService,
-    @Inject(USER_REPOSITORY)
-    private readonly userRepository: UserRepository,
-    @Inject(SESSION_STORE)
-    private readonly sessionStore: ISessionStore,
+    private readonly accessTokenValidator: AccessTokenValidator,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -29,27 +19,10 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   }
 
   async validate(payload: JwtPayload): Promise<AuthenticatedPrincipal> {
-    const user = await this.userRepository.findById(payload.sub);
-    if (
-      !user ||
-      !user.isActive ||
-      user.isDeleted ||
-      user.tokenVersion !== payload.tokenVersion
-    ) {
+    const principal = await this.accessTokenValidator.validate(payload);
+    if (!principal) {
       throw new UnauthorizedException('Access token has been revoked');
     }
-
-    const sessionIsActive = await this.sessionStore.isRefreshTokenValid(
-      payload.sub,
-      payload.jti,
-    );
-    if (!sessionIsActive) {
-      throw new UnauthorizedException('Session has been revoked');
-    }
-
-    return {
-      ...payload,
-      id: payload.sub,
-    };
+    return principal;
   }
 }

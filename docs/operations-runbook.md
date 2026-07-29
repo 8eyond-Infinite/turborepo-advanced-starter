@@ -447,10 +447,10 @@ docker compose \
   --env-file deploy/compose/.env.production \
   -f deploy/compose/compose.production.yaml \
   logs --since 5m api \
-  | grep -E 'Socket.IO|connected on socket|Disconnecting socket'
+  | grep -E 'Socket.IO|connected on socket|Rejecting socket'
 ```
 
-Nếu browser không có request và server không có log, kiểm tra CSP `connect-src`, `VITE_API_URL` và auth state. Nếu request có nhưng bị đóng, đọc `Disconnecting socket`: thiếu token và token sai là lỗi authentication; lỗi CORS/CSP xảy ra trước khi gateway chấp nhận connection.
+Nếu browser không có request và server không có log, kiểm tra CSP `connect-src`, `VITE_API_URL` và auth state. Nếu request có nhưng handshake bị từ chối, API ghi `Rejecting socket`: ngoài chữ ký và hạn token, gateway còn kiểm tra user active, `tokenVersion` và session JTI trong Redis giống HTTP. Admin nhận mã `REALTIME_AUTHENTICATION_FAILED` sẽ logout. Lỗi mạng không có mã này không được phá phiên HTTP; kiểm tra network, proxy và API availability trong khi Socket.IO tự reconnect. Lỗi CORS/CSP xảy ra trước khi gateway chấp nhận connection.
 
 ## 6. Việc định kỳ
 

@@ -432,7 +432,7 @@ Job `image` biến source code đã qua kiểm tra thành Docker image:
 
 Job phụ thuộc cả quality test lẫn E2E, nên code chưa qua gate không được publish. API và worker chạy cùng image; worker chỉ đổi entry command thành `node dist/worker.js`.
 
-Database dùng cho test phải có tên/phạm vi riêng; backend E2E đã có chốt chặn từ chối reset bất kỳ database nào không có hậu tố `_test`.
+Database dùng cho test phải có tên/phạm vi riêng; backend E2E đã có chốt chặn từ chối reset bất kỳ database nào không có hậu tố `_test`. Setup gọi `prisma db push` và `db:seed` qua package `@repo/database`, là nơi sở hữu schema, Prisma config và executable `tsx`; không dựa vào package hoisting hoặc `npx` tìm dependency từ thư mục Server.
 
 Quy trình phát hành từng bước, cách quay lui và cách xử lý khi hệ thống đang có sự cố nằm ở [Sổ tay vận hành](operations-runbook.md).
 

@@ -19,10 +19,10 @@ module.exports = async () => {
 
   try {
     execSync(
-      `npx prisma db push --schema=../../packages/database/prisma/schema.prisma --url="${dbTestUrl}" --force-reset`,
+      `pnpm --dir ../../packages/database exec prisma db push --schema=prisma/schema.prisma --url="${dbTestUrl}" --force-reset`,
       { stdio: 'inherit' },
     );
-    execSync(`npx tsx ../../packages/database/prisma/seed.ts`, {
+    execSync(`pnpm --dir ../../packages/database db:seed`, {
       stdio: 'inherit',
       env: { ...process.env, DATABASE_URL: dbTestUrl },
     });

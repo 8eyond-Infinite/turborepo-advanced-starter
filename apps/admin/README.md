@@ -311,15 +311,17 @@ Màn hình nghiệp vụ phải có integration test với ít nhất một prin
 
 Realtime là một application boundary trong `src/app/realtime`, được tách thành ba phần có trách nhiệm độc lập:
 
-- `realtime-client.ts` biết cách tạo Socket.IO client và cập nhật credential. Access token chỉ được gửi qua `handshake.auth`, không nằm trong URL/query string.
-- `realtime-event-handlers.ts` ánh xạ transport event sang application side effect như logout, toast và invalidation cache.
-- `realtime-provider.tsx` sở hữu lifecycle: đọc auth state, tạo đúng một socket cho phiên authenticated, nghe token refresh và cleanup toàn bộ resource khi phiên kết thúc.
+- `realtime-client.ts` biết cách tạo Socket.IO client và cập nhật credential. Access token chỉ được gửi qua `handshake.auth`, không nằm trong URL/query string. Client được tạo với `autoConnect: false`.
+- `realtime-event-handlers.ts` ánh xạ transport event sang application side effect như logout, toast, observability và invalidation cache.
+- `realtime-provider.tsx` sở hữu lifecycle: đọc auth state, tạo đúng một socket cho phiên authenticated, đăng ký toàn bộ listener trước khi gọi `connect()`, nghe token refresh và cleanup toàn bộ resource khi phiên kết thúc.
 
 Client xử lý ba nhóm event:
 
 - `force_logout`: hiển thị cảnh báo và chạy logout.
 - `notification_received`: hiển thị toast và invalidate query `["notifications"]`.
 - `notification`: hiển thị toast realtime tổng quát.
+
+Handshake auth thất bại có mã `REALTIME_AUTHENTICATION_FAILED`. Trường hợp này nghĩa là credential không còn hợp lệ nên Admin logout và dọn session. `connect_error` không có mã đó được xem là lỗi transport tạm thời: client ghi nhận qua observability nhưng không phá phiên HTTP, còn Socket.IO tiếp tục reconnect theo policy của nó. Không được logout chỉ vì Wi-Fi chập chờn hoặc API đang restart.
 
 Feature component không được tự tạo socket. Khi thêm event mới, khai báo handler trong `realtime-event-handlers.ts`; nếu event dẫn tới thay đổi server state, handler phải invalidate query bằng query-key factory của feature thay vì lặp chuỗi key. Provider chỉ điều phối lifecycle và không chứa logic trình bày của từng event.
 

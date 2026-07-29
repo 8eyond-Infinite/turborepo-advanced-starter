@@ -102,14 +102,16 @@ Email không tồn tại và password sai đều phải trả về cùng một l
 
 ## 5. Access request validation
 
-`JwtStrategy` chấp nhận đọc cả database và Redis ở mỗi request để đổi lấy khả năng thu hồi token có hiệu lực ngay lập tức:
+`AccessTokenValidator` chấp nhận đọc cả database và Redis ở mỗi lần xác thực để đổi lấy khả năng thu hồi token có hiệu lực ngay lập tức:
 
 1. verify chữ ký bằng `JWT_ACCESS_SECRET`;
 2. tải User hiện tại bằng `sub`;
 3. từ chối nếu User không tồn tại, inactive hoặc deleted;
 4. so sánh `payload.tokenVersion` với `user.tokenVersion`;
 5. kiểm tra Redis còn session `refresh_token:{sub}:{jti}`;
-6. tạo `AuthenticatedPrincipal` có kiểu và gắn vào request.
+6. tạo `AuthenticatedPrincipal` có kiểu.
+
+Validator này là policy dùng chung, không gắn với HTTP. `JwtStrategy` gọi nó rồi gắn principal vào request; Socket.IO gateway cũng gọi chính validator đó trong handshake middleware trước khi cho socket kết nối. Vì vậy một access token đã bị thu hồi không thể bị HTTP từ chối nhưng WebSocket lại chấp nhận.
 
 Token có chữ ký đúng vẫn có thể bị từ chối. Chữ ký chỉ chứng minh token do server cấp; trạng thái user trong database và session trong Redis mới chứng minh token vẫn còn hiệu lực. Đây là fail-closed dependency: nếu không kiểm tra được session store, backend không được chấp nhận access token dựa riêng vào chữ ký.
 

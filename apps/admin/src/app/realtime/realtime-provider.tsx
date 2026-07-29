@@ -26,6 +26,7 @@ export const RealtimeProvider = ({ children }: PropsWithChildren) => {
       updateRealtimeToken(socket, (event as CustomEvent<string>).detail);
     };
     window.addEventListener("auth:token-refreshed", handleTokenRefresh);
+    socket.connect();
 
     return () => {
       window.removeEventListener("auth:token-refreshed", handleTokenRefresh);
