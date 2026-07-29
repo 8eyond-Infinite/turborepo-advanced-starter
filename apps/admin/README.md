@@ -258,6 +258,8 @@ Backend đối chiếu JTI của mọi access token với session trong Redis �
 
 Danh sách Sessions dùng `page` trong URL làm nguồn sự thật. Revoke mutation trả Promise tới `ConfirmDialog`; dialog chỉ đóng sau khi cache session đã invalidate/refetch. Nút của session đang xử lý bị khóa để tránh gửi lặp.
 
+Mỗi session mới có deadline tuyệt đối 7 ngày tính từ lần login và màn hình hiển thị thời điểm “Hết hạn”. Refresh rotation không đẩy deadline này ra xa hơn. Field deadline là optional trong shared frontend type để Admin vẫn đọc được các session Redis cũ; backend suy ra deadline cũ từ `createdAt` trong lần refresh kế tiếp.
+
 ### Flow đọc Audit Logs
 
 Audit là màn hình read-only. `q` và `page` nằm trong URL, vì vậy một cuộc điều tra có thể được bookmark hoặc gửi cho người khác mà vẫn giữ đúng từ khóa và trang. Search draft debounce 300 ms trong `AuditSearchInput`; sau đó component cập nhật URL và reset page. `useAuditLogs` chỉ sở hữu server query/cache, không giữ UI state.

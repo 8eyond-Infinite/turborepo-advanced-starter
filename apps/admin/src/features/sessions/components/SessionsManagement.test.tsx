@@ -41,6 +41,7 @@ describe("<SessionsManagement /> permissions", () => {
           ip: "10.0.0.1",
           userAgent: "Mozilla/5.0 Windows Chrome",
           createdAt: "2026-07-27T00:00:00.000Z",
+          absoluteExpiresAt: "2026-08-03T00:00:00.000Z",
           isCurrent: true,
         },
         {
@@ -75,6 +76,7 @@ describe("<SessionsManagement /> permissions", () => {
     renderSessions();
 
     expect(screen.getByText("IP: 10.0.0.1")).toBeInTheDocument();
+    expect(screen.getByText(/Hết hạn:/i)).toBeInTheDocument();
     expect(
       screen.queryByRole("button", {
         name: "Đăng xuất thiết bị tại IP 10.0.0.1",

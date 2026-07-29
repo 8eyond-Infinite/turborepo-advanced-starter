@@ -68,6 +68,8 @@ refresh_token:{userId}:{jti}
 
 Giá trị lưu tại key đó là `SessionData`, gồm JTI, `sessionId`, IP, user-agent và thời điểm tạo. JTI đổi sau mỗi lần refresh; `sessionId` giữ nguyên trong suốt vòng đời đăng nhập của một thiết bị. Redis không phải nguồn sự thật về User; nó là registry của các phiên đang hoạt động. Xóa key làm mất hiệu lực cả refresh token lẫn access token mang JTI đó.
 
+Mỗi session còn có `absoluteExpiresAt`, được ấn định bằng thời điểm login cộng 7 ngày. Refresh token mới chỉ sống bằng số giây còn lại tới deadline này và Redis key mới dùng cùng TTL còn lại. Vì vậy refresh rotation không biến session thành sliding session tồn tại vô hạn. Dữ liệu Redis cũ chưa có field này được suy ra bằng `createdAt + 7 ngày`; không cần migration hoặc xóa toàn bộ phiên khi deploy.
+
 ## 4. Login flow
 
 ```mermaid
@@ -152,6 +154,8 @@ Redis không cho request khác chen vào giữa script. Vì vậy, nếu hai req
 Không thay script bằng ba lệnh rời `GET → SET → DEL`. Request thứ hai có thể chen vào giữa các lệnh và làm một refresh token sinh ra nhiều phiên mới; lỗi cạnh tranh như vậy gọi là **race condition**.
 
 Rotation copy `sessionId` cũ sang session mới. Đây không phải field trang trí: command “thu hồi mọi phiên khác” dùng định danh ổn định này để nhận ra phiên hiện tại. Nếu command chỉ giữ lại key có JTI cũ, một refresh chạy đồng thời có thể thay key đó bằng JTI mới; lệnh revoke sau đó sẽ xóa nhầm chính phiên vừa rotate.
+
+Rotation cũng giữ nguyên `absoluteExpiresAt`. Ví dụ session đã tồn tại 6 ngày 23 giờ thì refresh token mới chỉ có tối đa 1 giờ, không được nhận thêm 7 ngày. Session đã qua deadline bị xóa và request refresh trả 401 trước khi ký token mới.
 
 ## 7. Logout và session management
 

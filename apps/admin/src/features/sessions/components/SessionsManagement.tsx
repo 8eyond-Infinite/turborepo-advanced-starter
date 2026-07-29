@@ -201,6 +201,15 @@ export const SessionsManagement = () => {
                               "vi-VN",
                             )}
                           </span>
+                          {session.absoluteExpiresAt && (
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3.5 w-3.5" />
+                              Hết hạn:{" "}
+                              {new Date(
+                                session.absoluteExpiresAt,
+                              ).toLocaleString("vi-VN")}
+                            </span>
+                          )}
                         </div>
                         <div className="text-[10px] text-muted-foreground/60 font-mono">
                           JTI: {session.jti}

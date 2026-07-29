@@ -6,6 +6,7 @@ export interface SessionData {
   ip: string;
   userAgent: string;
   createdAt: string;
+  absoluteExpiresAt?: string;
 }
 
 export interface ISessionStore {

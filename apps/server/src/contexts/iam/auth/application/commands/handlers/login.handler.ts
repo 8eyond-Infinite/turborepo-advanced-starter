@@ -19,6 +19,10 @@ import {
   type PasswordHasher,
 } from '@iam/users/domain/ports/password-hasher';
 import { ConfigService } from '@nestjs/config';
+import {
+  getRefreshSessionAbsoluteExpiry,
+  REFRESH_SESSION_ABSOLUTE_TTL_SECONDS,
+} from '../../../domain/session-policy';
 
 @CommandHandler(LoginCommand)
 export class LoginCommandHandler implements ICommandHandler<
@@ -81,14 +85,21 @@ export class LoginCommandHandler implements ICommandHandler<
       expiresIn: '7d',
     });
 
+    const createdAt = new Date().toISOString();
     const sessionData = {
       jti,
       sessionId: jti,
       ip: command.ip || 'Unknown',
       userAgent: command.userAgent || 'Unknown',
-      createdAt: new Date().toISOString(),
+      createdAt,
+      absoluteExpiresAt: getRefreshSessionAbsoluteExpiry(createdAt),
     };
-    await this.sessionStore.saveRefreshToken(user.id, jti, sessionData, 604800);
+    await this.sessionStore.saveRefreshToken(
+      user.id,
+      jti,
+      sessionData,
+      REFRESH_SESSION_ABSOLUTE_TTL_SECONDS,
+    );
 
     return Result.ok({ accessToken, refreshToken });
   }
