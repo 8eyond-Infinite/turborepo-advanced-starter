@@ -17,9 +17,9 @@ vi.mock("@/lib/error-handler", () => ({
     err instanceof Error ? err.message : "unknown error",
 }));
 
-const renderForm = () =>
+const renderForm = (state?: unknown) =>
   render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[{ pathname: "/login", state }]}>
       <LoginForm />
     </MemoryRouter>,
   );
@@ -50,6 +50,22 @@ describe("<LoginForm />", () => {
       });
     });
     expect(mockNavigate).toHaveBeenCalledWith("/", { replace: true });
+  });
+
+  it("returns to the requested internal page after login", async () => {
+    const login = vi.fn().mockResolvedValue(undefined);
+    useAuthStore.setState({ login });
+
+    renderForm({
+      from: { pathname: "/users", search: "?page=2", hash: "" },
+    });
+    await fillAndSubmit("admin@example.com", "supersecret");
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith("/users?page=2", {
+        replace: true,
+      });
+    });
   });
 
   it("shows a friendly error and stays on the page when login fails", async () => {

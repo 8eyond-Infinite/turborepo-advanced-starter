@@ -25,6 +25,27 @@ describe("admin navigation", () => {
     ]);
   });
 
+  it("uses the route manifest permission instead of trusting menu metadata", () => {
+    const navigation = buildNavigation(
+      [
+        {
+          title: "Administration",
+          url: "#",
+          items: [
+            {
+              title: "Users",
+              url: "/users",
+              permission: "role:read",
+            },
+          ],
+        },
+      ],
+      (permission) => permission === "user:read",
+    );
+
+    expect(navigation[0]?.items[0]?.permission).toBe("user:read");
+  });
+
   it("drops unknown URLs and groups with no visible items", () => {
     expect(
       buildNavigation(

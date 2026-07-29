@@ -115,6 +115,8 @@ Các màn hình được lazy import, vì vậy trình duyệt chỉ tải code 
 
 Route công khai gồm `/login` và `/403`. Tất cả route quản trị nằm bên dưới `ProtectedRoute`, sau đó dùng `MainLayout`. Mỗi route có thể khai báo một permission và được bọc bởi `PermissionGuard`.
 
+Khi người chưa đăng nhập mở thẳng một URL quản trị, `ProtectedRoute` chuyển họ tới `/login` và giữ lại vị trí nội bộ ban đầu. Đăng nhập thành công đưa họ trở lại đúng pathname, query string và hash đó; nếu không có vị trí hợp lệ thì về dashboard. Redirect chỉ chấp nhận path nội bộ bắt đầu bằng đúng một dấu `/`, không nhận URL tuyệt đối hoặc `//host`, để state điều hướng không trở thành open redirect.
+
 Flow quyết định truy cập là:
 
 ```text
@@ -276,7 +278,7 @@ Mỗi notification chưa đọc là một semantic button có accessible name v�
 
 Shared shell đọc breadcrumb từ route manifest, vì vậy nhãn và route guard không có hai danh sách độc lập. Header và content padding thay đổi theo breakpoint; active navigation nhận diện cả route con nhưng không nhầm `/users-archive` là con của `/users`.
 
-Sidebar tải thứ tự, nhóm, nhãn và icon từ `/menus`, sau đó đối chiếu từng URL với route manifest và lọc theo permission của principal hiện tại. URL không tồn tại trong frontend, item không có quyền và group rỗng đều không được render. Icon backend chưa được frontend hỗ trợ dùng biểu tượng `Shield` an toàn. Trong lúc tải, sidebar hiển thị trạng thái loading; nếu request lỗi, người dùng thấy thông báo cùng nút thử lại; nếu tải thành công nhưng không còn item hợp lệ, sidebar giải thích rằng tài khoản chưa có menu được cấp quyền.
+Sidebar tải thứ tự, nhóm, nhãn và icon từ `/menus`, sau đó đối chiếu từng URL với route manifest. Backend quyết định menu nào tồn tại và chúng được sắp xếp ra sao; route manifest frontend là nguồn duy nhất quyết định permission nào cần để mở từng màn hình. Nhờ vậy sidebar và route guard không thể lệch nhau nếu metadata permission trong menu cũ hoặc sai. URL không tồn tại trong frontend, item không có quyền và group rỗng đều không được render. Icon backend chưa được frontend hỗ trợ dùng biểu tượng `Shield` an toàn. Trong lúc tải, sidebar hiển thị trạng thái loading; nếu request lỗi, người dùng thấy thông báo cùng nút thử lại; nếu tải thành công nhưng không còn item hợp lệ, sidebar giải thích rằng tài khoản chưa có menu được cấp quyền.
 
 User menu tách “Đăng xuất” khỏi “Đăng xuất mọi thiết bị”. Trong lúc một action đang chạy, cả hai lựa chọn bị khóa để tránh gửi request lặp. Router chỉ thay history bằng `/login` sau khi auth store đã hoàn thành local cleanup; lỗi bất ngờ được giữ tại event boundary và hiển thị bằng toast thay vì tạo unhandled rejection. Avatar không có ảnh dùng initials tính từ tên người dùng, không dùng chữ viết tắt hard-code.
 
@@ -296,6 +298,8 @@ const access = usePermissions({
   canManageUsers: [PERMISSIONS.USER.UPDATE, PERMISSIONS.USER.DELETE],
 });
 ```
+
+Mảng permission có nghĩa là “có ít nhất một quyền”. Vì thế mảng `any` rỗng bị từ chối thay vì vô tình cho phép. Tập `all` rỗng vẫn đúng theo nghĩa không còn điều kiện bắt buộc. Nếu một capability khai báo cả `all` và `any`, người dùng phải thỏa toàn bộ nhóm `all` và ít nhất một phần tử của nhóm `any`. Không khai báo requirement mới là trường hợp công khai trong vùng đã đăng nhập.
 
 Array trong semantic map mang nghĩa `any`: chỉ cần người dùng có ít nhất một quyền trong danh sách là capability được coi là đúng. Nếu cần tất cả quyền, dùng `{ all: [...] }`. Nếu cần bất kỳ quyền nào một cách tường minh, dùng `{ any: [...] }`.
 
@@ -488,10 +492,10 @@ Navigation phải dùng cùng permission với route — nếu không sẽ hiệ
 Vitest chạy trong jsdom, kèm Testing Library cho component test (setup ở `src/test/setup.ts`). Các nhóm test nền tảng hiện có:
 
 1. `src/lib/api-client.test.ts` — khóa chặt hành vi refresh: hai request 401 đồng thời chỉ tạo một refresh request; refresh thất bại phải xóa session và phát logout; retry vẫn 401 không được refresh lặp vô hạn.
-2. `src/app/access/usePermission.test.tsx` — render `<Can>` với các tổ hợp quyền: có quyền thì hiện, thiếu thì hiện fallback, `all`/`any` đúng ngữ nghĩa, và hành vi fail-open khi route không khai báo permission.
-3. `src/features/auth/components/LoginForm.test.tsx` — submit gọi `login` đúng credentials và điều hướng khi thành công; lỗi hiển thị thông báo thân thiện và ở lại trang; nút ẩn/hiện mật khẩu có accessible name.
+2. `src/app/access/usePermission.test.tsx` — render `<Can>` với các tổ hợp quyền: có quyền thì hiện, thiếu thì hiện fallback, `all`/`any` đúng ngữ nghĩa, cấu hình `any` rỗng fail-closed, và hành vi công khai khi không khai báo requirement.
+3. `src/features/auth/components/LoginForm.test.tsx` cùng `src/features/auth/utils/login-redirect.test.ts` — submit gọi `login` đúng credentials, khôi phục URL nội bộ sau đăng nhập và từ chối redirect ra ngoài; lỗi hiển thị thông báo thân thiện và ở lại trang; nút ẩn/hiện mật khẩu có accessible name.
 4. `src/features/auth/store/auth.store.test.ts` — khóa transition login, rollback/revoke khi profile không tải được và local cleanup khi logout gặp lỗi mạng.
-5. `src/routes/protected-route.test.tsx` — phân biệt đúng bootstrap pending, unauthenticated redirect và authenticated outlet.
+5. `src/routes/protected-route.test.tsx` — phân biệt đúng bootstrap pending, unauthenticated redirect có giữ URL ban đầu và authenticated outlet.
 6. `src/app/auth-cache-boundary.test.ts` — bảo đảm cache server bị xóa khi principal đăng xuất nhưng không bị xóa bởi update auth state không liên quan.
 7. `src/app/realtime/realtime-client.test.ts` — khóa chặt việc token chỉ đi qua Socket.IO auth payload và có thể được thay sau HTTP refresh.
 8. `src/app/realtime/realtime-event-handlers.test.ts` — xác nhận event được ánh xạ đúng sang logout, toast, cache invalidation và mọi listener đều được tháo.

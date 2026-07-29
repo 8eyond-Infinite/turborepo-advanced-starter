@@ -67,13 +67,12 @@ export function usePermission<T extends Record<string, PermissionInput>>(
       } else if (Array.isArray(val)) {
         result[key] = any(val);
       } else if (val && typeof val === "object") {
-        if (val.all) {
-          result[key] = all(val.all);
-        } else if (val.any) {
-          result[key] = any(val.any);
-        } else {
-          result[key] = false;
-        }
+        const hasAllRequirement = val.all !== undefined;
+        const hasAnyRequirement = val.any !== undefined;
+        result[key] =
+          (hasAllRequirement || hasAnyRequirement) &&
+          (!hasAllRequirement || all(val.all)) &&
+          (!hasAnyRequirement || any(val.any));
       } else {
         result[key] = false;
       }
@@ -114,10 +113,13 @@ export function Can({
 
   if (targetPermission) {
     isAllowed = can(targetPermission);
-  } else if (allPerms && allPerms.length > 0) {
-    isAllowed = all(allPerms);
-  } else if (anyPerms && anyPerms.length > 0) {
-    isAllowed = any(anyPerms);
+  } else {
+    if (allPerms !== undefined) {
+      isAllowed = isAllowed && all(allPerms);
+    }
+    if (anyPerms !== undefined) {
+      isAllowed = isAllowed && any(anyPerms);
+    }
   }
 
   if (!isAllowed) {

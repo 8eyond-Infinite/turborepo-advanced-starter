@@ -26,9 +26,10 @@ export const adminRouteManifest = [
 
 export type AdminRoutePath = (typeof adminRouteManifest)[number]["path"];
 
+export function getAdminRoute(pathname: string) {
+  return adminRouteManifest.find((route) => route.path === pathname);
+}
+
 export function getAdminRouteLabel(pathname: string): string {
-  return (
-    adminRouteManifest.find((route) => route.path === pathname)?.label ??
-    "Không tìm thấy trang"
-  );
+  return getAdminRoute(pathname)?.label ?? "Không tìm thấy trang";
 }

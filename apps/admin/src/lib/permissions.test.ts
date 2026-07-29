@@ -30,8 +30,8 @@ describe("permission evaluators", () => {
     expect(hasAnyPermission(user, ["role.read", "role.update"])).toBe(false);
   });
 
-  it("treats an empty permission collection as no restriction", () => {
+  it("treats an empty all-set as satisfied and an empty any-set as denied", () => {
     expect(hasAllPermissions(null, [])).toBe(true);
-    expect(hasAnyPermission(null, [])).toBe(true);
+    expect(hasAnyPermission(null, [])).toBe(false);
   });
 });

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/auth.store";
 import { getFriendlyErrorMessage } from "@/lib/error-handler";
 import {
@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Shield, Loader2, AlertCircle, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
+import { resolveLoginRedirect } from "../utils/login-redirect";
 
 export const LoginForm = () => {
   const [email, setEmail] = useState("");
@@ -22,6 +23,7 @@ export const LoginForm = () => {
   const [loading, setLoading] = useState(false);
   const { login } = useAuthStore();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,7 +33,7 @@ export const LoginForm = () => {
     try {
       await login({ email, password });
       toast.success("Đăng nhập thành công! Chào mừng quay trở lại.");
-      navigate("/", { replace: true });
+      navigate(resolveLoginRedirect(location.state), { replace: true });
     } catch (err: unknown) {
       const errMsg = getFriendlyErrorMessage(err);
       setError(errMsg);
