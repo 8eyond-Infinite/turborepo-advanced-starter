@@ -29,24 +29,23 @@ const parseUserAgent = (uaString?: string) => {
   let isMobile = false;
 
   // Detect OS
-  if (ua.includes("windows")) os = "Windows";
-  else if (ua.includes("macintosh") || ua.includes("mac os x")) os = "macOS";
-  else if (ua.includes("linux")) os = "Linux";
-  else if (ua.includes("android")) {
+  if (ua.includes("android")) {
     os = "Android";
     isMobile = true;
   } else if (ua.includes("iphone") || ua.includes("ipad")) {
     os = "iOS";
     isMobile = true;
-  }
+  } else if (ua.includes("windows")) os = "Windows";
+  else if (ua.includes("macintosh") || ua.includes("mac os x")) os = "macOS";
+  else if (ua.includes("linux")) os = "Linux";
 
-  if (ua.includes("chrome") || ua.includes("crios")) browser = "Google Chrome";
+  if (ua.includes("edge") || ua.includes("edg")) browser = "Microsoft Edge";
+  else if (ua.includes("chrome") || ua.includes("crios"))
+    browser = "Google Chrome";
   else if (ua.includes("firefox") || ua.includes("fxios"))
     browser = "Mozilla Firefox";
   else if (ua.includes("safari") && !ua.includes("chrome"))
     browser = "Apple Safari";
-  else if (ua.includes("edge") || ua.includes("edg"))
-    browser = "Microsoft Edge";
 
   return { os, browser, isMobile };
 };
@@ -139,7 +138,7 @@ export const SessionsManagement = () => {
                 </Button>
               }
               title="Hủy toàn bộ các phiên đăng nhập khác?"
-              description="Hành động này sẽ xóa toàn bộ Refresh Token của tài khoản ngoại trừ phiên làm việc hiện tại của bạn trên trình duyệt này."
+              description="Hành động này sẽ thu hồi ngay quyền truy cập của mọi thiết bị khác, nhưng giữ nguyên phiên đang dùng trên trình duyệt này."
               confirmText="Xác nhận đăng xuất toàn bộ"
               pendingText="Đang thu hồi..."
               variant="destructive"
