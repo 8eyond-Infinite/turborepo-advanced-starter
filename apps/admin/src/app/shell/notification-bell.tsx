@@ -23,6 +23,7 @@ export const NotificationBell = () => {
     isFetching,
     refetch,
     isMarkingAllAsRead,
+    isMarkingNotification,
     markingNotificationId,
   } = useNotifications();
 
@@ -74,7 +75,7 @@ export const NotificationBell = () => {
             <Button
               variant="ghost"
               size="sm"
-              disabled={isMarkingAllAsRead}
+              disabled={isMarkingAllAsRead || isMarkingNotification}
               onClick={handleMarkAllAsRead}
               className="h-auto p-0 text-xs text-primary hover:text-primary/80 hover:bg-transparent flex items-center gap-1 font-semibold transition-colors duration-200 cursor-pointer"
             >
@@ -119,7 +120,10 @@ export const NotificationBell = () => {
               <NotificationItemButton
                 key={notification.id}
                 notification={notification}
-                isPending={markingNotificationId === notification.id}
+                isPending={
+                  isMarkingAllAsRead ||
+                  markingNotificationId === notification.id
+                }
                 onMarkAsRead={markAsRead}
               />
             ))

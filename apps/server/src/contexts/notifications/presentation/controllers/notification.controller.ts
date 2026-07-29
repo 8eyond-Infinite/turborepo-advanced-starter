@@ -8,7 +8,6 @@ import {
   UseGuards,
   HttpStatus,
   HttpCode,
-  BadRequestException,
 } from '@nestjs/common';
 import { QueryBus, CommandBus } from '@nestjs/cqrs';
 import {
@@ -44,9 +43,7 @@ export class NotificationController {
       new GetNotificationsQuery(userId, pagination.page, pagination.limit),
     );
 
-    if (result.isFailure) {
-      throw new BadRequestException(result.getError().message);
-    }
+    if (result.isFailure) throw result.getError();
 
     return result.getValue();
   }
@@ -70,9 +67,7 @@ export class NotificationController {
       }),
     );
 
-    if (result.isFailure) {
-      throw new BadRequestException(result.getError().message);
-    }
+    if (result.isFailure) throw result.getError();
 
     return { success: true };
   }
@@ -92,9 +87,7 @@ export class NotificationController {
       }),
     );
 
-    if (result.isFailure) {
-      throw new BadRequestException(result.getError().message);
-    }
+    if (result.isFailure) throw result.getError();
 
     return { success: true };
   }

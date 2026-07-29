@@ -101,6 +101,7 @@ export const useNotifications = () => {
     markAsRead: markAsReadMutation.mutateAsync,
     markAllAsRead: markAllAsReadMutation.mutateAsync,
     isMarkingAllAsRead: markAllAsReadMutation.isPending,
+    isMarkingNotification: markAsReadMutation.isPending,
     markingNotificationId: markAsReadMutation.variables ?? null,
   };
 };

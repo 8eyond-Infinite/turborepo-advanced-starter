@@ -272,7 +272,7 @@ Backend hiện bảo đảm search trên action, details và email. UI không cu
 
 ### Notification đi từ server đến màn hình như thế nào?
 
-Popover tải 50 notification mới nhất nhưng badge dùng `unreadCount` do backend đếm trên toàn bộ mailbox; không được đếm mảng page hiện tại. Mark-one và mark-all cập nhật cache lạc quan để UI phản hồi ngay, giữ snapshot để rollback khi request thất bại, rồi invalidate root key sau thành công. Mutation lỗi được hook chuyển thành toast và được click handler giữ lại tại UI boundary, vì vậy browser không phát sinh unhandled Promise rejection sau khi rollback đã hoàn tất.
+Popover tải 50 notification mới nhất nhưng badge dùng `unreadCount` do backend đếm trên toàn bộ mailbox; không được đếm mảng page hiện tại. Mark-one và mark-all cập nhật cache lạc quan để UI phản hồi ngay, giữ snapshot để rollback khi request thất bại, rồi invalidate root key sau thành công. Trong lúc một mutation đang chạy, các action notification còn lại bị khóa để không tạo hai snapshot lạc quan chồng lên nhau và rollback sai thứ tự. Mutation lỗi được hook chuyển thành toast và được click handler giữ lại tại UI boundary, vì vậy browser không phát sinh unhandled Promise rejection sau khi rollback đã hoàn tất.
 
 Mỗi notification chưa đọc là một semantic button có accessible name và dùng được bằng bàn phím. Notification đã đọc bị disabled vì không còn action. Bell nối unread count bằng `aria-describedby`; badge `9+` chỉ là biểu diễn thị giác và bị ẩn khỏi accessibility tree. Popover có heading, loading status và error alert được đặt tên rõ ràng. Timestamp hiển thị tương đối nhưng giữ ISO gốc trong `dateTime`. Realtime event chỉ invalidate cache và hiển thị toast; HTTP response vẫn là nguồn sự thật.
 

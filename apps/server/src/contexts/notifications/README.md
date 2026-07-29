@@ -69,6 +69,8 @@ Transactional outbox bảo đảm không có trạng thái “database đã có 
 
 `PATCH /notifications/:id/read` tải notification theo ID rồi kiểm tra `notification.userId === principal.id` trước khi save. Không được update trực tiếp chỉ theo ID ở controller hoặc adapter, vì như vậy một user có thể đánh dấu notification của user khác.
 
+Nếu ID không tồn tại, API trả lỗi domain `NOTIFICATION_NOT_FOUND` với HTTP 404. Nếu notification thuộc user khác, API trả `NOTIFICATION_FORBIDDEN` với HTTP 403; controller không biến hai lỗi này thành một `400` chung, vì client và audit cần phân biệt resource thiếu với vi phạm ownership.
+
 `POST /notifications/read-all` luôn giới hạn `userId` hiện tại ở repository. Hai use case đều idempotent về kết quả cuối: gọi lại trên notification đã đọc vẫn cho trạng thái đã đọc.
 
 ## 6. Admin cập nhật cache như thế nào?

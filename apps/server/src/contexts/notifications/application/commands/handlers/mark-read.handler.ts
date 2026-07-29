@@ -6,6 +6,9 @@ import {
   type NotificationRepository,
 } from '../../../domain/ports/notification.repository';
 import { Result } from '@shared/domain/result';
+import { DomainException } from '@shared/domain/exceptions/domain.exception';
+import { NotificationNotFoundException } from '../../../domain/exceptions/notification-not-found.exception';
+import { NotificationForbiddenException } from '../../../domain/exceptions/notification-forbidden.exception';
 
 @CommandHandler(MarkNotificationReadCommand)
 export class MarkNotificationReadHandler implements ICommandHandler<MarkNotificationReadCommand> {
@@ -18,7 +21,7 @@ export class MarkNotificationReadHandler implements ICommandHandler<MarkNotifica
 
   async execute(
     command: MarkNotificationReadCommand,
-  ): Promise<Result<void, Error>> {
+  ): Promise<Result<void, Error | DomainException>> {
     const { userId, notificationId, all } = command;
 
     try {
@@ -33,14 +36,12 @@ export class MarkNotificationReadHandler implements ICommandHandler<MarkNotifica
           await this.notificationRepository.findById(notificationId);
 
         if (!notification) {
-          return Result.fail(
-            new Error(`Notification ${notificationId} not found`),
-          );
+          return Result.fail(new NotificationNotFoundException(notificationId));
         }
 
         if (notification.userId !== userId) {
           return Result.fail(
-            new Error(`Unauthorized access to notification ${notificationId}`),
+            new NotificationForbiddenException(notificationId),
           );
         }
 
