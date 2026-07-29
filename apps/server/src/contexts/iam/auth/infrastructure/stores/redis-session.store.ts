@@ -78,15 +78,6 @@ export class RedisSessionStore implements ISessionStore {
       const data = await this.cache.get<SessionData>(key);
       if (data) {
         sessions.push(data);
-      } else {
-        const parts = key.split(':');
-        const jti = parts[parts.length - 1];
-        sessions.push({
-          jti,
-          ip: 'Unknown',
-          userAgent: 'Unknown',
-          createdAt: new Date().toISOString(),
-        });
       }
     }
 

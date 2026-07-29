@@ -157,6 +157,8 @@ Không thay script bằng ba lệnh rời `GET → SET → DEL`. Request thứ h
 
 Khi cần tìm các key theo mẫu tên, code dùng lệnh Redis `SCAN` (duyệt dần từng nhóm key), không dùng `KEYS`. `KEYS` quét toàn bộ key trong một lần nên có thể làm Redis đứng hình khi số key lớn — không chấp nhận được cho production.
 
+`SCAN` chỉ trả một ảnh chụp lỏng (weakly consistent): session có thể hết TTL hoặc bị revoke trước lệnh `GET` kế tiếp. Adapter bỏ qua key không còn dữ liệu, không tự dựng một session “Unknown”. Dữ liệu giả sẽ làm tổng phân trang sai và khiến UI hiển thị một thiết bị thực tế đã đăng xuất.
+
 Vì `JwtStrategy` đối chiếu JTI với Redis trên từng request, logout một phiên hoặc thu hồi các phiên khác làm access token và refresh token của thiết bị đó chết ngay. Global logout vẫn tăng thêm `tokenVersion`: lớp bảo vệ thứ hai này thu hồi mọi access token của user kể cả khi một session key bị tạo lại do lỗi vận hành hoặc một flow cấp token mới được bổ sung sau này.
 
 ## 8. API surface
