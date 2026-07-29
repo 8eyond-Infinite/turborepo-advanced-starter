@@ -7,7 +7,7 @@ export const createRealtimeSocket = (accessToken: string): Socket =>
   io(REALTIME_URL, {
     auth: { token: accessToken },
     transports: ["websocket"],
-    autoConnect: true,
+    autoConnect: false,
     reconnection: true,
   });
 

@@ -2,6 +2,7 @@ import { QueryClient } from "@tanstack/react-query";
 import type { Socket } from "socket.io-client";
 import { describe, expect, it, vi } from "vitest";
 import { registerRealtimeEventHandlers } from "./realtime-event-handlers";
+import { reportError } from "@/lib/observability";
 
 vi.mock("sonner", () => ({
   toast: {
@@ -10,6 +11,9 @@ vi.mock("sonner", () => ({
     warning: vi.fn(),
     info: vi.fn(),
   },
+}));
+vi.mock("@/lib/observability", () => ({
+  reportError: vi.fn(),
 }));
 
 describe("realtime event handlers", () => {
@@ -43,6 +47,58 @@ describe("realtime event handlers", () => {
     expect(logout).toHaveBeenCalledOnce();
 
     unregister();
-    expect(socket.off).toHaveBeenCalledTimes(3);
+    expect(socket.off).toHaveBeenCalledTimes(4);
+  });
+
+  it("logs out only for an explicit authentication handshake failure", () => {
+    const handlers = new Map<string, (payload: never) => void>();
+    const socket = {
+      on: vi.fn((event: string, handler: (payload: never) => void) => {
+        handlers.set(event, handler);
+      }),
+      off: vi.fn(),
+    } as unknown as Socket;
+    const logout = vi.fn().mockResolvedValue(undefined);
+
+    registerRealtimeEventHandlers({
+      socket,
+      queryClient: new QueryClient(),
+      logout,
+    });
+    handlers.get("connect_error")?.({
+      message: "Authentication failed",
+      data: { code: "REALTIME_AUTHENTICATION_FAILED" },
+    } as never);
+
+    expect(logout).toHaveBeenCalledOnce();
+    expect(reportError).not.toHaveBeenCalled();
+  });
+
+  it("reports transient connection errors without destroying the session", () => {
+    const handlers = new Map<string, (payload: never) => void>();
+    const socket = {
+      on: vi.fn((event: string, handler: (payload: never) => void) => {
+        handlers.set(event, handler);
+      }),
+      off: vi.fn(),
+    } as unknown as Socket;
+    const logout = vi.fn().mockResolvedValue(undefined);
+    const error = new Error("network unavailable");
+
+    registerRealtimeEventHandlers({
+      socket,
+      queryClient: new QueryClient(),
+      logout,
+    });
+    handlers.get("connect_error")?.(error as never);
+
+    expect(logout).not.toHaveBeenCalled();
+    expect(reportError).toHaveBeenCalledWith(
+      error,
+      expect.objectContaining({
+        source: "realtime",
+        operation: "connect",
+      }),
+    );
   });
 });

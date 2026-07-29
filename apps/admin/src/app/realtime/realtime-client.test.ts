@@ -20,7 +20,11 @@ describe("realtime client", () => {
 
     expect(io).toHaveBeenCalledWith(
       adminEnvironment.apiUrl,
-      expect.objectContaining({ auth: { token: "access-token" } }),
+      expect.objectContaining({
+        auth: { token: "access-token" },
+        autoConnect: false,
+        reconnection: true,
+      }),
     );
     expect(io.mock.calls[0]?.[1]).not.toHaveProperty("query");
   });

@@ -17,6 +17,7 @@ import { AuthController } from './presentation/controllers/auth.controller';
 import { JwtRefreshStrategy, JwtStrategy } from './infrastructure/strategies';
 import { SESSION_STORE } from './domain/ports/session-store.port';
 import { RedisSessionStore } from './infrastructure/stores/redis-session.store';
+import { AccessTokenValidator } from './application/services/access-token-validator.service';
 
 @Module({
   imports: [
@@ -41,7 +42,14 @@ import { RedisSessionStore } from './infrastructure/stores/redis-session.store';
     GetActiveSessionsQueryHandler,
     JwtStrategy,
     JwtRefreshStrategy,
+    AccessTokenValidator,
   ],
-  exports: [PassportModule, JwtStrategy, JwtRefreshStrategy, SESSION_STORE],
+  exports: [
+    PassportModule,
+    JwtStrategy,
+    JwtRefreshStrategy,
+    SESSION_STORE,
+    AccessTokenValidator,
+  ],
 })
 export class AuthModule {}

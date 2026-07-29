@@ -521,6 +521,8 @@ pnpm --filter=server test:e2e
 
 `verify` chạy lint, build, typecheck và unit tests. E2E chạy riêng vì cần infrastructure local.
 
+Global setup của E2E chỉ reset database có tên kết thúc bằng `_test`, sau đó gọi Prisma và seed qua scripts của `@repo/database`. Không gọi `npx tsx` từ thư mục Server: `tsx` là dependency của database package, và chạy executable theo current working directory có thể pass trên một máy nhưng fail trên CI hoặc pnpm layout khác.
+
 ## 17. Lộ trình đọc code cho thành viên mới
 
 Đọc theo một flow thay vì đọc alphabet:
