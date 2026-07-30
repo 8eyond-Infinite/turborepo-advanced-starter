@@ -1,9 +1,10 @@
 import "server-only";
 import { getSession } from "./session";
+import { clientEnvironment } from "./environment";
 
 // API_URL không có tiền tố NEXT_PUBLIC_: nó chỉ được đọc ở phía server.
 // Trình duyệt không bao giờ biết địa chỉ API, cũng không gọi thẳng vào đó.
-export const API_URL = process.env.API_URL ?? "http://localhost:3001";
+export const API_URL = clientEnvironment.apiUrl;
 
 export class ApiError extends Error {
   constructor(
@@ -46,7 +47,7 @@ export async function apiFetchPublic<T>(
 
 /**
  * Gọi API với danh tính của người dùng đang đăng nhập — chạy phía server,
- * dùng access token lấy từ session cookie. Token hết hạn đã được middleware
+ * dùng access token lấy từ session cookie. Token hết hạn đã được Proxy
  * làm mới trước khi request tới đây.
  */
 export async function apiFetch<T>(
