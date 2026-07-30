@@ -16,6 +16,7 @@ describe('environment configuration', () => {
         PORT: 3001,
         DATABASE_URL: validConfig.DATABASE_URL,
         REFRESH_COOKIE_SAME_SITE: 'lax',
+        MAIL_ENABLED: false,
       }),
     );
   });
@@ -49,6 +50,27 @@ describe('environment configuration', () => {
         REFRESH_COOKIE_SAME_SITE: 'strict',
       }),
     ).toThrow('REFRESH_COOKIE_SAME_SITE must be lax or none');
+  });
+
+  it('requires SMTP settings only when mail delivery is enabled', () => {
+    expect(() =>
+      validateEnvironment({ ...validConfig, MAIL_ENABLED: 'true' }),
+    ).toThrow('MAIL_HOST and MAIL_FROM are required');
+
+    expect(
+      validateEnvironment({
+        ...validConfig,
+        MAIL_ENABLED: 'true',
+        MAIL_HOST: 'smtp.example.com',
+        MAIL_FROM: 'no-reply@example.com',
+      }),
+    ).toEqual(expect.objectContaining({ MAIL_ENABLED: true }));
+  });
+
+  it('rejects an invalid mail feature flag', () => {
+    expect(() =>
+      validateEnvironment({ ...validConfig, MAIL_ENABLED: 'yes' }),
+    ).toThrow('MAIL_ENABLED must be true or false');
   });
 
   it('parses a CORS allowlist', () => {

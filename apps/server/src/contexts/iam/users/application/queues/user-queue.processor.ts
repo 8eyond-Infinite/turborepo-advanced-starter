@@ -13,25 +13,28 @@ interface UserQueueJobData {
 }
 
 interface UserQueueJobResult {
-  sent: true;
+  sent: boolean;
   email: string;
 }
 
 @Processor(USER_QUEUE)
 export class UserQueueProcessor extends WorkerHost {
   private readonly logger = new Logger(UserQueueProcessor.name);
-  private readonly transporter: nodemailer.Transporter;
+  private readonly transporter: nodemailer.Transporter | null;
 
   constructor(private readonly configService: ConfigService) {
     super();
-    this.transporter = nodemailer.createTransport({
-      host: this.configService.get<string>('MAIL_HOST', 'localhost'),
-      port: Number(this.configService.get<number>('MAIL_PORT', 1025)),
-      secure: false,
-      tls: {
-        rejectUnauthorized: false,
-      },
-    });
+    const mailEnabled = this.configService.get<boolean>('MAIL_ENABLED', false);
+    this.transporter = mailEnabled
+      ? nodemailer.createTransport({
+          host: this.configService.get<string>('MAIL_HOST', 'localhost'),
+          port: Number(this.configService.get<number>('MAIL_PORT', 1025)),
+          secure: false,
+          tls: {
+            rejectUnauthorized: false,
+          },
+        })
+      : null;
   }
 
   async process(
@@ -51,6 +54,12 @@ export class UserQueueProcessor extends WorkerHost {
     switch (job.name) {
       case USER_JOBS.SEND_WELCOME_EMAIL: {
         const { email } = job.data;
+        if (!this.transporter) {
+          this.logger.log(
+            `[Worker] Welcome email skipped for ${email}: MAIL_ENABLED=false`,
+          );
+          return { sent: false, email };
+        }
         this.logger.log(`[Worker] Sending welcome email to ${email}...`);
 
         const welcomeHtml = `
@@ -78,6 +87,12 @@ export class UserQueueProcessor extends WorkerHost {
       }
       case USER_JOBS.SEND_DEACTIVATION_EMAIL: {
         const { email } = job.data;
+        if (!this.transporter) {
+          this.logger.log(
+            `[Worker] Deactivation email skipped for ${email}: MAIL_ENABLED=false`,
+          );
+          return { sent: false, email };
+        }
         this.logger.log(
           `[Worker] Sending account deactivation alert to ${email}...`,
         );

@@ -4,7 +4,8 @@ import { resolve } from 'node:path';
 const root = resolve(import.meta.dirname, '..');
 const contracts = [
   { file: '.env.example', keys: ['DATABASE_URL', 'SEED_ADMIN_EMAIL', 'SEED_ADMIN_PASSWORD'] },
-  { file: 'apps/server/.env.example', keys: ['NODE_ENV', 'PORT', 'DATABASE_URL', 'JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET', 'CORS_ORIGINS', 'REFRESH_COOKIE_SAME_SITE'] },
+  { file: 'apps/server/.env.example', keys: ['NODE_ENV', 'PORT', 'DATABASE_URL', 'JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET', 'CORS_ORIGINS', 'REFRESH_COOKIE_SAME_SITE', 'MAIL_ENABLED'] },
+  { file: 'deploy/compose/.env.production.example', keys: ['SERVER_IMAGE', 'SERVER_IMAGE_TAG', 'DATABASE_URL', 'REDIS_PASSWORD', 'JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET', 'CORS_ORIGINS', 'MAIL_ENABLED'] },
   { file: 'apps/admin/.env.example', keys: ['VITE_API_URL'] },
   { file: 'apps/client/.env.example', keys: ['API_URL'] },
 ];

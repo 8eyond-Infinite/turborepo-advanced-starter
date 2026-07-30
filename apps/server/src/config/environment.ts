@@ -18,6 +18,10 @@ export interface EnvironmentVariables extends Record<string, unknown> {
   JWT_REFRESH_SECRET: string;
   CORS_ORIGINS: string;
   REFRESH_COOKIE_SAME_SITE: RefreshCookieSameSite;
+  MAIL_ENABLED: boolean;
+  MAIL_HOST?: string;
+  MAIL_PORT: number;
+  MAIL_FROM?: string;
 }
 
 const requireString = (
@@ -41,6 +45,13 @@ const parsePort = (value: unknown): number => {
   return port;
 };
 
+const parseBoolean = (value: unknown, key: string): boolean => {
+  if (value === undefined || value === '') return false;
+  if (value === true || value === 'true') return true;
+  if (value === false || value === 'false') return false;
+  throw new Error(`Environment variable ${key} must be true or false`);
+};
+
 export const validateEnvironment = (
   config: Record<string, unknown>,
 ): EnvironmentVariables => {
@@ -55,6 +66,16 @@ export const validateEnvironment = (
 
   const accessSecret = requireString(config, 'JWT_ACCESS_SECRET');
   const refreshSecret = requireString(config, 'JWT_REFRESH_SECRET');
+  const mailEnabled = parseBoolean(config.MAIL_ENABLED, 'MAIL_ENABLED');
+  const mailHost =
+    typeof config.MAIL_HOST === 'string' ? config.MAIL_HOST.trim() : '';
+  const mailFrom =
+    typeof config.MAIL_FROM === 'string' ? config.MAIL_FROM.trim() : '';
+  if (mailEnabled && (!mailHost || !mailFrom)) {
+    throw new Error(
+      'Environment variables MAIL_HOST and MAIL_FROM are required when MAIL_ENABLED=true',
+    );
+  }
   const refreshCookieSameSite =
     typeof config.REFRESH_COOKIE_SAME_SITE === 'string'
       ? config.REFRESH_COOKIE_SAME_SITE.trim().toLowerCase()
@@ -83,6 +104,10 @@ export const validateEnvironment = (
     JWT_ACCESS_SECRET: accessSecret,
     JWT_REFRESH_SECRET: refreshSecret,
     REFRESH_COOKIE_SAME_SITE: refreshCookieSameSite,
+    MAIL_ENABLED: mailEnabled,
+    MAIL_HOST: mailHost || undefined,
+    MAIL_PORT: parsePort(config.MAIL_PORT ?? 587),
+    MAIL_FROM: mailFrom || undefined,
     CORS_ORIGINS:
       typeof config.CORS_ORIGINS === 'string' &&
       config.CORS_ORIGINS.trim().length > 0
