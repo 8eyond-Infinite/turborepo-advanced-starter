@@ -201,6 +201,14 @@ NestJS response / network failure
 
 Không catch rồi biến mọi lỗi thành “không tìm thấy”. Server Component nên để lỗi hạ tầng bất ngờ đi tới `error.tsx`; chỉ xử lý tại chỗ khi feature thực sự có một trạng thái nghiệp vụ tương ứng. Server Action phải gọi `toPublicApiError()` trước khi trả lỗi về browser và đặt `redirect()` bên ngoài `try/catch`, vì redirect của Next.js hoạt động bằng một control-flow exception.
 
+### Form và Server Action contract
+
+`lib/action-state.ts` định nghĩa ba trạng thái tuần tự hóa được: `idle`, `error` và `success`. Failure tách `fieldErrors` khỏi `formError`: lỗi định dạng email nằm cạnh ô email, còn sai thông tin đăng nhập hoặc API tạm thời mất kết nối nằm ở đầu form. Giá trị không nhạy cảm có thể được trả lại qua `values`; mật khẩu không bao giờ được echo từ Server Action về browser.
+
+Login kiểm tra lại dữ liệu ở Server Action dù input đã có thuộc tính HTML. Browser validation chỉ cải thiện trải nghiệm và có thể bị bỏ qua; server validation mới là ranh giới tin cậy. Sau khi validation pass, action gọi API qua `apiFetchPublic()`, lưu session rồi mới `redirect()` bên ngoài `try/catch`. Khi API lỗi, form nhận thông điệp an toàn và correlation ID; code nội bộ, token và raw response không vượt qua ranh giới server/client.
+
+Mỗi input lỗi dùng `aria-invalid` và `aria-describedby`; form-level failure dùng `role="alert"`. Khi tạo form mới, tái sử dụng `ActionState` nhưng định nghĩa union tên field riêng cho feature, thay vì dùng một object lỗi không kiểu hoặc catch mọi lỗi thành cùng một chuỗi.
+
 ## 7. Mở rộng tiếp theo
 
 - Thêm trang công khai (danh sách sản phẩm, bài viết…) dùng `generateMetadata` và ISR để tận dụng SEO.
