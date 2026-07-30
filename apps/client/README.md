@@ -138,7 +138,15 @@ Logout không chỉ xóa cookie BFF. Server Action đọc refresh token trong se
 
 Tham số `next` sau login chỉ được nhận khi là path nội bộ bắt đầu bằng đúng một dấu `/`. URL tuyệt đối, URL dạng protocol-relative `//host` và giá trị encode thành `//host` đều bị đưa về `/me`; invariant này ngăn open redirect/phishing.
 
-## 6. Mở rộng tiếp theo
+## 6. Resilience boundary của App Router
+
+Client dùng bốn file convention ở root `app`: `loading.tsx` hiển thị trạng thái chuyển route; `error.tsx` chặn lỗi
+render trong route và cho phép retry bằng `reset()`; `global-error.tsx` thay cả root layout khi layout không thể render;
+`not-found.tsx` cung cấp trang 404 có đường quay về. Error UI không hiển thị raw `Error.message`, token, endpoint hoặc
+stack trace cho người dùng. `error.tsx` và `global-error.tsx` là Client Component vì nút retry cần event handler;
+loading và not-found vẫn là Server Component.
+
+## 7. Mở rộng tiếp theo
 
 - Thêm trang công khai (danh sách sản phẩm, bài viết…) dùng `generateMetadata` và ISR để tận dụng SEO.
 - Mutation cần đăng nhập: viết thêm Server Action gọi `apiFetch`, không mở endpoint proxy chung chung.
