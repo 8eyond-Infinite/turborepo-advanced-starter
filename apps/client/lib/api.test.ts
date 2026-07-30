@@ -4,14 +4,18 @@ import type { Session } from "./session";
 const getSession = vi.fn<() => Promise<Session | null>>();
 vi.mock("./session", () => ({ getSession: () => getSession() }));
 
-import { ApiError, apiFetch, apiFetchPublic } from "./api";
+import { ApiError, apiFetch, apiFetchPublic, toPublicApiError } from "./api";
 
 const fetchMock = vi.fn<typeof fetch>();
 
-const jsonResponse = (body: unknown, status = 200): Response =>
+const jsonResponse = (
+  body: unknown,
+  status = 200,
+  headers?: HeadersInit,
+): Response =>
   new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...headers },
   });
 
 beforeEach(() => {
@@ -28,7 +32,7 @@ afterEach(() => {
 });
 
 describe("apiFetch", () => {
-  it("gắn access token của phiên vào header Authorization", async () => {
+  it("gắn access token và timeout signal vào request phía server", async () => {
     fetchMock.mockResolvedValue(jsonResponse({ id: "u1" }));
 
     const result = await apiFetch<{ id: string }>("/users/me");
@@ -36,52 +40,127 @@ describe("apiFetch", () => {
     expect(result).toEqual({ id: "u1" });
     const [url, init] = fetchMock.mock.calls[0]!;
     expect(String(url)).toContain("/users/me");
-    expect((init?.headers as Record<string, string>).Authorization).toBe(
+    expect(new Headers(init?.headers).get("Authorization")).toBe(
       "Bearer access-token",
     );
-    // BFF luôn lấy dữ liệu mới — không để Next.js cache response có danh tính.
     expect(init?.cache).toBe("no-store");
+    expect(init?.signal).toBeInstanceOf(AbortSignal);
   });
 
-  it("ném ApiError 401 ngay khi chưa đăng nhập, không gọi API", async () => {
+  it("nếu caller có signal thì vẫn giữ cả cancellation lẫn timeout", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({}));
+    const controller = new AbortController();
+
+    await apiFetch("/users/me", { signal: controller.signal });
+
+    const [, init] = fetchMock.mock.calls[0]!;
+    expect(init?.signal).not.toBe(controller.signal);
+    controller.abort();
+    expect(init?.signal?.aborted).toBe(true);
+  });
+
+  it("nén lỗi chưa đăng nhập thành contract có kiểu và không gọi API", async () => {
     getSession.mockResolvedValue(null);
 
     await expect(apiFetch("/users/me")).rejects.toMatchObject({
       name: "ApiError",
+      kind: "unauthenticated",
       status: 401,
+      retryable: false,
     });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("lấy message từ body JSON khi API trả lỗi", async () => {
-    fetchMock.mockResolvedValue(jsonResponse({ message: "Hết quyền" }, 403));
+  it("giữ code và correlation ID nhưng không lộ raw backend message", async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse(
+        {
+          code: "FORBIDDEN",
+          translationKey: "exceptions.forbidden",
+          message: "raw internal detail",
+        },
+        403,
+        { "x-correlation-id": "request-123" },
+      ),
+    );
 
     await expect(apiFetch("/users/me")).rejects.toMatchObject({
-      message: "Hết quyền",
+      message: "Bạn không có quyền thực hiện thao tác này.",
+      kind: "forbidden",
       status: 403,
+      code: "FORBIDDEN",
+      translationKey: "exceptions.forbidden",
+      correlationId: "request-123",
+      retryable: false,
     });
   });
 
-  it("dùng thông điệp mặc định khi body lỗi không phải JSON", async () => {
+  it("phân loại response lỗi không phải JSON theo status", async () => {
     fetchMock.mockResolvedValue(
       new Response("<html>502</html>", { status: 502 }),
     );
 
     await expect(apiFetch("/users/me")).rejects.toMatchObject({
-      message: "Yêu cầu thất bại (HTTP 502)",
+      message: "Dịch vụ đang tạm thời gặp sự cố. Vui lòng thử lại.",
+      kind: "upstream",
       status: 502,
+      retryable: true,
     });
   });
 
-  it("caller ghi đè được header nhưng không mất Content-Type mặc định", async () => {
+  it("phân biệt timeout với lỗi mạng", async () => {
+    fetchMock.mockRejectedValueOnce(
+      new DOMException("timed out", "TimeoutError"),
+    );
+    await expect(apiFetch("/users/me")).rejects.toMatchObject({
+      kind: "timeout",
+      status: null,
+      retryable: true,
+    });
+
+    fetchMock.mockRejectedValueOnce(new TypeError("fetch failed"));
+    await expect(apiFetch("/users/me")).rejects.toMatchObject({
+      kind: "network",
+      status: null,
+      retryable: true,
+    });
+  });
+
+  it("chuẩn hóa mọi dạng HeadersInit và không cho caller ghi đè danh tính", async () => {
     fetchMock.mockResolvedValue(jsonResponse({}));
 
-    await apiFetch("/users/me", { headers: { "X-Custom": "1" } });
+    await apiFetch("/users/me", {
+      headers: new Headers({
+        "X-Custom": "1",
+        Authorization: "Bearer attacker-controlled",
+      }),
+    });
 
     const [, init] = fetchMock.mock.calls[0]!;
-    const headers = init?.headers as Record<string, string>;
-    expect(headers["X-Custom"]).toBe("1");
-    expect(headers["Content-Type"]).toBe("application/json");
+    const headers = new Headers(init?.headers);
+    expect(headers.get("X-Custom")).toBe("1");
+    expect(headers.get("Content-Type")).toBe("application/json");
+    expect(headers.get("Authorization")).toBe("Bearer access-token");
+  });
+
+  it("hỗ trợ response 204 và phân loại JSON thành công bị hỏng", async () => {
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }));
+    await expect(
+      apiFetch<void>("/users/me", { method: "DELETE" }),
+    ).resolves.toBeUndefined();
+
+    fetchMock.mockResolvedValueOnce(
+      new Response("<not-json>", {
+        status: 200,
+        headers: { "x-correlation-id": "request-invalid-json" },
+      }),
+    );
+    await expect(apiFetch("/users/me")).rejects.toMatchObject({
+      kind: "unexpected",
+      status: 200,
+      correlationId: "request-invalid-json",
+      retryable: false,
+    });
   });
 });
 
@@ -93,14 +172,29 @@ describe("apiFetchPublic", () => {
 
     expect(getSession).not.toHaveBeenCalled();
     const [, init] = fetchMock.mock.calls[0]!;
-    expect(
-      (init?.headers as Record<string, string>).Authorization,
-    ).toBeUndefined();
+    expect(new Headers(init?.headers).has("Authorization")).toBe(false);
   });
+});
 
-  it("ném ApiError khi response không ok", async () => {
-    fetchMock.mockResolvedValue(jsonResponse({ message: "Không thấy" }, 404));
+describe("toPublicApiError", () => {
+  it("chỉ trả dữ liệu an toàn, tuần tự hóa được cho UI", () => {
+    const error = new ApiError({
+      kind: "conflict",
+      status: 409,
+      code: "INTERNAL_CODE",
+      translationKey: "internal.key",
+      correlationId: "request-456",
+      message: "Dữ liệu đang xung đột.",
+    });
 
-    await expect(apiFetchPublic("/posts/x")).rejects.toBeInstanceOf(ApiError);
+    expect(toPublicApiError(error)).toEqual({
+      kind: "conflict",
+      message: "Dữ liệu đang xung đột.",
+      correlationId: "request-456",
+    });
+    expect(toPublicApiError(new Error("secret detail"))).toEqual({
+      kind: "unexpected",
+      message: "Đã xảy ra lỗi. Vui lòng thử lại.",
+    });
   });
 });

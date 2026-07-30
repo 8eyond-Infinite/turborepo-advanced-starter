@@ -1,48 +1,239 @@
 import "server-only";
-import { getSession } from "./session";
+import type { ApiErrorResponse } from "@repo/contracts";
 import { clientEnvironment } from "./environment";
+import { getSession } from "./session";
 
 // API_URL không có tiền tố NEXT_PUBLIC_: nó chỉ được đọc ở phía server.
 // Trình duyệt không bao giờ biết địa chỉ API, cũng không gọi thẳng vào đó.
 export const API_URL = clientEnvironment.apiUrl;
+export const API_REQUEST_TIMEOUT_MS = 10_000;
 
+export type ApiErrorKind =
+  | "unauthenticated"
+  | "forbidden"
+  | "not_found"
+  | "validation"
+  | "conflict"
+  | "rate_limited"
+  | "upstream"
+  | "network"
+  | "timeout"
+  | "cancelled"
+  | "unexpected";
+
+export interface PublicApiError {
+  kind: ApiErrorKind;
+  message: string;
+  correlationId?: string;
+}
+
+interface ApiErrorOptions extends PublicApiError {
+  status: number | null;
+  code?: string;
+  translationKey?: string;
+  retryable?: boolean;
+}
+
+/**
+ * Lỗi đã được chuẩn hóa tại ranh giới Next.js -> API.
+ *
+ * `message` luôn an toàn để hiển thị. Chi tiết backend không được sao chép vào
+ * Error vì error có thể đi tới error boundary hoặc Server Action response.
+ */
 export class ApiError extends Error {
-  constructor(
-    message: string,
-    readonly status: number,
-  ) {
+  readonly kind: ApiErrorKind;
+  readonly status: number | null;
+  readonly code?: string;
+  readonly translationKey?: string;
+  readonly correlationId?: string;
+  readonly retryable: boolean;
+
+  constructor({
+    message,
+    kind,
+    status,
+    code,
+    translationKey,
+    correlationId,
+    retryable = false,
+  }: ApiErrorOptions) {
     super(message);
     this.name = "ApiError";
+    this.kind = kind;
+    this.status = status;
+    this.code = code;
+    this.translationKey = translationKey;
+    this.correlationId = correlationId;
+    this.retryable = retryable;
   }
 }
 
-const readErrorMessage = async (response: Response): Promise<string> => {
+const errorDescriptor = (
+  status: number,
+): Pick<ApiErrorOptions, "kind" | "message" | "retryable"> => {
+  if (status === 400 || status === 422)
+    return {
+      kind: "validation",
+      message: "Dữ liệu gửi lên không hợp lệ.",
+      retryable: false,
+    };
+  if (status === 401)
+    return {
+      kind: "unauthenticated",
+      message: "Phiên đăng nhập không hợp lệ hoặc đã hết hạn.",
+      retryable: false,
+    };
+  if (status === 403)
+    return {
+      kind: "forbidden",
+      message: "Bạn không có quyền thực hiện thao tác này.",
+      retryable: false,
+    };
+  if (status === 404)
+    return {
+      kind: "not_found",
+      message: "Không tìm thấy dữ liệu được yêu cầu.",
+      retryable: false,
+    };
+  if (status === 409)
+    return {
+      kind: "conflict",
+      message: "Dữ liệu đã thay đổi hoặc đang xung đột.",
+      retryable: false,
+    };
+  if (status === 429)
+    return {
+      kind: "rate_limited",
+      message: "Có quá nhiều yêu cầu. Vui lòng thử lại sau.",
+      retryable: true,
+    };
+  if (status >= 500)
+    return {
+      kind: "upstream",
+      message: "Dịch vụ đang tạm thời gặp sự cố. Vui lòng thử lại.",
+      retryable: true,
+    };
+  return {
+    kind: "unexpected",
+    message: "Không thể hoàn tất yêu cầu.",
+    retryable: false,
+  };
+};
+
+const readErrorContract = async (
+  response: Response,
+): Promise<Partial<ApiErrorResponse>> => {
   try {
     const body: unknown = await response.json();
-    if (body && typeof body === "object" && "message" in body) {
-      const message = (body as { message: unknown }).message;
-      if (typeof message === "string") return message;
-    }
+    if (!body || typeof body !== "object") return {};
+    const candidate = body as Record<string, unknown>;
+    return {
+      code: typeof candidate.code === "string" ? candidate.code : undefined,
+      translationKey:
+        typeof candidate.translationKey === "string"
+          ? candidate.translationKey
+          : undefined,
+    };
   } catch {
-    /* body không phải JSON — dùng thông điệp mặc định bên dưới */
+    return {};
   }
-  return `Yêu cầu thất bại (HTTP ${response.status})`;
 };
+
+const responseError = async (response: Response): Promise<ApiError> => {
+  const contract = await readErrorContract(response);
+  return new ApiError({
+    ...errorDescriptor(response.status),
+    status: response.status,
+    code: contract.code,
+    translationKey: contract.translationKey,
+    correlationId: response.headers.get("x-correlation-id") ?? undefined,
+  });
+};
+
+const transportError = (error: unknown): ApiError => {
+  if (error instanceof ApiError) return error;
+  if (error instanceof Error && error.name === "TimeoutError")
+    return new ApiError({
+      kind: "timeout",
+      status: null,
+      message: "Dịch vụ phản hồi quá lâu. Vui lòng thử lại.",
+      retryable: true,
+    });
+  if (error instanceof Error && error.name === "AbortError")
+    return new ApiError({
+      kind: "cancelled",
+      status: null,
+      message: "Yêu cầu đã bị hủy.",
+      retryable: false,
+    });
+  return new ApiError({
+    kind: "network",
+    status: null,
+    message: "Không thể kết nối tới dịch vụ. Vui lòng thử lại.",
+    retryable: true,
+  });
+};
+
+const requestApi = async <T>(
+  path: string,
+  init: RequestInit | undefined,
+  authorization?: string,
+): Promise<T> => {
+  const timeoutSignal = AbortSignal.timeout(API_REQUEST_TIMEOUT_MS);
+  const signal = init?.signal
+    ? AbortSignal.any([init.signal, timeoutSignal])
+    : timeoutSignal;
+  const headers = new Headers(init?.headers);
+  if (!headers.has("Content-Type"))
+    headers.set("Content-Type", "application/json");
+  // Danh tính luôn do BFF lấy từ session; caller không được ghi đè bearer
+  // bằng một giá trị truyền qua RequestInit.
+  if (authorization) headers.set("Authorization", authorization);
+
+  try {
+    const response = await fetch(`${API_URL}${path}`, {
+      ...init,
+      headers,
+      cache: "no-store",
+      signal,
+    });
+    if (!response.ok) throw await responseError(response);
+    if (response.status === 204) return undefined as T;
+    try {
+      return (await response.json()) as T;
+    } catch {
+      throw new ApiError({
+        kind: "unexpected",
+        status: response.status,
+        message: "Dịch vụ trả về dữ liệu không hợp lệ.",
+        correlationId: response.headers.get("x-correlation-id") ?? undefined,
+        retryable: false,
+      });
+    }
+  } catch (error) {
+    throw transportError(error);
+  }
+};
+
+/** Chuyển unknown thành dữ liệu nhỏ, tuần tự hóa được và an toàn cho UI. */
+export const toPublicApiError = (
+  error: unknown,
+  fallbackMessage = "Đã xảy ra lỗi. Vui lòng thử lại.",
+): PublicApiError =>
+  error instanceof ApiError
+    ? {
+        kind: error.kind,
+        message: error.message,
+        ...(error.correlationId ? { correlationId: error.correlationId } : {}),
+      }
+    : { kind: "unexpected", message: fallbackMessage };
 
 /** Gọi API công khai (không cần đăng nhập). */
 export async function apiFetchPublic<T>(
   path: string,
   init?: RequestInit,
 ): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
-    cache: "no-store",
-  });
-  if (!response.ok) {
-    throw new ApiError(await readErrorMessage(response), response.status);
-  }
-  return (await response.json()) as T;
+  return requestApi<T>(path, init);
 }
 
 /**
@@ -56,21 +247,13 @@ export async function apiFetch<T>(
 ): Promise<T> {
   const session = await getSession();
   if (!session) {
-    throw new ApiError("Chưa đăng nhập", 401);
+    throw new ApiError({
+      kind: "unauthenticated",
+      status: 401,
+      message: "Bạn cần đăng nhập để tiếp tục.",
+      retryable: false,
+    });
   }
 
-  const response = await fetch(`${API_URL}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${session.accessToken}`,
-      ...init?.headers,
-    },
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    throw new ApiError(await readErrorMessage(response), response.status);
-  }
-  return (await response.json()) as T;
+  return requestApi<T>(path, init, `Bearer ${session.accessToken}`);
 }
