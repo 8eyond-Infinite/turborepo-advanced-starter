@@ -153,11 +153,19 @@ pnpm --filter=admin exec playwright install chromium # chỉ cần lần đầu
 pnpm e2e:admin
 ```
 
-`e2e:admin:prepare` bật Postgres và Redis bằng `docker compose up --wait`. Script chỉ đi tiếp khi cả hai healthcheck thành công. Sau đó nó xóa rồi tạo lại đúng database dùng cho browser test là `admin_browser_e2e`, chạy migration và tạo admin test.
+`e2e:frontend:prepare` bật Postgres và Redis bằng `docker compose up --wait`. Script chỉ đi tiếp khi cả hai healthcheck thành công. Sau đó nó xóa rồi tạo lại đúng database dùng cho browser test là `admin_browser_e2e`, chạy migration và tạo admin test. Cả `e2e:admin` lẫn `e2e:client` đều tự gọi bước chuẩn bị này trước khi mở Chromium.
 
 Không thay `up --wait` bằng `up -d`. Khi Docker Desktop vừa khởi động, container có thể mang trạng thái running trong lúc PostgreSQL vẫn đang chuẩn bị nhận kết nối; lệnh `dropdb` khi đó sẽ lỗi ngẫu nhiên.
 
 Script không đụng tới database phát triển `starter_db`. Playwright khởi động API ở `127.0.0.1:3101` và Admin ở `127.0.0.1:5174`. Cổng riêng ngăn test dùng nhầm process development; cùng hostname giúp cookie `SameSite=Lax` hoạt động giống topology đang được kiểm tra.
+
+Client có browser suite riêng:
+
+```powershell
+pnpm e2e:client
+```
+
+Playwright khởi động cùng API E2E ở `127.0.0.1:3101` và Next.js ở `127.0.0.1:3006`. Suite đi qua Server Action/BFF thật để chứng minh browser chỉ giữ cookie `client_session` HttpOnly và không gọi thẳng API. Trên CI, Admin và Client chạy tuần tự trong cùng job **Frontend browser E2E**, dùng chung PostgreSQL/Redis disposable để tránh khởi tạo hai bộ hạ tầng giống nhau.
 
 ## 5. Prisma workflow
 

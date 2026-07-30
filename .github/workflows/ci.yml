@@ -137,7 +137,7 @@ jobs:
         run: pnpm --filter=server test:e2e
 
   admin-browser-e2e:
-    name: Admin browser E2E
+    name: Frontend browser E2E
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -200,6 +200,9 @@ jobs:
       - name: Run Admin browser E2E
         run: pnpm --filter=admin e2e
 
+      - name: Run Client browser E2E
+        run: pnpm --filter=client e2e
+
       - name: Upload Playwright artifacts
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
@@ -208,6 +211,8 @@ jobs:
           path: |
             apps/admin/playwright-report
             apps/admin/test-results
+            apps/client/playwright-report
+            apps/client/test-results
           if-no-files-found: ignore
           retention-days: 7
 

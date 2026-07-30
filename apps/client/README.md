@@ -108,9 +108,12 @@ Next.js có thể nạp code server khi `next build` thu thập dữ liệu rout
 ```powershell
 pnpm dev:client            # http://localhost:3005
 pnpm --filter=client test  # test cho Proxy, session, api (vitest)
+pnpm --filter=client e2e   # acceptance test qua Chromium, Next BFF và API thật
 ```
 
 Phần được test kỹ nhất chính là phần dễ sai nhất: [`proxy.test.ts`](proxy.test.ts) dựng request giả với token sắp hết hạn để kiểm tra đủ nhánh làm mới (thành công, API từ chối, API sập), còn [`lib/session.test.ts`](lib/session.test.ts) ném dữ liệu rác vào `decodeSession` để chắc chắn cookie bị sửa tay không làm crash trang.
+
+Browser E2E kiểm tra phần nối giữa các lớp mà unit test không thể chứng minh: Playwright tự khởi động backend E2E ở cổng `3101` và Client ở cổng `3006`, đăng nhập qua Server Action, quan sát cookie `client_session` HttpOnly, tải hồ sơ SSR, reload rồi logout. Test còn xác nhận browser không gọi trực tiếp tới API. Local cần PostgreSQL, Redis và dữ liệu seed E2E; GitHub Actions tự dựng các dependency dùng một lần trong job **Frontend browser E2E**. Khi lỗi, trace, screenshot, video và HTML report được lưu làm artifact trong 7 ngày.
 
 Kiểm chứng nhanh rằng mô hình đang hoạt động đúng:
 
