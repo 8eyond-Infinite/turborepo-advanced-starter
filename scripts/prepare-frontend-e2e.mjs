@@ -18,7 +18,7 @@ const run = (command, args, options = {}) => {
   }
 };
 
-console.log('Starting isolated Admin E2E infrastructure...');
+console.log('Starting isolated frontend E2E infrastructure...');
 // `up -d` only means the container process started. `--wait` blocks until the
 // declared healthchecks pass, otherwise a cold Docker Desktop start can race
 // the first dropdb/Redis request.
@@ -72,4 +72,4 @@ const withE2eEnvironment = [
 run(pnpm, [...withE2eEnvironment, 'db:deploy'], pnpmOptions);
 run(pnpm, [...withE2eEnvironment, 'db:seed'], pnpmOptions);
 
-console.log('Admin E2E database is migrated and seeded.');
+console.log('Frontend E2E database is migrated and seeded.');
