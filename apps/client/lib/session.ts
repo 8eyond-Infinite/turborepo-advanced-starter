@@ -1,6 +1,7 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { EncryptJWT, jwtDecrypt } from "jose";
+import { clientEnvironment } from "./environment";
 
 // Phiên đăng nhập do CHÍNH Next.js sở hữu, không phải API. Trình duyệt chỉ
 // thấy một cookie HttpOnly; token không bao giờ xuống JavaScript phía client.
@@ -25,7 +26,7 @@ let warnedDevSecret = false;
 const secretKey = (): Promise<Uint8Array> => {
   if (cachedKey) return cachedKey;
 
-  let secret = process.env.SESSION_SECRET;
+  let secret = clientEnvironment.sessionSecret;
   if (!secret || secret.length < 32) {
     if (process.env.NODE_ENV === "production") {
       throw new Error(
@@ -44,8 +45,8 @@ const secretKey = (): Promise<Uint8Array> => {
   }
 
   // A256GCM cần khóa đúng 256 bit; băm SHA-256 để secret độ dài bất kỳ luôn
-  // cho ra khóa đúng cỡ. Dùng Web Crypto vì middleware có thể chạy ở edge
-  // runtime, nơi không có module crypto của Node.
+  // cho ra khóa đúng cỡ. Dùng Web Crypto để implementation không phụ thuộc
+  // API crypto riêng của một runtime.
   cachedKey = crypto.subtle
     .digest("SHA-256", new TextEncoder().encode(secret))
     .then((hash) => new Uint8Array(hash));
@@ -99,7 +100,7 @@ export async function getSession(): Promise<Session | null> {
 
 // Chỉ gọi được trong Server Action hoặc Route Handler — Next.js không cho
 // ghi cookie trong lúc render. Việc làm mới token định kỳ vì vậy nằm ở
-// middleware (xem middleware.ts).
+// Proxy (xem proxy.ts).
 export async function setSession(session: Session): Promise<void> {
   (await cookies()).set(
     SESSION_COOKIE,

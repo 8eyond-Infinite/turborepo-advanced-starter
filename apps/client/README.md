@@ -99,7 +99,11 @@ Sinh secret ngẫu nhiên bằng:
 node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
 ```
 
-Cả hai biến **không có tiền tố `NEXT_PUBLIC_`** — chỉ server đọc được. Ở dev, thiếu `SESSION_SECRET` thì app vẫn chạy bằng khóa mặc định (kèm cảnh báo trong log); ở production thiếu là app từ chối chạy — cố ý như vậy để không ai vô tình deploy với khóa ai cũng biết.
+Cả hai biến **không có tiền tố `NEXT_PUBLIC_`** — chỉ server đọc được. Development được phép fallback về API local và khóa session cố định; production thiếu biến, secret ngắn hơn 32 ký tự, URL sai định dạng hoặc trỏ localhost đều làm build/startup thất bại. Preview và Production trên Vercel phải có `API_URL` và `SESSION_SECRET` scope riêng; không dùng secret production cho Preview.
+
+Next.js có thể nạp code server khi `next build` thu thập dữ liệu route, nên production build cũng phải nhận đủ hai biến. Quality CI dùng API giả `https://api.ci.example.invalid` và một secret chỉ dành cho test để xác nhận contract; chúng không phải thông tin đăng nhập và không được sao chép sang môi trường triển khai. `API_URL` cùng `SESSION_SECRET` nằm trong `globalEnv` của Turbo vì thay đổi chúng phải làm mất hiệu lực build cache của Client.
+
+`next.config.ts` áp CSP, frame deny, nosniff, referrer policy, permissions policy, COOP và HSTS cho mọi route. CSP production chỉ cho resource cùng origin, không có wildcard hoặc `unsafe-eval`; development thêm `unsafe-eval` cho Next.js tooling. Client dùng `next/font`, nên font Google được self-host trong artifact thay vì browser gọi CDN.
 
 ```powershell
 pnpm dev:client            # http://localhost:3005
