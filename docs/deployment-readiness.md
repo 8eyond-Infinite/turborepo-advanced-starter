@@ -79,3 +79,11 @@ trạng thái `sent: false` và log lý do skip; nó không retry vào một SMT
 chỉ khởi động nếu có `MAIL_HOST` và `MAIL_FROM`; `MAIL_PORT` phải là port hợp lệ. Production bật mail phải dùng SMTP
 provider thật. Deployment drill có thể để mail tắt để kiểm tra outbox/queue, hoặc trỏ vào Mailpit/Maildev để kiểm tra
 nội dung email end-to-end.
+
+### Backup/restore drill
+
+`scripts/backup-postgres.sh` tạo PostgreSQL custom-format dump với permission riêng tư và checksum SHA-256 trong
+`deploy/compose/backups`. `scripts/verify-postgres-restore.sh <backup.dump>` kiểm tra checksum, restore vào một database
+cô lập có tên `restore_verify_*`, xác nhận có bảng rồi tự xóa database kiểm tra. Script không restore đè database live.
+Một file dump chỉ được coi là backup usable sau khi restore verifier pass; production vẫn phải sao chép backup đã mã
+hóa sang storage khác host và áp dụng retention policy.
