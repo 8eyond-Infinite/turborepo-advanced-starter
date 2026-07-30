@@ -313,7 +313,7 @@ Realtime là một application boundary trong `src/app/realtime`, được tách
 
 - `realtime-client.ts` biết cách tạo Socket.IO client và cập nhật credential. Access token chỉ được gửi qua `handshake.auth`, không nằm trong URL/query string. Client được tạo với `autoConnect: false`.
 - `realtime-event-handlers.ts` ánh xạ transport event sang application side effect như logout, toast, observability và invalidation cache.
-- `realtime-provider.tsx` sở hữu lifecycle: đọc auth state, tạo đúng một socket cho phiên authenticated, đăng ký toàn bộ listener trước khi gọi `connect()`, nghe token refresh và cleanup toàn bộ resource khi phiên kết thúc.
+- `realtime-provider.tsx` sở hữu lifecycle: đọc auth state, tạo đúng một socket cho phiên authenticated, đăng ký toàn bộ listener trước khi gọi `connect()`, nghe token refresh và cleanup toàn bộ resource khi phiên kết thúc. Handshake được defer một task để lần cleanup kiểm tra của React `StrictMode` có thể hủy socket chưa dùng trước khi browser mở kết nối; lần mount còn sống mới tạo handshake thật.
 
 Client xử lý ba nhóm event:
 
@@ -554,7 +554,7 @@ Mỗi Vercel environment phải có `VITE_API_URL` riêng:
 | Preview      | API staging/preview có CORS cho preview Admin origin |
 | Production   | API HTTPS production; không localhost                |
 
-Vite sinh CSP meta từ origin này: `connect-src` chỉ cho chính Admin origin, API HTTP(S) và Socket.IO WS(S); `img-src` cho API origin để hiển thị avatar. `vercel.json` bổ sung `nosniff`, frame deny, referrer policy, permissions policy, COOP, cache immutable cho hashed assets và no-cache cho HTML. CSP không có `unsafe-eval`; `unsafe-inline` chỉ còn ở `style-src` vì UI primitives dùng inline style. Khi thêm external font/image/telemetry endpoint phải sửa generator và test, không nới thành `https:` hoặc `*`.
+Vite sinh CSP meta từ origin này: `connect-src` chỉ cho chính Admin origin, API HTTP(S) và Socket.IO WS(S); `img-src` cho API origin để hiển thị avatar. Admin dùng system font, không tải stylesheet/font từ CDN, nên `font-src` vẫn giữ ở `'self' data:`. `vercel.json` bổ sung `nosniff`, frame deny, referrer policy, permissions policy, COOP, cache immutable cho hashed assets và no-cache cho HTML. CSP không có `unsafe-eval`; `unsafe-inline` chỉ còn ở `style-src` vì UI primitives dùng inline style. Khi thêm external font/image/telemetry endpoint phải sửa generator và test, không nới thành `https:` hoặc `*`.
 
 Direct navigation tới `/users`, `/roles` và các route SPA khác được rewrite về `index.html`; static assets vẫn do Vercel filesystem phục vụ. Production source maps bị tắt và verifier cấm file `.map` trong artifact.
 

@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { StrictMode } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAuthStore } from "@/features/auth";
 import { ApiClient } from "@/lib/api-client";
 import { RealtimeProvider } from "./realtime-provider";
@@ -26,9 +27,14 @@ vi.mock("./realtime-event-handlers", () => ({
 
 describe("<RealtimeProvider />", () => {
   beforeEach(() => {
+    vi.useFakeTimers();
     vi.clearAllMocks();
     ApiClient.setToken("access-token");
     useAuthStore.setState({ isAuthenticated: true, isLoading: false });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("owns connection, token rotation, and cleanup lifecycle", () => {
@@ -46,6 +52,8 @@ describe("<RealtimeProvider />", () => {
 
     expect(screen.getByText("Application")).toBeInTheDocument();
     expect(createRealtimeSocket).toHaveBeenCalledWith("access-token");
+    expect(socket.connect).not.toHaveBeenCalled();
+    act(() => vi.runAllTimers());
     expect(socket.connect).toHaveBeenCalledOnce();
     expect(registerHandlers.mock.invocationCallOrder[0]).toBeLessThan(
       socket.connect.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
@@ -63,5 +71,26 @@ describe("<RealtimeProvider />", () => {
     view.unmount();
     expect(unregister).toHaveBeenCalledOnce();
     expect(socket.disconnect).toHaveBeenCalledOnce();
+  });
+
+  it("opens only the surviving StrictMode handshake", () => {
+    const queryClient = new QueryClient();
+
+    render(
+      <StrictMode>
+        <QueryClientProvider client={queryClient}>
+          <RealtimeProvider>
+            <p>Application</p>
+          </RealtimeProvider>
+        </QueryClientProvider>
+      </StrictMode>,
+    );
+
+    expect(createRealtimeSocket).toHaveBeenCalledTimes(2);
+    expect(socket.connect).not.toHaveBeenCalled();
+
+    act(() => vi.runAllTimers());
+
+    expect(socket.connect).toHaveBeenCalledOnce();
   });
 });
