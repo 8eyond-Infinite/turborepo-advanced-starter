@@ -438,6 +438,10 @@ Job `image` biến source code đã qua kiểm tra thành Docker image:
 3. Dùng Trivy quét lỗ hổng mức HIGH/CRITICAL; lỗ hổng chưa có bản vá được ghi nhận nhưng không chặn job.
 4. Chỉ khi commit đã merge vào `main`, đẩy image lên GHCR với tag SHA và `latest`.
 
+Image được build bằng Docker engine đã có sẵn trên GitHub-hosted runner. Pipeline không khởi tạo thêm container Buildx chạy `moby/buildkit`: bước khởi tạo đó buộc CI kéo một image không thuộc sản phẩm từ Docker Hub trước khi đọc Dockerfile, nên một lần registry chậm hoặc timeout có thể làm hỏng job dù source code hoàn toàn hợp lệ. Đổi lại, job không export layer cache qua GitHub Actions; với một server image, độ tin cậy của quality gate được ưu tiên hơn thời gian build lại.
+
+Docker build vẫn có thể cần kết nối registry để lấy base image được khai báo trong Dockerfile. Điểm khác biệt là lần tải này phục vụ trực tiếp artifact của dự án, thay vì chỉ khởi động một builder trung gian. Nếu registry lỗi ở đây, log sẽ chỉ ra base image cụ thể; người vận hành có thể retry job và không nhầm sự cố registry với lỗi code.
+
 Job phụ thuộc cả quality test lẫn E2E, nên code chưa qua gate không được publish. API và worker chạy cùng image; worker chỉ đổi entry command thành `node dist/worker.js`.
 
 Database dùng cho test phải có tên/phạm vi riêng; backend E2E đã có chốt chặn từ chối reset bất kỳ database nào không có hậu tố `_test`. Setup gọi `prisma db push` và `db:seed` qua package `@repo/database`, là nơi sở hữu schema, Prisma config và executable `tsx`; không dựa vào package hoisting hoặc `npx` tìm dependency từ thư mục Server.
