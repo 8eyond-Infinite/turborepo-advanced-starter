@@ -33,7 +33,7 @@ test.describe("Client authentication boundary", () => {
     await login(page, ADMIN_EMAIL, "definitely-wrong-password");
 
     await expect(page).toHaveURL(/\/login$/);
-    await expect(page.getByRole("alert")).toContainText(
+    await expect(page.locator("form").getByRole("alert")).toContainText(
       "Email hoặc mật khẩu không đúng.",
     );
     expect(
