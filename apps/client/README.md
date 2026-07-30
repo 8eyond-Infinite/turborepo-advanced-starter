@@ -173,6 +173,34 @@ render trong route và cho phép retry bằng `reset()`; `global-error.tsx` thay
 stack trace cho người dùng. `error.tsx` và `global-error.tsx` là Client Component vì nút retry cần event handler;
 loading và not-found vẫn là Server Component.
 
+### Error contract giữa Next.js và API
+
+`lib/api.ts` là một anti-corruption layer nhỏ: nó không để mỗi page hoặc Server Action tự diễn giải `fetch`. Mọi request có timeout 10 giây và mọi failure được đổi thành `ApiError` có cùng hình dạng:
+
+- `kind` cho UI quyết định hành vi, chẳng hạn yêu cầu đăng nhập lại, báo không có quyền hay cho phép thử lại;
+- `status`, `code` và `translationKey` dành cho code phía server chẩn đoán/ánh xạ nghiệp vụ;
+- `retryable` phân biệt lỗi tạm thời như timeout, mất mạng, HTTP 429/5xx với lỗi người dùng không nên gửi lại nguyên trạng;
+- `correlationId` lấy từ header `x-correlation-id`, dùng để nối lỗi người dùng gặp với đúng request trong backend log.
+
+Raw `message`, stack trace và `details` từ backend không được sao chép vào error hiển thị. `toPublicApiError()` chỉ tạo object nhỏ gồm `kind`, thông điệp an toàn và correlation ID; Server Action dùng object này khi cần trả failure về Client Component. Correlation ID không phải secret: giao diện có thể cho người dùng sao chép nó khi liên hệ hỗ trợ, nhưng không tự hiển thị code nội bộ hay token.
+
+```text
+NestJS response / network failure
+              │
+              ▼
+     lib/api.ts phân loại
+              │
+      ┌───────┴────────┐
+      ▼                ▼
+ ApiError server   PublicApiError
+ status/code       kind/message/
+ retryable         correlationId
+      │                │
+ logging/flow      Server Action → UI
+```
+
+Không catch rồi biến mọi lỗi thành “không tìm thấy”. Server Component nên để lỗi hạ tầng bất ngờ đi tới `error.tsx`; chỉ xử lý tại chỗ khi feature thực sự có một trạng thái nghiệp vụ tương ứng. Server Action phải gọi `toPublicApiError()` trước khi trả lỗi về browser và đặt `redirect()` bên ngoài `try/catch`, vì redirect của Next.js hoạt động bằng một control-flow exception.
+
 ## 7. Mở rộng tiếp theo
 
 - Thêm trang công khai (danh sách sản phẩm, bài viết…) dùng `generateMetadata` và ISR để tận dụng SEO.
