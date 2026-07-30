@@ -71,3 +71,11 @@ Checklist sau deploy:
 8. Restore backup được thử trong môi trường cô lập.
 
 Khi các mục trên chưa có bằng chứng, deployment chỉ là “container đang chạy”, chưa phải release production.
+
+### Mail worker contract
+
+`MAIL_ENABLED` là quyết định vận hành rõ ràng. Khi bằng `false`, worker vẫn nhận email job nhưng hoàn tất job với
+trạng thái `sent: false` và log lý do skip; nó không retry vào một SMTP host rỗng. Khi bằng `true`, server và worker
+chỉ khởi động nếu có `MAIL_HOST` và `MAIL_FROM`; `MAIL_PORT` phải là port hợp lệ. Production bật mail phải dùng SMTP
+provider thật. Deployment drill có thể để mail tắt để kiểm tra outbox/queue, hoặc trỏ vào Mailpit/Maildev để kiểm tra
+nội dung email end-to-end.
