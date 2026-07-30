@@ -49,15 +49,15 @@ sequenceDiagram
     N-->>U: Set-Cookie client_session (HttpOnly)
 
     U->>N: GET /me
-    Note over N: middleware kiểm tra hạn token và làm mới nếu sắp hết
+    Note over N: Proxy kiểm tra hạn token và làm mới nếu sắp hết
     N->>A: GET /users/me + Bearer
     A-->>N: Dữ liệu user
     N-->>U: HTML đã có sẵn dữ liệu
 ```
 
-Next.js không cho code ghi cookie trong lúc render trang. Cookie chỉ được thay đổi ở middleware, Server Action hoặc Route Handler. Vì vậy [`middleware.ts`](middleware.ts) chịu trách nhiệm làm mới phiên.
+Next.js không cho code ghi cookie trong lúc render trang. Cookie chỉ được thay đổi ở Proxy, Server Action hoặc Route Handler. Vì vậy [`proxy.ts`](proxy.ts) chịu trách nhiệm làm mới phiên.
 
-Middleware đọc thời điểm hết hạn (`exp`) của access token. Nó chỉ dùng thông tin này để biết khi nào cần gọi `/auth/refresh`; API vẫn là nơi xác minh token có thật sự hợp lệ hay không. Nếu token còn dưới 60 giây, middleware xin token mới và gắn cookie mới vào response.
+Proxy đọc thời điểm hết hạn (`exp`) của access token. Nó chỉ dùng thông tin này để biết khi nào cần gọi `/auth/refresh`; API vẫn là nơi xác minh token có thật sự hợp lệ hay không. Nếu token còn dưới 60 giây, Proxy xin token mới và gắn cookie mới vào response.
 
 Nhiều request có thể cùng phát hiện token sắp hết hạn. `lib/refresh-session.ts` gom các request trong cùng một Next.js instance vào chung một Promise, nên chỉ có một HTTP refresh được gửi. Cách gom việc trùng nhau này gọi là **single-flight**.
 
@@ -79,7 +79,7 @@ apps/client/
 │   ├── refresh-session.ts    # Single-flight refresh trong một Next instance
 │   ├── safe-redirect.ts      # Chỉ cho phép redirect tới path nội bộ
 │   └── api.ts                # Gọi API kèm bearer token (server-only)
-└── middleware.ts             # Chặn route riêng tư + làm mới token
+└── proxy.ts                  # Chặn route riêng tư + làm mới token
 ```
 
 `lib/*` đánh dấu `import "server-only"`: nếu ai lỡ import chúng vào Client Component thì build fail ngay, thay vì âm thầm gửi token xuống trình duyệt.
@@ -103,10 +103,10 @@ Cả hai biến **không có tiền tố `NEXT_PUBLIC_`** — chỉ server đọ
 
 ```powershell
 pnpm dev:client            # http://localhost:3005
-pnpm --filter=client test  # test cho middleware, session, api (vitest)
+pnpm --filter=client test  # test cho Proxy, session, api (vitest)
 ```
 
-Phần được test kỹ nhất chính là phần dễ sai nhất: [`middleware.test.ts`](middleware.test.ts) dựng request giả với token sắp hết hạn để kiểm tra đủ nhánh làm mới (thành công, API từ chối, API sập), còn [`lib/session.test.ts`](lib/session.test.ts) ném dữ liệu rác vào `decodeSession` để chắc chắn cookie bị sửa tay không làm crash trang.
+Phần được test kỹ nhất chính là phần dễ sai nhất: [`proxy.test.ts`](proxy.test.ts) dựng request giả với token sắp hết hạn để kiểm tra đủ nhánh làm mới (thành công, API từ chối, API sập), còn [`lib/session.test.ts`](lib/session.test.ts) ném dữ liệu rác vào `decodeSession` để chắc chắn cookie bị sửa tay không làm crash trang.
 
 Kiểm chứng nhanh rằng mô hình đang hoạt động đúng:
 
@@ -114,7 +114,7 @@ Kiểm chứng nhanh rằng mô hình đang hoạt động đúng:
 # Nội dung nằm sẵn trong HTML (SEO) chứ không phải do JavaScript vẽ ra
 curl -s http://localhost:3005/ | grep "<title>"
 
-# Trang riêng tư khi chưa đăng nhập bị chặn ngay từ middleware
+# Trang riêng tư khi chưa đăng nhập bị chặn ngay từ Proxy
 curl -s -o /dev/null -w "%{http_code}\n" http://localhost:3005/me   # 307 → /login
 ```
 
@@ -130,7 +130,7 @@ Giới hạn còn lại đúng bằng bản chất của mọi session cookie: k
 
 Khi nhiều tab cùng làm mới token trong một Next.js instance, single-flight gom chúng thành một request. Nếu hệ thống chạy nhiều instance, hai request vẫn có thể đi tới hai server khác nhau. Redis chỉ cho một request dùng refresh token cũ thành công; request còn lại nhận `401`.
 
-Request thua chưa chắc phải đăng xuất người dùng. Nếu access token cũ của nó vẫn còn hạn, middleware để request tiếp tục và không ghi đè cookie mới từ response thắng. Chỉ khi access token đã hết hạn và refresh cũng thất bại, middleware mới xóa session và chuyển về trang login.
+Request thua chưa chắc phải đăng xuất người dùng. Nếu access token cũ của nó vẫn còn hạn, Proxy để request tiếp tục và không ghi đè cookie mới từ response thắng. Chỉ khi access token đã hết hạn và refresh cũng thất bại, Proxy mới xóa session và chuyển về trang login.
 
 Muốn mọi Next.js instance dùng chung chính xác một kết quả refresh cần thêm cơ chế phối hợp phân tán. Đây là cải tiến hiệu năng và trải nghiệm; quy tắc bảo mật “refresh token cũ chỉ dùng một lần” đã được Redis bảo vệ.
 
@@ -146,4 +146,4 @@ Tham số `next` sau login chỉ được nhận khi là path nội bộ bắt �
 
 ## Tự kiểm tra trước khi sửa Client
 
-Bạn đã hiểu boundary của Client khi có thể giải thích nơi session cookie được đọc, nơi access token tồn tại, vì sao Server Component gọi API khác SPA và lúc nào mới cần Client Component. Hãy thử lần flow chưa đăng nhập vào `/me`: middleware phải chặn trước khi trang riêng tư render.
+Bạn đã hiểu boundary của Client khi có thể giải thích nơi session cookie được đọc, nơi access token tồn tại, vì sao Server Component gọi API khác SPA và lúc nào mới cần Client Component. Hãy thử lần flow chưa đăng nhập vào `/me`: Proxy phải chặn trước khi trang riêng tư render.

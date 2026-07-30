@@ -2,16 +2,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
 // session.ts import next/headers ở đầu file; trong Node thuần module đó không
-// có request scope nên mock rỗng cho an toàn — middleware không dùng tới nó
-// (middleware đọc cookie từ request, không qua cookies()).
+// có request scope nên mock rỗng cho an toàn — Proxy không dùng tới nó
+// (Proxy đọc cookie từ request, không qua cookies()).
 vi.mock("next/headers", () => ({ cookies: () => Promise.resolve(null) }));
 
-import { middleware } from "./middleware";
+import { proxy } from "./proxy";
 import { SESSION_COOKIE, decryptSession, encryptSession } from "@/lib/session";
 
 const fetchMock = vi.fn<typeof fetch>();
 
-// Access token giả đúng cấu trúc JWT (header.payload.signature) — middleware
+// Access token giả đúng cấu trúc JWT (header.payload.signature) — Proxy
 // chỉ đọc trường exp trong payload, không xác minh chữ ký.
 const tokenExpiringIn = (seconds: number): string => {
   const payload = Buffer.from(
@@ -38,13 +38,13 @@ afterEach(() => {
 
 describe("khi chưa có phiên", () => {
   it("cho qua trang công khai", async () => {
-    const response = await middleware(requestFor("/"));
+    const response = await proxy(requestFor("/"));
     expect(response.status).toBe(200);
     expect(response.headers.get("location")).toBeNull();
   });
 
   it("chặn trang riêng tư, chuyển về /login kèm đường dẫn quay lại", async () => {
-    const response = await middleware(requestFor("/me"));
+    const response = await proxy(requestFor("/me"));
     expect(response.status).toBe(307);
     const location = new URL(response.headers.get("location")!);
     expect(location.pathname).toBe("/login");
@@ -53,7 +53,7 @@ describe("khi chưa có phiên", () => {
 
   it("cookie rác được coi như chưa đăng nhập", async () => {
     // Header HTTP chỉ chứa được byte Latin-1 nên chuỗi rác phải là ASCII.
-    const response = await middleware(requestFor("/me", "@@not-a-session@@"));
+    const response = await proxy(requestFor("/me", "@@not-a-session@@"));
     expect(response.status).toBe(307);
   });
 });
@@ -65,7 +65,7 @@ describe("khi token còn hạn dài", () => {
       refreshToken: "refresh-token",
     });
 
-    const response = await middleware(requestFor("/me", cookie));
+    const response = await proxy(requestFor("/me", cookie));
 
     expect(response.status).toBe(200);
     expect(fetchMock).not.toHaveBeenCalled();
@@ -90,7 +90,7 @@ describe("khi token sắp hết hạn (dưới 60 giây)", () => {
       ),
     );
 
-    const response = await middleware(requestFor("/me", await nearExpiry()));
+    const response = await proxy(requestFor("/me", await nearExpiry()));
 
     const [url, init] = fetchMock.mock.calls[0]!;
     expect(String(url)).toContain("/auth/refresh");
@@ -113,7 +113,7 @@ describe("khi token sắp hết hạn (dưới 60 giây)", () => {
       }),
     );
 
-    const response = await middleware(requestFor("/me", await nearExpiry()));
+    const response = await proxy(requestFor("/me", await nearExpiry()));
 
     const written = response.cookies.get(SESSION_COOKIE)?.value;
     expect(await decryptSession(written!)).toEqual({
@@ -125,7 +125,7 @@ describe("khi token sắp hết hạn (dưới 60 giây)", () => {
   it("refresh cạnh tranh thất bại khi access token còn hạn: giữ cookie và cho request hiện tại đi tiếp", async () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 401 }));
 
-    const response = await middleware(requestFor("/me", await nearExpiry()));
+    const response = await proxy(requestFor("/me", await nearExpiry()));
 
     expect(response.status).toBe(200);
     expect(response.cookies.get(SESSION_COOKIE)).toBeUndefined();
@@ -134,7 +134,7 @@ describe("khi token sắp hết hạn (dưới 60 giây)", () => {
   it("refresh thất bại trên trang công khai khi token còn hạn: cho qua và không ghi đè cookie", async () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 401 }));
 
-    const response = await middleware(requestFor("/", await nearExpiry()));
+    const response = await proxy(requestFor("/", await nearExpiry()));
 
     expect(response.status).toBe(200);
     expect(response.cookies.get(SESSION_COOKIE)).toBeUndefined();
@@ -143,7 +143,7 @@ describe("khi token sắp hết hạn (dưới 60 giây)", () => {
   it("API sập khi token còn hạn: cho request hiện tại đi tiếp", async () => {
     fetchMock.mockRejectedValue(new Error("ECONNREFUSED"));
 
-    const response = await middleware(requestFor("/me", await nearExpiry()));
+    const response = await proxy(requestFor("/me", await nearExpiry()));
 
     expect(response.status).toBe(200);
   });
@@ -155,7 +155,7 @@ describe("khi token sắp hết hạn (dưới 60 giây)", () => {
       refreshToken: "expired-refresh",
     });
 
-    const response = await middleware(requestFor("/me", cookie));
+    const response = await proxy(requestFor("/me", cookie));
 
     expect(response.status).toBe(307);
     expect(new URL(response.headers.get("location")!).pathname).toBe("/login");
@@ -171,7 +171,7 @@ describe("access token hỏng cấu trúc", () => {
       refreshToken: "refresh-token",
     });
 
-    const response = await middleware(requestFor("/me", cookie));
+    const response = await proxy(requestFor("/me", cookie));
 
     expect(fetchMock).toHaveBeenCalledOnce();
     expect(response.status).toBe(307);

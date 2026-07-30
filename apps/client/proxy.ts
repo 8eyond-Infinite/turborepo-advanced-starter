@@ -26,7 +26,7 @@ const expiresAt = (token: string): number => {
   }
 };
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const isProtected = PROTECTED_PREFIXES.some((prefix) =>
     request.nextUrl.pathname.startsWith(prefix),
   );
@@ -47,7 +47,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Làm mới token TẠI ĐÂY, không phải trong lúc render: Next.js chỉ cho ghi
-  // cookie ở middleware, Server Action và Route Handler. Nhờ vậy mỗi lần
+  // cookie ở Proxy, Server Action và Route Handler. Nhờ vậy mỗi lần
   // render trang đã chắc chắn có access token còn hạn.
   const refreshed = await refreshSessionSingleFlight(session.refreshToken);
 
@@ -79,6 +79,6 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Bỏ qua asset tĩnh để middleware không chạy vô ích trên mỗi file.
+  // Bỏ qua asset tĩnh để Proxy không chạy vô ích trên mỗi file.
   matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.svg).*)"],
 };
