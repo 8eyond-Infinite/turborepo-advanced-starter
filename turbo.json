@@ -8,7 +8,9 @@
     "SEED_ADMIN_EMAIL",
     "SEED_ADMIN_PASSWORD",
     "ALLOW_PRODUCTION_SEED",
-    "VITE_API_URL"
+    "VITE_API_URL",
+    "API_URL",
+    "SESSION_SECRET"
   ],
   "ui": "tui",
   "tasks": {

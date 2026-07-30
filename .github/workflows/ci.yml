@@ -21,6 +21,10 @@ jobs:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ci_placeholder?schema=public
       # Admin production build phải có explicit public API origin và không được trỏ localhost.
       VITE_API_URL: https://api.ci.example.invalid
+      # Client validates its server-only production configuration while Next.js
+      # collects route data. These values are isolated CI fixtures, not deploy secrets.
+      API_URL: https://api.ci.example.invalid
+      SESSION_SECRET: ci-only-session-secret-0123456789abcdef
     steps:
       - uses: actions/checkout@v4
 
