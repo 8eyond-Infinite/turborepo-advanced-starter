@@ -328,6 +328,8 @@ Realtime là một application boundary độc lập trong `src/app/realtime`: c
 
 Kiến trúc này được kiểm tra ở hai tầng. Vitest cô lập store, route guard, client adapter và event handler để phản hồi nhanh. Playwright chạy Chromium với NestJS, PostgreSQL và Redis thật qua hai frontend: suite Admin kiểm tra Vite SPA, HttpOnly refresh, RBAC và `force_logout`; suite Client kiểm tra Next.js BFF, redirect route riêng tư, JWE session cookie, hồ sơ SSR, reload và logout. Cả hai dùng database `admin_browser_e2e` có thể xóa bỏ, không dùng chung database development.
 
+Client acceptance suite cũng kiểm tra token rotation thật. Test tạo JWE session giống Next.js nhưng cố ý đặt access token hết hạn, trong khi refresh token vẫn là token do backend ký và được Redis theo dõi. Một request phải refresh trước khi SSR; token đã revoke phải xóa BFF cookie; hai request đồng thời phải cùng nhận kết quả refresh. Next runtime giữ success promise thêm 5 giây để hấp thụ request đã mang cookie cũ nhưng đến muộn; failure bị xóa ngay để lỗi mạng có thể retry. Nhờ vậy bài test không phụ thuộc thời gian chờ 15 phút và không cần cài “test mode” vào production handler.
+
 Dashboard là composition của ba query độc lập: business stats là boundary chặn toàn trang; health và recent audit là widget phụ có loading/error/empty state riêng. Partial failure không được biến thành empty state và không che dữ liệu từ nguồn còn hoạt động. Biểu đồ đơn giản được render bằng SVG/CSS nội bộ có semantic text/meter thay vì kéo một chart runtime lớn; route vẫn là đơn vị lazy-load duy nhất.
 
 Chi tiết đầy đủ nằm trong [Admin handbook](../apps/admin/README.md).
