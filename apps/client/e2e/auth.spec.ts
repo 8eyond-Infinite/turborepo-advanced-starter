@@ -134,6 +134,10 @@ test.describe("Client authentication boundary", () => {
     await expect(
       page.getByRole("heading", { name: "Hồ sơ của tôi" }),
     ).toBeVisible();
+    await expect(page.getByRole("banner")).toBeVisible();
+    await expect(
+      page.getByRole("navigation", { name: "Điều hướng tài khoản" }),
+    ).toBeVisible();
     await expect(page.getByText(ADMIN_EMAIL, { exact: true })).toBeVisible();
 
     const sessionCookie = (await page.context().cookies()).find(
@@ -156,6 +160,7 @@ test.describe("Client authentication boundary", () => {
     await login(page);
     await expect(page).toHaveURL(/\/me$/);
 
+    await page.getByLabel("Mở menu tài khoản").click();
     await page.getByRole("button", { name: "Đăng xuất" }).click();
 
     await expect(page).toHaveURL(/\/$/);
@@ -179,6 +184,29 @@ test.describe("Client authentication boundary", () => {
 
     await expect(page).toHaveURL(/\/me$/);
     expect(new URL(page.url()).origin).toBe(CLIENT_URL);
+  });
+
+  test("keeps the protected account shell usable on mobile", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await login(page);
+
+    await expect(page.getByRole("banner")).toBeVisible();
+    await expect(page.locator("#account-content")).toBeVisible();
+    await page.getByLabel("Mở menu tài khoản").click();
+    await expect(
+      page.getByRole("link", { name: "Hồ sơ", exact: true }),
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: "Đăng xuất" })).toBeVisible();
+
+    const layoutWidth = await page.evaluate(() => ({
+      scrollWidth: document.documentElement.scrollWidth,
+      clientWidth: document.documentElement.clientWidth,
+    }));
+    expect(layoutWidth.scrollWidth).toBeLessThanOrEqual(
+      layoutWidth.clientWidth,
+    );
   });
 });
 

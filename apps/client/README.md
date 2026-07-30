@@ -117,6 +117,24 @@ Browser E2E kiểm tra phần nối giữa các lớp mà unit test không thể
 
 Suite còn dựng một cookie JWE hợp lệ chứa access token đã hết hạn và refresh token thật. Cách này kiểm tra được lifecycle production mà không phải rút ngắn TTL backend hoặc thêm endpoint chỉ dành cho test: Proxy phải refresh trước khi render `/me`; refresh token đã revoke phải làm cookie BFF bị xóa; hai navigation đồng thời phải dùng chung kết quả refresh để token dùng một lần không bị consume hai lần. Kết quả thành công được giữ trong bộ nhớ 5 giây — đủ cho request đã mang cookie cũ tới cùng runtime, nhưng failure không được cache và token không tồn tại lâu dài ngoài JWE/Redis.
 
+### Route groups và account shell
+
+`app` chia route theo mục đích mà không đổi URL:
+
+```text
+app/
+├── (public)/page.tsx
+├── (auth)/login/
+└── (protected)/
+    ├── layout.tsx
+    ├── _components/account-shell.tsx
+    └── me/page.tsx
+```
+
+`(protected)` không có nghĩa là Admin. Đây là khu vực tài khoản của người dùng cuối. Proxy kiểm tra/refresh session trước khi render; protected layout kiểm tra lại session, lấy current user một lần và dựng header/navigation/user menu; page feature chỉ render nghiệp vụ của nó. `getCurrentUser()` dùng React request cache, nên layout và page cùng cần user vẫn chỉ gọi backend một lần trong server render hiện tại. Cache này không tồn tại xuyên request và không dùng chung giữa người dùng.
+
+Khi thêm route tài khoản mới, đặt page dưới `(protected)` và thêm URL prefix vào matcher bảo vệ trong `proxy.ts` để token được refresh trước SSR. Hai lớp này cải thiện điều hướng và cấu trúc UI; backend vẫn phải kiểm tra ownership/authorization cho từng resource.
+
 Kiểm chứng nhanh rằng mô hình đang hoạt động đúng:
 
 ```bash
