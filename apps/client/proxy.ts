@@ -10,6 +10,15 @@ import { refreshSessionSingleFlight } from "@/lib/refresh-session";
 const PROTECTED_PREFIXES = ["/me"];
 const REFRESH_THRESHOLD_SECONDS = 60;
 
+const loginUrlFor = (request: NextRequest): URL => {
+  const loginUrl = new URL("/login", request.url);
+  loginUrl.searchParams.set(
+    "next",
+    `${request.nextUrl.pathname}${request.nextUrl.search}`,
+  );
+  return loginUrl;
+};
+
 // Đọc trường exp của JWT mà KHÔNG xác minh chữ ký: ở đây chỉ cần biết token
 // sắp hết hạn chưa. Việc xác minh thật do API làm.
 const expiresAt = (token: string): number => {
@@ -35,9 +44,7 @@ export async function proxy(request: NextRequest) {
 
   if (!session) {
     if (!isProtected) return NextResponse.next();
-    const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("next", request.nextUrl.pathname);
-    return NextResponse.redirect(loginUrl);
+    return NextResponse.redirect(loginUrlFor(request));
   }
 
   const secondsLeft =
@@ -60,7 +67,7 @@ export async function proxy(request: NextRequest) {
       return NextResponse.next();
     }
     const response = isProtected
-      ? NextResponse.redirect(new URL("/login", request.url))
+      ? NextResponse.redirect(loginUrlFor(request))
       : NextResponse.next();
     response.cookies.delete(SESSION_COOKIE);
     return response;

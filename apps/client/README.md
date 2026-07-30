@@ -115,7 +115,7 @@ Phần được test kỹ nhất chính là phần dễ sai nhất: [`proxy.test
 
 Browser E2E kiểm tra phần nối giữa các lớp mà unit test không thể chứng minh: Playwright tự khởi động backend E2E ở cổng `3101` và Client ở cổng `3006`, đăng nhập qua Server Action, quan sát cookie `client_session` HttpOnly, tải hồ sơ SSR, reload rồi logout. Test còn xác nhận browser không gọi trực tiếp tới API. Local cần PostgreSQL, Redis và dữ liệu seed E2E; GitHub Actions tự dựng các dependency dùng một lần trong job **Frontend browser E2E**. Khi lỗi, trace, screenshot, video và HTML report được lưu làm artifact trong 7 ngày.
 
-Suite còn dựng một cookie JWE hợp lệ chứa access token đã hết hạn và refresh token thật. Cách này kiểm tra được lifecycle production mà không phải rút ngắn TTL backend hoặc thêm endpoint chỉ dành cho test: Proxy phải refresh trước khi render `/me`; refresh token đã revoke phải làm cookie BFF bị xóa; hai navigation đồng thời phải dùng chung một refresh promise để token dùng một lần không bị consume hai lần.
+Suite còn dựng một cookie JWE hợp lệ chứa access token đã hết hạn và refresh token thật. Cách này kiểm tra được lifecycle production mà không phải rút ngắn TTL backend hoặc thêm endpoint chỉ dành cho test: Proxy phải refresh trước khi render `/me`; refresh token đã revoke phải làm cookie BFF bị xóa; hai navigation đồng thời phải dùng chung kết quả refresh để token dùng một lần không bị consume hai lần. Kết quả thành công được giữ trong bộ nhớ 5 giây — đủ cho request đã mang cookie cũ tới cùng runtime, nhưng failure không được cache và token không tồn tại lâu dài ngoài JWE/Redis.
 
 Kiểm chứng nhanh rằng mô hình đang hoạt động đúng:
 
