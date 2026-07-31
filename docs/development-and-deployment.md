@@ -431,10 +431,10 @@ CI chạy trên GitHub Actions với hai workflow đã triển khai:
 
 Node được pin qua `.nvmrc`, pnpm qua trường `packageManager`. Dependabot cập nhật npm dependencies và GitHub Actions hàng tuần (`.github/dependabot.yml`). Local có husky pre-commit (lint-staged + prettier) và commit-msg (commitlint, conventional commits).
 
-Job `image` biến source code đã qua kiểm tra thành Docker image:
+Job `image` chạy ma trận cho hai artifact độc lập là `server` và `client`, rồi biến source code đã qua kiểm tra thành Docker image:
 
-1. Build server bằng `apps/server/Dockerfile`.
-2. Tạo SBOM — danh sách package thực sự có trong image — và lưu nó như artifact của CI.
+1. Build `server` bằng `apps/server/Dockerfile` và `client` bằng `apps/client/Dockerfile`.
+2. Tạo SBOM riêng cho từng image — danh sách package thực sự có trong image — và lưu chúng như artifact của CI.
 3. Dùng Trivy quét lỗ hổng mức HIGH/CRITICAL; lỗ hổng chưa có bản vá được ghi nhận nhưng không chặn job.
 4. Chỉ khi commit đã merge vào `main`, đẩy image lên GHCR với tag SHA và `latest`.
 
@@ -442,7 +442,7 @@ Image được build bằng Docker engine đã có sẵn trên GitHub-hosted run
 
 Docker build vẫn có thể cần kết nối registry để lấy base image được khai báo trong Dockerfile. Điểm khác biệt là lần tải này phục vụ trực tiếp artifact của dự án, thay vì chỉ khởi động một builder trung gian. Nếu registry lỗi ở đây, log sẽ chỉ ra base image cụ thể; người vận hành có thể retry job và không nhầm sự cố registry với lỗi code.
 
-Job phụ thuộc cả quality test lẫn E2E, nên code chưa qua gate không được publish. API và worker chạy cùng image; worker chỉ đổi entry command thành `node dist/worker.js`.
+Job phụ thuộc cả quality test lẫn E2E, nên code chưa qua gate không được publish. GHCR có hai package `server` và `client`, cùng tag bằng commit SHA để biết chính xác hai artifact sinh từ phiên bản source nào. API và worker chạy cùng image `server`; worker chỉ đổi entry command thành `node dist/worker.js`. Next.js self-host chạy image `client`; Vercel vẫn có thể deploy trực tiếp từ source mà không dùng image này.
 
 Database dùng cho test phải có tên/phạm vi riêng; backend E2E đã có chốt chặn từ chối reset bất kỳ database nào không có hậu tố `_test`. Setup gọi `prisma db push` và `db:seed` qua package `@repo/database`, là nơi sở hữu schema, Prisma config và executable `tsx`; không dựa vào package hoisting hoặc `npx` tìm dependency từ thư mục Server.
 

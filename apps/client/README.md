@@ -237,6 +237,8 @@ curl http://localhost:3000/health
 
 Image build dùng placeholder không có credential để Next.js kiểm tra production contract. Deployment vẫn bắt buộc truyền `API_URL` và `SESSION_SECRET` thật ở runtime; không đưa secret vào Dockerfile, build args hoặc image layer. Topology hiện phù hợp một instance. Trước khi dùng ISR/revalidation trên nhiều instance phải bổ sung shared cache handler; nếu chưa có, không được giả định filesystem cache đồng bộ giữa các replica.
 
+CI build, tạo `client-sbom.spdx.json`, quét HIGH/CRITICAL và chỉ publish `ghcr.io/<organization>/<repository>/client:<commit-sha>` sau khi commit đã vào `main`. Image Client và Server dùng cùng SHA nhưng là hai package độc lập; không ghép Next.js vào container API. Vercel deployment không dùng image này, còn VPS/Kubernetes có thể pull đúng artifact đã qua cùng quality gate.
+
 ## 8. Mở rộng tiếp theo
 
 - Thêm trang công khai (danh sách sản phẩm, bài viết…) dùng `generateMetadata` và ISR để tận dụng SEO.
