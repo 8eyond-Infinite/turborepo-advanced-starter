@@ -218,7 +218,26 @@ Mỗi lần `lib/api.ts` gọi NestJS, BFF sinh hoặc tiếp tục header `x-co
 
 Event không chứa request body, cookie, Authorization, email, password, raw backend message hay stack. Adapter mặc định ghi JSON ra stderr để chạy trên Vercel, container hoặc VPS; sink có thể nối sang OpenTelemetry/Sentry sau này mà API boundary và feature không phụ thuộc SDK vendor.
 
-## 7. Mở rộng tiếp theo
+## 7. Production runtime
+
+`next.config.ts` bật `output: "standalone"` để build tạo runtime Node.js tối thiểu trong `.next/standalone`. Đây là artifact dùng cho container/VPS; thư mục `public` và `.next/static` vẫn phải được copy riêng. `apps/client/Dockerfile` thực hiện đúng ba bước đó, chạy bằng user không phải root, bind `0.0.0.0:3000` và không mang pnpm/npm vào runtime image.
+
+`GET /health` chỉ trả lời tiến trình Next.js còn phục vụ request hay không. Endpoint không gọi NestJS, vì nếu backend lỗi mà liveness của Client cũng fail thì orchestrator sẽ restart một process vẫn khỏe và làm sự cố nặng hơn. Khả năng Client thực sự render flow cần API phải được kiểm tra bằng synthetic smoke test riêng.
+
+Build image từ repository root:
+
+```bash
+docker build -f apps/client/Dockerfile -t starter-client .
+docker run --rm -p 3000:3000 \
+  -e API_URL=https://api.example.com \
+  -e SESSION_SECRET='<at-least-32-random-characters>' \
+  starter-client
+curl http://localhost:3000/health
+```
+
+Image build dùng placeholder không có credential để Next.js kiểm tra production contract. Deployment vẫn bắt buộc truyền `API_URL` và `SESSION_SECRET` thật ở runtime; không đưa secret vào Dockerfile, build args hoặc image layer. Topology hiện phù hợp một instance. Trước khi dùng ISR/revalidation trên nhiều instance phải bổ sung shared cache handler; nếu chưa có, không được giả định filesystem cache đồng bộ giữa các replica.
+
+## 8. Mở rộng tiếp theo
 
 - Thêm trang công khai (danh sách sản phẩm, bài viết…) dùng `generateMetadata` và ISR để tận dụng SEO.
 - Mutation cần đăng nhập: viết thêm Server Action gọi `apiFetch`, không mở endpoint proxy chung chung.
