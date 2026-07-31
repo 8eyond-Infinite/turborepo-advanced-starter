@@ -279,8 +279,11 @@ mục backup và truy cập Docker socket.
 ```bash
 sudo cp deploy/systemd/turborepo-backup.service /etc/systemd/system/
 sudo cp deploy/systemd/turborepo-backup.timer /etc/systemd/system/
+sudo cp deploy/systemd/turborepo-backup-health.service /etc/systemd/system/
+sudo cp deploy/systemd/turborepo-backup-health.timer /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now turborepo-backup.timer
+sudo systemctl enable --now turborepo-backup-health.timer
 sudo systemctl start turborepo-backup.service
 sudo systemctl status turborepo-backup.service --no-pager
 sudo systemctl list-timers turborepo-backup.timer --no-pager
@@ -299,6 +302,15 @@ Không commit password file hoặc credential. Không bật `BACKUP_RETENTION_DA
 restore một snapshot lấy từ repository off-host; xóa bản local duy nhất không phải chiến lược backup. Xem log bằng
 `journalctl -u turborepo-backup.service`; timer dùng `Persistent=true`, nên một lần bị lỡ vì host tắt sẽ chạy sau khi host
 khởi động lại.
+
+Backup service chỉ cập nhật `.last-success` sau checkpoint cuối cùng. Health timer đọc file này mỗi giờ và fail khi lần thành
+công gần nhất quá `BACKUP_MAX_AGE_HOURS` (mặc định 26 giờ). Hệ thống monitoring của VPS phải cảnh báo khi
+`turborepo-backup-health.service` failed; systemd ghi nhận lỗi nhưng tự nó không gửi email hay notification. Kiểm tra thủ công:
+
+```bash
+./deploy/compose/scripts/verify-backup-freshness.sh
+systemctl status turborepo-backup-health.service --no-pager
+```
 
 ## 8. Ánh xạ sang AWS
 

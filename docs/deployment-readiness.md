@@ -99,3 +99,8 @@ Khi `OFFSITE_BACKUP_ENABLED=true`, cycle gọi `backup-offsite.sh` sau restore v
 checksum trước khi gửi tới repository S3/SFTP/REST ở máy khác. Repository phải được khởi tạo trước; script cố ý không tự
 `restic init`, vì một URL gõ sai không được phép âm thầm tạo nơi lưu mới. Local retention bị từ chối nếu off-host backup chưa
 bật hoặc upload thất bại. Nhờ vậy một lỗi mạng không thể làm cycle xóa bản local cuối cùng.
+
+Chỉ khi toàn bộ cycle thành công, script mới atomically thay `BACKUP_STATUS_FILE` (mặc định
+`deploy/compose/backups/.last-success`). File này là heartbeat của backup, không phải bản backup. Timer health chạy mỗi giờ và
+gọi `verify-backup-freshness.sh`; mặc định status quá 26 giờ, bị thiếu hoặc thiếu field sẽ làm unit fail. Vì backup chính chạy
+mỗi ngày và có random delay tối đa 15 phút, ngưỡng 26 giờ chừa khoảng đệm nhưng vẫn phát hiện một cycle bị bỏ lỡ.

@@ -19,9 +19,13 @@ BACKUP_DIR=${BACKUP_DIR:-"$COMPOSE_DIR/backups"}
 BACKUP_RETENTION_DAYS=${BACKUP_RETENTION_DAYS:-}
 OFFSITE_BACKUP_ENABLED=${OFFSITE_BACKUP_ENABLED:-false}
 result_file=$(mktemp)
+status_tmp=
 
 cleanup() {
   rm -f "$result_file"
+  if [ -n "$status_tmp" ]; then
+    rm -f "$status_tmp"
+  fi
 }
 trap cleanup EXIT INT TERM
 
@@ -65,33 +69,45 @@ fi
 
 if [ -z "$BACKUP_RETENTION_DAYS" ]; then
   echo "Backup retention disabled; set BACKUP_RETENTION_DAYS after off-host copies are configured."
-  exit 0
-fi
-
-if [ "$OFFSITE_BACKUP_ENABLED" != "true" ]; then
-  echo "Refusing local retention because off-host backup is disabled." >&2
-  exit 1
-fi
-
-backup_dir=$(CDPATH= cd -- "$BACKUP_DIR" && pwd)
-if [ "$backup_dir" = "/" ]; then
-  echo "Refusing to prune backups from filesystem root." >&2
-  exit 1
-fi
-
-POSTGRES_DB=${POSTGRES_DB:-starter}
-
-find "$backup_dir" -maxdepth 1 -type f \
-  -name "${POSTGRES_DB}-*.dump" -mtime "+$BACKUP_RETENTION_DAYS" -print |
-while IFS= read -r expired_backup; do
-  [ -n "$expired_backup" ] || continue
-  expired_dir=$(CDPATH= cd -- "$(dirname -- "$expired_backup")" && pwd)
-  if [ "$expired_dir" != "$backup_dir" ]; then
-    echo "Refusing to remove backup outside $backup_dir: $expired_backup" >&2
+else
+  if [ "$OFFSITE_BACKUP_ENABLED" != "true" ]; then
+    echo "Refusing local retention because off-host backup is disabled." >&2
     exit 1
   fi
-  rm -f "$expired_backup" "${expired_backup}.sha256"
-  echo "Expired local backup removed: $expired_backup"
-done
 
-echo "Backup cycle completed: created, restore-verified, retention applied."
+  backup_dir=$(CDPATH= cd -- "$BACKUP_DIR" && pwd)
+  if [ "$backup_dir" = "/" ]; then
+    echo "Refusing to prune backups from filesystem root." >&2
+    exit 1
+  fi
+
+  POSTGRES_DB=${POSTGRES_DB:-starter}
+
+  find "$backup_dir" -maxdepth 1 -type f \
+    -name "${POSTGRES_DB}-*.dump" -mtime "+$BACKUP_RETENTION_DAYS" -print |
+  while IFS= read -r expired_backup; do
+    [ -n "$expired_backup" ] || continue
+    expired_dir=$(CDPATH= cd -- "$(dirname -- "$expired_backup")" && pwd)
+    if [ "$expired_dir" != "$backup_dir" ]; then
+      echo "Refusing to remove backup outside $backup_dir: $expired_backup" >&2
+      exit 1
+    fi
+    rm -f "$expired_backup" "${expired_backup}.sha256"
+    echo "Expired local backup removed: $expired_backup"
+  done
+fi
+
+BACKUP_STATUS_FILE=${BACKUP_STATUS_FILE:-"$BACKUP_DIR/.last-success"}
+status_dir=$(dirname -- "$BACKUP_STATUS_FILE")
+mkdir -p "$status_dir"
+status_tmp=$(mktemp "$status_dir/.backup-success.XXXXXX")
+{
+  printf 'completed_at=%s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+  printf 'backup_file=%s\n' "$(basename -- "$backup_file")"
+  printf 'offsite_enabled=%s\n' "$OFFSITE_BACKUP_ENABLED"
+} > "$status_tmp"
+chmod 600 "$status_tmp"
+mv -f "$status_tmp" "$BACKUP_STATUS_FILE"
+status_tmp=
+
+echo "Backup cycle completed and success status recorded: $BACKUP_STATUS_FILE"
