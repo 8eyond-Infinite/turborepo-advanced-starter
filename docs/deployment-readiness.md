@@ -93,5 +93,9 @@ storage khác host và quá trình lấy lại bản off-host đã được th�
 `.dump`/`.sha256` đúng tên database trong thư mục backup đã resolve; script từ chối filesystem root.
 
 `deploy/systemd/` cung cấp service/timer mẫu chạy mỗi ngày. Unit giả định repo ở `/opt/turborepo-starter`, user/group
-`turborepo`; phải sửa ba giá trị này theo host thật trước khi cài. Systemd chỉ tự động hóa local verified copy — production
-vẫn cần một job/provider riêng mã hóa và sao chép backup ra khỏi VPS.
+`turborepo`; phải sửa ba giá trị này theo host thật trước khi cài.
+
+Khi `OFFSITE_BACKUP_ENABLED=true`, cycle gọi `backup-offsite.sh` sau restore verifier. Script dùng Restic để mã hóa dump và
+checksum trước khi gửi tới repository S3/SFTP/REST ở máy khác. Repository phải được khởi tạo trước; script cố ý không tự
+`restic init`, vì một URL gõ sai không được phép âm thầm tạo nơi lưu mới. Local retention bị từ chối nếu off-host backup chưa
+bật hoặc upload thất bại. Nhờ vậy một lỗi mạng không thể làm cycle xóa bản local cuối cùng.

@@ -17,6 +17,7 @@ set +a
 
 BACKUP_DIR=${BACKUP_DIR:-"$COMPOSE_DIR/backups"}
 BACKUP_RETENTION_DAYS=${BACKUP_RETENTION_DAYS:-}
+OFFSITE_BACKUP_ENABLED=${OFFSITE_BACKUP_ENABLED:-false}
 result_file=$(mktemp)
 
 cleanup() {
@@ -37,6 +38,14 @@ case "$BACKUP_RETENTION_DAYS" in
     ;;
 esac
 
+case "$OFFSITE_BACKUP_ENABLED" in
+  true|false) ;;
+  *)
+    echo "OFFSITE_BACKUP_ENABLED must be true or false." >&2
+    exit 1
+    ;;
+esac
+
 BACKUP_RESULT_FILE="$result_file" BACKUP_DIR="$BACKUP_DIR" ENV_FILE="$ENV_FILE" \
   "$SCRIPT_DIR/backup-postgres.sh"
 backup_file=$(sed -n '1p' "$result_file")
@@ -48,9 +57,20 @@ fi
 
 "$SCRIPT_DIR/verify-postgres-restore.sh" "$backup_file"
 
+if [ "$OFFSITE_BACKUP_ENABLED" = "true" ]; then
+  "$SCRIPT_DIR/backup-offsite.sh" "$backup_file"
+else
+  echo "Off-host backup disabled; verified dump remains only on this host."
+fi
+
 if [ -z "$BACKUP_RETENTION_DAYS" ]; then
   echo "Backup retention disabled; set BACKUP_RETENTION_DAYS after off-host copies are configured."
   exit 0
+fi
+
+if [ "$OFFSITE_BACKUP_ENABLED" != "true" ]; then
+  echo "Refusing local retention because off-host backup is disabled." >&2
+  exit 1
 fi
 
 backup_dir=$(CDPATH= cd -- "$BACKUP_DIR" && pwd)

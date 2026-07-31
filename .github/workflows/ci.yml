@@ -50,6 +50,9 @@ jobs:
       - name: Validate documentation chapters and links
         run: pnpm verify:docs
 
+      - name: Validate encrypted off-host backup contract
+        run: pnpm verify:backup
+
       - name: Lint
         run: pnpm turbo run lint
 

@@ -26,6 +26,7 @@
     "verify:compose": "docker compose --env-file deploy/compose/.env.production.example -f deploy/compose/compose.production.yaml config --quiet",
     "verify:env": "node scripts/verify-environment-contract.mjs",
     "verify:migrations": "pnpm --filter=@repo/database db:verify-migrations",
+    "verify:backup": "sh deploy/compose/scripts/backup-offsite.test.sh",
     "verify:docs": "node scripts/verify-docs.mjs",
     "verify:render": "node scripts/verify-render-deployment.mjs",
     "prepare": "husky"

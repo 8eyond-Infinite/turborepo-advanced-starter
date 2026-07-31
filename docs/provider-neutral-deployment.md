@@ -286,8 +286,17 @@ sudo systemctl status turborepo-backup.service --no-pager
 sudo systemctl list-timers turborepo-backup.timer --no-pager
 ```
 
-Service chạy `backup-and-verify.sh`: tạo dump/checksum, restore vào database cô lập, rồi mới dọn local backup quá hạn.
-Không bật retention trước khi off-host upload thành công; xóa bản local duy nhất không phải chiến lược backup. Xem log bằng
+Service chạy `backup-and-verify.sh`: tạo dump/checksum, restore vào database cô lập, gửi bản mã hóa ra khỏi host, rồi mới
+dọn local backup quá hạn. Ba bước đầu phải thành công trong cùng cycle; nếu upload lỗi thì local retention không chạy.
+
+Starter dùng [Restic](https://restic.net/) làm adapter off-host vì cùng một command làm việc với S3-compatible storage, SFTP
+và Rest server. Cài Restic trên host, tạo file password nằm ngoài repository với quyền `600`, rồi khởi tạo repository đúng
+một lần bằng `restic init`. Sau đó đặt `OFFSITE_BACKUP_ENABLED=true`, `RESTIC_REPOSITORY`, `RESTIC_PASSWORD_FILE` và một
+`RESTIC_HOST` ổn định trong `.env.production`. Credential của storage được cấp bằng biến môi trường mà backend Restic tương
+ứng yêu cầu; tài khoản này chỉ nên được đọc/ghi đúng backup repository.
+
+Không commit password file hoặc credential. Không bật `BACKUP_RETENTION_DAYS` trước khi đã chạy service thành công và thử
+restore một snapshot lấy từ repository off-host; xóa bản local duy nhất không phải chiến lược backup. Xem log bằng
 `journalctl -u turborepo-backup.service`; timer dùng `Persistent=true`, nên một lần bị lỡ vì host tắt sẽ chạy sau khi host
 khởi động lại.
 
