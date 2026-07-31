@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev --port 3005",
     "build": "next build",
+    "verify:performance": "node scripts/verify-performance-budget.mjs",
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
     "check-types": "tsc --noEmit",
@@ -14,15 +15,16 @@
     "e2e:report": "playwright show-report"
   },
   "dependencies": {
+    "@repo/contracts": "workspace:*",
+    "@repo/types": "workspace:*",
+    "jose": "^6.0.11",
     "next": "16.2.11",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "@repo/types": "workspace:*",
-    "@repo/contracts": "workspace:*",
-    "jose": "^6.0.11",
     "server-only": "^0.0.1"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@playwright/test": "1.58.2",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",

@@ -79,6 +79,7 @@ export function AccountShell({ children, user }: AccountShellProps) {
 
       <main
         id="account-content"
+        tabIndex={-1}
         className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-12"
       >
         {children}

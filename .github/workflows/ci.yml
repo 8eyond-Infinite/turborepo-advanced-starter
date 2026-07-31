@@ -62,6 +62,9 @@ jobs:
       - name: Build
         run: pnpm turbo run build
 
+      - name: Verify Client JavaScript performance budget
+        run: pnpm --filter=client verify:performance
+
       - name: Verify Admin production artifact
         working-directory: apps/admin
         run: node scripts/verify-production-build.mjs
