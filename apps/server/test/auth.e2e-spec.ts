@@ -454,10 +454,12 @@ describe('AuthController (E2E)', () => {
     const { accessToken: access1, refreshToken: refresh1 } = loginRes1.body;
     const { refreshToken: refresh2 } = loginRes2.body;
 
+    const correlationId = 'e2e-global-logout-correlation';
     // Gọi global logout sử dụng accessToken của Session 1
     await request(app.getHttpServer())
       .post('/auth/logout/global')
       .set('Authorization', `Bearer ${access1}`)
+      .set('x-correlation-id', correlationId)
       .expect(200);
 
     const prisma = app.get(PrismaService);
@@ -469,6 +471,7 @@ describe('AuthController (E2E)', () => {
       orderBy: { createdAt: 'desc' },
     });
     expect(auditLog).not.toBeNull();
+    expect(auditLog?.correlationId).toBe(correlationId);
 
     // Thử refresh cả 2 session đều phải lỗi 401
     await waitForUnauthorizedRefresh(refresh1);

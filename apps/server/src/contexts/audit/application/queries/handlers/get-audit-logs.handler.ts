@@ -38,6 +38,7 @@ export class GetAuditLogsQueryHandler implements IQueryHandler<
           { action: { contains: search, mode: 'insensitive' } },
           { details: { contains: search, mode: 'insensitive' } },
           { userEmail: { contains: search, mode: 'insensitive' } },
+          { correlationId: { contains: search, mode: 'insensitive' } },
         ];
       }
 

@@ -110,11 +110,12 @@ Writer nhận một entry có:
 - human-readable details;
 - actor user id/email nếu có;
 - IP;
-- user-agent.
+- user-agent;
+- correlation id của HTTP request đã tạo hành động.
 
 Database tự thêm id và thời điểm ghi. Tên action nên giữ ổn định để về sau còn tìm kiếm và làm báo cáo; details có thể mô tả ngữ cảnh chi tiết nhưng không được chứa secret.
 
-Correlation id hiện chỉ xuất hiện trong request log, chưa phải một cột của bảng AuditLog. Nếu cần nối trực tiếp một bản ghi audit với các dòng log của cùng request, hãy thêm cột vào schema và sửa port cho tường minh, thay vì nhét id vào cột details.
+`RequestContextInterceptor` nhận `x-correlation-id` hợp lệ hoặc sinh UUID, rồi giữ mã đó trong `AsyncLocalStorage`. `AuditLogInterceptor` đọc đúng context hiện tại và truyền mã qua audit port; Prisma lưu vào cột `correlation_id`. Vì vậy một bản ghi audit có thể nối trực tiếp với HTTP log, outbox event và queue job của cùng flow. Bản ghi cũ trước migration có giá trị `null` và Admin hiển thị “Không có”; không được tự tạo mã giả cho dữ liệu lịch sử.
 
 ## 5. Read flow
 
@@ -122,7 +123,7 @@ Correlation id hiện chỉ xuất hiện trong request log, chưa phải một 
 
 1. lấy page, limit và search;
 2. dựng `Prisma.AuditLogWhereInput` có kiểu;
-3. search action/details/userEmail;
+3. search action/details/userEmail/correlationId;
 4. chạy `findMany` và `count` song song;
 5. trả `Result<AuditLogPage, DomainException>`;
 6. controller format pagination response.

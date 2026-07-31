@@ -13,6 +13,7 @@ const auditLog = {
   userEmail: "admin@example.com",
   ip: "10.0.0.1",
   userAgent: "Mozilla/5.0 Chrome",
+  correlationId: "request-correlation-123",
   createdAt: "2026-07-27T10:00:00.000Z",
 };
 
@@ -62,6 +63,9 @@ describe("<AuditLogsManagement />", () => {
     expect(screen.getByText(/admin@example.com/)).toBeInTheDocument();
     expect(screen.getByText("IP: 10.0.0.1")).toBeInTheDocument();
     expect(screen.getByText(/Mozilla\/5.0 Chrome/)).toBeInTheDocument();
+    expect(
+      screen.getByText("Mã truy vết: request-correlation-123"),
+    ).toBeInTheDocument();
     expect(document.querySelector("time")).toHaveAttribute(
       "datetime",
       auditLog.createdAt,

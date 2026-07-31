@@ -266,9 +266,9 @@ Mỗi session mới có deadline tuyệt đối 7 ngày tính từ lần login v
 
 Audit là màn hình read-only. `q` và `page` nằm trong URL, vì vậy một cuộc điều tra có thể được bookmark hoặc gửi cho người khác mà vẫn giữ đúng từ khóa và trang. Search draft debounce 300 ms trong `AuditSearchInput`; sau đó component cập nhật URL và reset page. `useAuditLogs` chỉ sở hữu server query/cache, không giữ UI state.
 
-Presentation của audit được tách khỏi query: `audit-log.presentation.ts` ánh xạ action code ổn định sang nhãn, icon và severity; action chưa biết vẫn hiển thị bằng fallback thay vì làm hỏng timeline. `AuditLogDetails` trình bày details, actor, IP và user-agent bằng cấu trúc semantic. Timestamp vừa có chuỗi địa phương hóa để đọc, vừa giữ ISO gốc trong thuộc tính `dateTime`.
+Presentation của audit được tách khỏi query: `audit-log.presentation.ts` ánh xạ action code ổn định sang nhãn, icon và severity; action chưa biết vẫn hiển thị bằng fallback thay vì làm hỏng timeline. `AuditLogDetails` trình bày details, actor, IP, user-agent và mã truy vết bằng cấu trúc semantic. Mã truy vết chính là `x-correlation-id` của request ghi audit; operator có thể copy nó sang hệ thống log để xem toàn bộ HTTP/outbox/queue flow. Bản ghi cũ chưa có mã hiển thị “Không có”, không dựng UUID giả. Timestamp vừa có chuỗi địa phương hóa để đọc, vừa giữ ISO gốc trong thuộc tính `dateTime`.
 
-Backend hiện bảo đảm search trên action, details và email. UI không cung cấp filter theo ngày/action hoặc export giả lập khi contract chưa hỗ trợ; các khả năng đó phải được thiết kế thành API có phân trang, authorization và giới hạn dữ liệu trước.
+Backend hiện bảo đảm search trên action, details, email và correlation ID. UI không cung cấp filter theo ngày/action hoặc export giả lập khi contract chưa hỗ trợ; các khả năng đó phải được thiết kế thành API có phân trang, authorization và giới hạn dữ liệu trước.
 
 ### Notification đi từ server đến màn hình như thế nào?
 

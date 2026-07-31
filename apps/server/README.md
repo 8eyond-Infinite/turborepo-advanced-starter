@@ -181,7 +181,7 @@ sequenceDiagram
 
 ### Vai trò của từng bước
 
-`RequestContextInterceptor` lấy correlation id do client gửi hoặc sinh UUID mới. Khi request kết thúc, nó ghi method, path, status, duration và user id nếu có.
+`RequestContextInterceptor` lấy correlation id do client gửi hoặc sinh UUID mới. Interceptor không chỉ tạo Observable trong `AsyncLocalStorage`; nó subscribe toàn bộ RxJS request pipeline bên trong context đó, vì Nest thực hiện subscription sau khi `intercept()` trả về. Nhờ vậy handler, audit writer và outbox adapter đều đọc được cùng mã trong các tác vụ bất đồng bộ. Khi request kết thúc, interceptor ghi method, path, status, duration và user id nếu có.
 
 Guard trả lời hai câu hỏi khác nhau:
 

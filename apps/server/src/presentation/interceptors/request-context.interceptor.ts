@@ -32,13 +32,19 @@ export class RequestContextInterceptor implements NestInterceptor {
 
     response.setHeader(CORRELATION_ID_HEADER, correlationId);
 
-    return runWithCorrelationId(correlationId, () =>
-      this.handleWithContext(next, {
-        correlationId,
-        request,
-        response,
-        startedAt,
-      }),
+    // Nest subscribes after intercept() returns. Creating an Observable inside
+    // AsyncLocalStorage is therefore not enough: the actual RxJS work must be
+    // subscribed while the context is active so every async descendant sees
+    // the same correlation id.
+    return new Observable((subscriber) =>
+      runWithCorrelationId(correlationId, () =>
+        this.handleWithContext(next, {
+          correlationId,
+          request,
+          response,
+          startedAt,
+        }).subscribe(subscriber),
+      ),
     );
   }
 
