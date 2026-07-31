@@ -312,11 +312,12 @@ Một lần phát hành thành công phải đi qua đúng thứ tự sau:
 
 ```text
 merge vào main
-→ CI chạy quality + e2e, build image, quét trivy, đẩy image gắn tag SHA lên GHCR
-→ merge release PR khi muốn phát hành → tag vX.Y.Z, image có thêm tag phiên bản
+→ CI chạy quality + e2e, build Server/Client image, quét trivy, đẩy hai image gắn tag SHA lên GHCR
+→ merge release PR khi muốn phát hành → tag vX.Y.Z, cả hai image có thêm cùng tag phiên bản
 → chạy job migration (prisma migrate deploy) — MỘT lần, không phải mỗi replica
 → triển khai image mới cho API
 → triển khai cùng image đó cho worker (entry: node dist/worker.js)
+→ nếu self-host Client, triển khai Client image cùng version; nếu dùng Vercel, promote đúng source SHA
 → chờ /health/ready xanh
 → chạy smoke test
 → theo dõi 15 phút: tỷ lệ lỗi, độ trễ p95, độ trễ outbox
@@ -343,10 +344,14 @@ Rollback nghĩa là chạy lại image đã hoạt động trước đó. Trư�
 ```bash
 # Quay lui = triển khai lại tag phiên bản trước đó (ví dụ đang 1.1.0 → về 1.0.0)
 docker pull ghcr.io/<org>/<repo>/server:1.0.0
+docker pull ghcr.io/<org>/<repo>/client:1.0.0   # khi Client được self-host
 
 # Cần chính xác từng commit thì dùng tag SHA — bất biến, truy vết tuyệt đối
 docker pull ghcr.io/<org>/<repo>/server:<sha-trước-đó>
+docker pull ghcr.io/<org>/<repo>/client:<sha-trước-đó>
 ```
+
+Server và Client có thể rollback độc lập khi sự cố chỉ thuộc một phía. Change record phải ghi rõ version hoặc SHA thực tế của từng service sau rollback; không được ghi chung “hệ thống đang ở 1.0.0” nếu hai phía đang chạy khác version.
 
 Repo không tự chạy migration ngược khi rollback. Image cũ sẽ gặp schema hiện tại của database.
 

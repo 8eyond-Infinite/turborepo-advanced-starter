@@ -445,7 +445,7 @@ Image được build bằng Docker engine đã có sẵn trên GitHub-hosted run
 
 Docker build vẫn có thể cần kết nối registry để lấy base image được khai báo trong Dockerfile. Điểm khác biệt là lần tải này phục vụ trực tiếp artifact của dự án, thay vì chỉ khởi động một builder trung gian. Nếu registry lỗi ở đây, log sẽ chỉ ra base image cụ thể; người vận hành có thể retry job và không nhầm sự cố registry với lỗi code.
 
-Job phụ thuộc cả quality test lẫn E2E, nên code chưa qua gate không được publish. GHCR có hai package `server` và `client`, cùng tag bằng commit SHA để biết chính xác hai artifact sinh từ phiên bản source nào. API và worker chạy cùng image `server`; worker chỉ đổi entry command thành `node dist/worker.js`. Next.js self-host chạy image `client`; Vercel vẫn có thể deploy trực tiếp từ source mà không dùng image này.
+Job phụ thuộc cả quality test lẫn E2E, nên code chưa qua gate không được publish. GHCR có hai package `server` và `client`, cùng tag bằng commit SHA để biết chính xác hai artifact sinh từ phiên bản source nào. Khi release-please tạo version, release workflow retag **cả hai** SHA artifact bằng cùng version và fail nếu thiếu một trong hai; workflow không build lại image. API và worker chạy cùng image `server`; worker chỉ đổi entry command thành `node dist/worker.js`. Next.js self-host chạy image `client`; Vercel vẫn có thể deploy trực tiếp từ source mà không dùng image này.
 
 Database dùng cho test phải có tên/phạm vi riêng; backend E2E đã có chốt chặn từ chối reset bất kỳ database nào không có hậu tố `_test`. Setup gọi `prisma db push` và `db:seed` qua package `@repo/database`, là nơi sở hữu schema, Prisma config và executable `tsx`; không dựa vào package hoisting hoặc `npx` tìm dependency từ thư mục Server.
 

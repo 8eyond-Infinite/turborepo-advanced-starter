@@ -32,17 +32,22 @@ jobs:
   # tránh vòng lặp), nên không thể dùng `on: push: tags` để publish image theo
   # phiên bản — bước đó phải nằm ngay tại đây. Không build lại: CI đã build,
   # scan và push image theo SHA của đúng commit này; việc còn lại chỉ là gắn
-  # thêm tag phiên bản cho image đó trên registry.
+  # thêm tag phiên bản cho cả hai image trên registry.
   tag-image:
-    name: Gắn tag phiên bản cho image trên GHCR
+    name: Gắn tag phiên bản cho ${{ matrix.image }} image
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     needs: release-please
     if: needs.release-please.outputs.release_created == 'true'
     permissions:
       packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [server, client]
     steps:
       - name: Resolve image name
-        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}/server" >> "$GITHUB_ENV"
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}/${{ matrix.image }}" >> "$GITHUB_ENV"
 
       - name: Login GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
