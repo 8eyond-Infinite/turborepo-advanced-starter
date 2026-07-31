@@ -10,8 +10,8 @@ Group=turborepo
 WorkingDirectory=/opt/turborepo-starter
 ExecStart=/opt/turborepo-starter/deploy/compose/scripts/backup-and-verify.sh
 
-# The job needs Docker access and its repository backup directory, but no network
-# capability beyond what Docker itself performs.
+# The job needs Docker access, its repository backup directory and outbound
+# network access when encrypted off-host backup is enabled.
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=true

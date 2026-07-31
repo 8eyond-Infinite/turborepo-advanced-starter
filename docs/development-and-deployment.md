@@ -487,8 +487,12 @@ Named volume trên máy local không phải là bản sao lưu. PostgreSQL produ
 - khôi phục về đúng một thời điểm (point-in-time recovery) nếu có yêu cầu;
 - diễn tập khôi phục (restore drill) để chắc rằng bản sao lưu dùng được thật;
 - chính sách thời gian lưu giữ bản sao lưu (retention);
-- scheduler gọi `backup-and-verify.sh` và cảnh báo khi cycle thất bại;
+- scheduler gọi `backup-and-verify.sh`; cycle phải dump, restore thử và upload mã hóa bằng Restic trước khi được dọn bản local;
 - mã hóa và kiểm soát truy cập.
+
+CI chạy `pnpm verify:backup` với Restic giả lập để khóa contract gọi repository và hai file dump/checksum. Test cũng chứng minh
+password file không đọc được làm cycle fail. Đây là contract test cho orchestration; restore drill với PostgreSQL thật và một
+lần tải snapshot từ storage thật vẫn là checkpoint vận hành bắt buộc.
 
 Session/cache trong Redis có thể dựng lại được một phần, nhưng phải hiểu rõ hai điều khi mất Redis: queue còn giữ được việc đang chờ hay không, và các phiên đăng nhập bị ảnh hưởng thế nào.
 

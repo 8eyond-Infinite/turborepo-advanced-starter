@@ -493,7 +493,11 @@ systemctl status turborepo-backup.service --no-pager
 journalctl -u turborepo-backup.service --since '2 days ago' --no-pager
 ```
 
-Phân biệt ba checkpoint trong log: dump được tạo; checksum/restore cô lập pass; retention hoàn tất. Nếu dump tạo được nhưng
-restore fail, giữ nguyên file để điều tra và không xóa backup cũ. Nếu disk đầy, không tăng retention hoặc xóa tay trước khi
-xác nhận có bản off-host dùng được. Sửa nguyên nhân rồi chạy lại `sudo systemctl start turborepo-backup.service`; không cần
+Phân biệt bốn checkpoint trong log: dump được tạo; checksum/restore cô lập pass; Restic upload hoàn tất; retention hoàn tất.
+Nếu dump tạo được nhưng restore hoặc upload fail, giữ nguyên file để điều tra và không xóa backup cũ. Dùng
+`restic snapshots --host <RESTIC_HOST> --tag postgres` để xác nhận repository nhìn thấy snapshot. Nếu Restic báo không mở được
+repository, kiểm tra URL, password file và credential storage; không chạy `restic init` lại trên một URL chưa xác minh.
+
+Nếu disk đầy, không tăng retention hoặc xóa tay trước khi xác nhận có bản off-host dùng được. Sửa nguyên nhân rồi chạy lại
+`sudo systemctl start turborepo-backup.service`; không cần
 restart API/worker vì backup dùng `pg_dump` qua PostgreSQL container đang chạy.
