@@ -55,12 +55,10 @@ export class UserQueueProcessor extends WorkerHost {
       case USER_JOBS.SEND_WELCOME_EMAIL: {
         const { email } = job.data;
         if (!this.transporter) {
-          this.logger.log(
-            `[Worker] Welcome email skipped for ${email}: MAIL_ENABLED=false`,
-          );
+          this.logger.log('[Worker] Welcome email skipped: MAIL_ENABLED=false');
           return { sent: false, email };
         }
-        this.logger.log(`[Worker] Sending welcome email to ${email}...`);
+        this.logger.log('[Worker] Sending welcome email...');
 
         const welcomeHtml = `
                     <div style="background-color: #09090b; color: #fafafa; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px; border-radius: 12px; max-width: 600px; margin: 0 auto; border: 1px border #27272a;">
@@ -89,13 +87,11 @@ export class UserQueueProcessor extends WorkerHost {
         const { email } = job.data;
         if (!this.transporter) {
           this.logger.log(
-            `[Worker] Deactivation email skipped for ${email}: MAIL_ENABLED=false`,
+            '[Worker] Deactivation email skipped: MAIL_ENABLED=false',
           );
           return { sent: false, email };
         }
-        this.logger.log(
-          `[Worker] Sending account deactivation alert to ${email}...`,
-        );
+        this.logger.log('[Worker] Sending account deactivation alert...');
 
         const alertHtml = `
                     <div style="background-color: #09090b; color: #fafafa; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px; border-radius: 12px; max-width: 600px; margin: 0 auto; border: 1px solid #ef4444;">

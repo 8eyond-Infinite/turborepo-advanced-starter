@@ -119,6 +119,27 @@ describe('AuthController (E2E)', () => {
       });
   });
 
+  it('/metrics protects and exposes the operational contract', async () => {
+    await request(app.getHttpServer())
+      .get('/metrics')
+      .expect(HttpStatus.UNAUTHORIZED);
+
+    const response = await request(app.getHttpServer())
+      .get('/metrics')
+      .set('Authorization', 'Bearer e2e-metrics-token')
+      .expect(HttpStatus.OK)
+      .expect('Content-Type', /text\/plain/);
+
+    expect(response.text).toContain('http_request_duration_seconds');
+    expect(response.text).toContain('outbox_events');
+    expect(response.text).toContain(
+      'bullmq_jobs{queue="user-queue",status="waiting"}',
+    );
+    expect(response.text).toContain(
+      'bullmq_oldest_waiting_job_age_seconds{queue="user-queue"}',
+    );
+  });
+
   it('propagates or creates an HTTP correlation id', async () => {
     const suppliedId = `e2e-${Date.now()}`;
     const propagated = await request(app.getHttpServer())

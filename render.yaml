@@ -28,6 +28,8 @@ services:
         generateValue: true
       - key: JWT_REFRESH_SECRET
         generateValue: true
+      - key: METRICS_TOKEN
+        generateValue: true
       - key: CORS_ORIGINS
         sync: false
       - key: REFRESH_COOKIE_SAME_SITE
@@ -73,6 +75,11 @@ services:
           name: turborepo-starter-api
           type: web
           envVarKey: JWT_REFRESH_SECRET
+      - key: METRICS_TOKEN
+        fromService:
+          name: turborepo-starter-api
+          type: web
+          envVarKey: METRICS_TOKEN
       - key: CORS_ORIGINS
         fromService:
           name: turborepo-starter-api

@@ -127,6 +127,7 @@ jobs:
           PORT=3001
           JWT_ACCESS_SECRET=ci-only-access-secret-0123456789abcdef0123456789abcdef
           JWT_REFRESH_SECRET=ci-only-refresh-secret-0123456789abcdef0123456789abcdef
+          METRICS_TOKEN=e2e-metrics-token
           CORS_ORIGINS=http://localhost:5173
           REDIS_HOST=localhost
           REDIS_PORT=6379

@@ -408,8 +408,8 @@ Container dùng cho development không phải là image dùng cho production. Co
 Hệ thống đã có:
 
 - correlation ID (mã định danh gắn theo một request để lần theo dấu vết của nó trong log) cho luồng HTTP;
-- structured logging tập trung qua `nestjs-pino`: JSON ở production/test, pino-pretty ở development, redact `authorization`/`cookie` header, mọi `Logger` của Nest đi qua cùng pipeline (`app.useLogger` + `bufferLogs`);
-- Prometheus endpoint `GET /metrics` (`src/infrastructure/metrics/`): default process metrics, histogram `http_request_duration_seconds` gắn nhãn theo route template (không phải raw URL, tránh nổ cardinality), gauge `outbox_events{status}` và `outbox_oldest_pending_age_seconds` tính lúc scrape — hai tín hiệu cảnh báo outbox mà tài liệu vận hành yêu cầu;
+- structured logging tập trung qua `nestjs-pino`: JSON ở production/test, pino-pretty ở development, redact credential/cookie và các field email/token/password phổ biến. API lẫn worker đều lắp cùng `logger.config.ts` qua `app.useLogger` + `bufferLogs`; processor không ghép email người dùng vào message tự do;
+- Prometheus endpoint `GET /metrics` (`src/infrastructure/metrics/`): default process metrics, histogram `http_request_duration_seconds` gắn nhãn theo route template (không phải raw URL, tránh nổ cardinality), gauge outbox và gauge BullMQ theo tập status cố định. API đọc queue state từ Redis dùng chung nên worker không cần mở một HTTP server thứ hai. Production chỉ cho scrape bằng Bearer `METRICS_TOKEN`;
 - lỗi domain và lỗi API được chuyển thành response có cấu trúc thống nhất;
 - health checks;
 - audit được ghi bền vững xuống database;
