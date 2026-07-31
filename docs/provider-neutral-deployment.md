@@ -270,6 +270,27 @@ PostgreSQL trong Compose chỉ nên dùng khi đã có:
 
 Nếu chưa đáp ứng, dùng managed PostgreSQL.
 
+### Tự động hóa backup trên một VPS
+
+Sau khi backup và restore thủ công đã pass, cài timer mẫu. Trước hết sửa `User`, `Group`, `WorkingDirectory`, `ExecStart`
+và `ReadWritePaths` trong hai file dưới `deploy/systemd` cho đúng host. User chạy service phải đọc được repo, ghi được thư
+mục backup và truy cập Docker socket.
+
+```bash
+sudo cp deploy/systemd/turborepo-backup.service /etc/systemd/system/
+sudo cp deploy/systemd/turborepo-backup.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now turborepo-backup.timer
+sudo systemctl start turborepo-backup.service
+sudo systemctl status turborepo-backup.service --no-pager
+sudo systemctl list-timers turborepo-backup.timer --no-pager
+```
+
+Service chạy `backup-and-verify.sh`: tạo dump/checksum, restore vào database cô lập, rồi mới dọn local backup quá hạn.
+Không bật retention trước khi off-host upload thành công; xóa bản local duy nhất không phải chiến lược backup. Xem log bằng
+`journalctl -u turborepo-backup.service`; timer dùng `Persistent=true`, nên một lần bị lỡ vì host tắt sẽ chạy sau khi host
+khởi động lại.
+
 ## 8. Ánh xạ sang AWS
 
 | Contract hiện tại | AWS production target           |
