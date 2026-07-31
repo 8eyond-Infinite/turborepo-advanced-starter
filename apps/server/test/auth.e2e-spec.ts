@@ -235,7 +235,7 @@ describe('AuthController (E2E)', () => {
       });
   });
 
-  it('/auth/refresh (POST) -> hai request dùng cùng token chỉ có một request rotate thành công', async () => {
+  it('/auth/refresh (POST) -> hai request đồng thời nhận cùng một kết quả rotation', async () => {
     const loginRes = await request(app.getHttpServer())
       .post('/auth/login')
       .send({
@@ -254,10 +254,11 @@ describe('AuthController (E2E)', () => {
         .set('Authorization', `Bearer ${refreshToken}`),
     ]);
 
-    expect(responses.map((response) => response.status).sort()).toEqual([
+    expect(responses.map((response) => response.status)).toEqual([
       HttpStatus.OK,
-      HttpStatus.UNAUTHORIZED,
+      HttpStatus.OK,
     ]);
+    expect(responses[0].body).toEqual(responses[1].body);
   });
 
   it('/auth/refresh (POST) -> flow HttpOnly cookie: rotate cookie, không lộ refresh token qua body', async () => {
@@ -294,11 +295,18 @@ describe('AuthController (E2E)', () => {
     expect(rotatedCookie).toBeDefined();
     expect(rotatedCookie).not.toEqual(refreshCookie);
 
-    // Cookie cũ đã bị rotation thu hồi — dùng lại phải bị 401
-    await request(app.getHttpServer())
+    // Request đã cùng khởi hành với cookie cũ nhận đúng kết quả replay,
+    // không tạo thêm một cặp token khác.
+    const replayRes = await request(app.getHttpServer())
       .post('/auth/refresh')
       .set('Cookie', loginCookies)
-      .expect(HttpStatus.UNAUTHORIZED);
+      .expect(HttpStatus.OK);
+    const replayCookies = replayRes.headers[
+      'set-cookie'
+    ] as unknown as string[];
+    expect(replayCookies.find((c) => c.startsWith('refresh_token='))).toEqual(
+      rotatedCookie,
+    );
   });
 
   it('/users/me (GET) -> Nên lấy được thông tin cá nhân của người dùng đăng nhập', async () => {
@@ -361,7 +369,7 @@ describe('AuthController (E2E)', () => {
       .expect(HttpStatus.BAD_REQUEST);
   });
 
-  it('/auth/refresh (POST) -> Đăng ký rotation: Token cũ phải không dùng lại được', async () => {
+  it('/auth/refresh (POST) -> replay ngắn hạn không thể làm sống lại session đã logout', async () => {
     const loginRes = await request(app.getHttpServer())
       .post('/auth/login')
       .send({
@@ -381,7 +389,19 @@ describe('AuthController (E2E)', () => {
     const { refreshToken: token2 } = refreshRes1.body;
     expect(token2).toBeDefined();
 
-    // Lần 2: Dùng lại token1 (cũ) phải bị lỗi 401
+    // Trong cửa sổ chống race, token cũ nhận lại chính kết quả lần 1.
+    const replay = await request(app.getHttpServer())
+      .post('/auth/refresh')
+      .set('Authorization', `Bearer ${token1}`)
+      .expect(200);
+    expect(replay.body.refreshToken).toBe(token2);
+
+    // Logout session kế nhiệm phải xóa cả replay trỏ tới nó.
+    await request(app.getHttpServer())
+      .post('/auth/logout')
+      .set('Authorization', `Bearer ${token2}`)
+      .expect(200);
+
     await request(app.getHttpServer())
       .post('/auth/refresh')
       .set('Authorization', `Bearer ${token1}`)

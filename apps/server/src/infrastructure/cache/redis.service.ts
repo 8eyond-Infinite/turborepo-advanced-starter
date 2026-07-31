@@ -86,6 +86,54 @@ export class RedisService implements OnModuleInit, OnModuleDestroy, ICachePort {
     return result === 1;
   }
 
+  async replaceIfPresentOrGetReplay<T>(
+    sourceKey: string,
+    destinationKey: string,
+    replayKey: string,
+    destinationValue: unknown,
+    replayValue: T,
+    destinationTtlSeconds: number,
+    replayTtlSeconds: number,
+  ): Promise<{ replaced: boolean; replay: T | null }> {
+    const script = `
+      if redis.call('EXISTS', KEYS[1]) == 1 then
+        redis.call('DEL', KEYS[1])
+        redis.call('SET', KEYS[2], ARGV[1], 'EX', ARGV[3])
+        redis.call('SET', KEYS[3], ARGV[2], 'EX', ARGV[4])
+        return {1, ARGV[2]}
+      end
+      local replay = redis.call('GET', KEYS[3])
+      if replay then
+        return {0, replay}
+      end
+      return {0, ''}
+    `;
+    const serializedDestination =
+      typeof destinationValue === 'string'
+        ? destinationValue
+        : JSON.stringify(destinationValue);
+    const serializedReplay =
+      typeof replayValue === 'string'
+        ? replayValue
+        : JSON.stringify(replayValue);
+    const result = (await this.client.eval(
+      script,
+      3,
+      sourceKey,
+      destinationKey,
+      replayKey,
+      serializedDestination,
+      serializedReplay,
+      String(destinationTtlSeconds),
+      String(replayTtlSeconds),
+    )) as [number, string];
+
+    return {
+      replaced: result[0] === 1,
+      replay: result[1] ? (JSON.parse(result[1]) as T) : null,
+    };
+  }
+
   async ping(): Promise<string> {
     return this.client.ping();
   }

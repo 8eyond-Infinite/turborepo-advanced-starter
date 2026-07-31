@@ -61,7 +61,7 @@ Proxy đọc thời điểm hết hạn (`exp`) của access token. Nó chỉ d�
 
 Nhiều request có thể cùng phát hiện token sắp hết hạn. `lib/refresh-session.ts` gom các request trong cùng một Next.js instance vào chung một Promise, nên chỉ có một HTTP refresh được gửi. Cách gom việc trùng nhau này gọi là **single-flight**.
 
-Nếu hệ thống chạy nhiều Next.js instance, mỗi instance vẫn có thể gửi một refresh. Redis ở backend dùng một thao tác nguyên tử để bảo đảm refresh token cũ chỉ được dùng thành công đúng một lần. Single-flight giúp giảm request thừa; Redis mới là chốt bảo mật.
+Nếu hệ thống chạy nhiều Next.js instance, mỗi instance vẫn có thể gửi một refresh. Backend xử lý tình huống này theo hai bước trong cùng một thao tác Redis nguyên tử: request đầu tiên xoay session và lưu kết quả trong 5 giây; request đến sau với đúng token cũ nhận lại chính kết quả đó. Vì cả hai response ghi cùng một cặp token nên không còn chuyện một replica vô tình đăng xuất người dùng. Single-flight giảm request thừa trong một instance; Redis giải quyết race giữa các instance.
 
 ## 3. Cấu trúc
 
@@ -158,11 +158,13 @@ Cookie `client_session` chứa cả access token lẫn refresh token, được *
 
 Giới hạn còn lại đúng bằng bản chất của mọi session cookie: kẻ trộm được **nguyên vẹn** cookie thì vẫn dùng được phiên. Chống chuyện đó là việc của `HttpOnly` (XSS không đọc được), `Secure` (không đi qua HTTP thường) và `SameSite=Lax`. Nếu cần thu hồi từng phiên một, hướng nâng cấp là session store phía server (Redis) và chỉ đặt session id vào cookie.
 
-Khi nhiều tab cùng làm mới token trong một Next.js instance, single-flight gom chúng thành một request. Nếu hệ thống chạy nhiều instance, hai request vẫn có thể đi tới hai server khác nhau. Redis chỉ cho một request dùng refresh token cũ thành công; request còn lại nhận `401`.
+Khi nhiều tab cùng làm mới token trong một Next.js instance, single-flight gom chúng thành một request. Khi hai request đi tới hai instance khác nhau, flow là:
 
-Request thua chưa chắc phải đăng xuất người dùng. Nếu access token cũ của nó vẫn còn hạn, Proxy để request tiếp tục và không ghi đè cookie mới từ response thắng. Chỉ khi access token đã hết hạn và refresh cũng thất bại, Proxy mới xóa session và chuyển về trang login.
+1. Instance A gửi refresh trước. Redis xóa JTI cũ, tạo JTI mới và giữ cặp token kết quả trong 5 giây như một bản replay ngắn hạn.
+2. Instance B gửi cùng refresh token cũ. Backend không tạo thêm token hay session; nó trả lại đúng cặp token A đã nhận.
+3. Hai response ghi cùng một session cookie, vì vậy thứ tự browser nhận response không làm phiên bị hỏng.
 
-Muốn mọi Next.js instance dùng chung chính xác một kết quả refresh cần thêm cơ chế phối hợp phân tán. Đây là cải tiến hiệu năng và trải nghiệm; quy tắc bảo mật “refresh token cũ chỉ dùng một lần” đã được Redis bảo vệ.
+Bản replay chỉ là cầu nối cho các request đã cùng khởi hành với cookie cũ. Hết 5 giây, token cũ lại bị từ chối như bình thường. Logout, revoke một session, revoke các session khác và global logout đều xóa replay liên quan để kết quả ngắn hạn không thể khôi phục một session đã bị chủ động thu hồi.
 
 Logout không chỉ xóa cookie BFF. Server Action đọc refresh token trong session, gọi `POST /auth/logout` để revoke JTI trong Redis, rồi luôn xóa cookie trong `finally`. Nếu API tạm thời không truy cập được, cookie phía trình duyệt vẫn bị xóa để người dùng thoát khỏi thiết bị hiện tại; session Redis sẽ hết TTL hoặc được operator/user thu hồi sau.
 

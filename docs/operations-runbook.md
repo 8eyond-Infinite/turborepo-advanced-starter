@@ -270,7 +270,7 @@ Global logout xóa mọi refresh session và tăng `tokenVersion`. Vì vậy c�
 
 Refresh token chỉ được dùng một lần. Redis chạy một Lua script để kiểm tra token cũ, xóa nó và lưu token mới như một thao tác không thể bị request khác chen vào.
 
-Nếu log có `401` với thông điệp “already been used, revoked, or expired”, trước tiên kiểm tra nhiều tab hoặc nhiều BFF replica có gửi cùng refresh token đồng thời hay không. Một request thắng và request còn lại bị từ chối là hành vi an toàn.
+Hai request đồng thời từ nhiều tab hoặc nhiều BFF replica phải nhận cùng kết quả refresh nhờ replay 5 giây trong Redis. Nếu log vẫn có `401` với thông điệp “already been used, revoked, or expired”, kiểm tra theo thứ tự: hai request có cách nhau quá 5 giây không; session có vừa bị logout/revoke không; Redis có restart hoặc evict key không. Không tăng cửa sổ replay để che lỗi hạ tầng vì khoảng thời gian dài hơn cũng kéo dài thời gian token cũ có thể được gửi lại.
 
 Không “sửa” bằng cách đổi về chuỗi `GET → SET → DEL`. Request khác có thể chen vào giữa ba lệnh và dùng lại cùng credential để sinh thêm session.
 
