@@ -41,7 +41,7 @@ flowchart TD
     B --> C[Mở hoặc cập nhật release PR]
     C -->|main có thêm commit| C
     C -->|con người merge release PR| D[Tag vX.Y.Z + GitHub Release + CHANGELOG]
-    D --> E[Image trên GHCR được gắn tag phiên bản]
+    D --> E[Server và Client image được gắn cùng tag phiên bản]
 ```
 
 Diễn giải từng bước:
@@ -49,7 +49,7 @@ Diễn giải từng bước:
 1. **Làm việc bình thường.** Mọi người cứ merge commit `feat:`/`fix:` vào `main` như trước, không thêm thao tác gì.
 2. **Release PR tự xuất hiện.** Sau commit đầu tiên đáng phát hành, một PR tên kiểu `chore(main): release 1.1.0` được bot mở ra. Nội dung PR chính là bản nháp CHANGELOG — mỗi commit `feat:`/`fix:` thành một dòng. `main` có thêm commit thì PR tự cập nhật, con số phiên bản tự nhích theo.
 3. **Phát hành = merge release PR.** Đây là hành động có chủ đích duy nhất trong cả quy trình. Merge xong, bot tạo tag `vX.Y.Z`, tạo GitHub Release kèm ghi chú, và ghi vào `CHANGELOG.md`.
-4. **Image nhận tag phiên bản.** Job `tag-image` chờ CI push image theo SHA của commit phát hành rồi gắn thêm tag phiên bản — không build lại, vì image đó đã qua đủ lint, test, e2e và quét lỗ hổng ở CI.
+4. **Hai image nhận cùng tag phiên bản.** Job `tag-image` chạy thành hai nhánh cho `server` và `client`. Mỗi nhánh chờ CI push image theo SHA của commit phát hành rồi gắn thêm tag phiên bản — không build lại, vì hai image đó đã qua đủ lint, test, e2e và quét lỗ hổng ở CI. Release job chỉ xanh khi cả hai image đều được gắn tag.
 
 Muốn ép một con số cụ thể (ví dụ phát hành `2.0.0` dù chưa có commit `feat!:`), thêm footer vào commit message:
 
@@ -61,7 +61,7 @@ Release-As: 2.0.0
 
 ## 3. Ý nghĩa các tag của image trên GHCR
 
-Cùng một image có thể mang nhiều tag, mỗi tag một vai trò:
+Mỗi package GHCR (`server` và `client`) có thể mang nhiều tag. Hai package dùng cùng version để người vận hành biết frontend và backend thuộc cùng một source state:
 
 | Tag            | Ví dụ        | Dùng để làm gì                                                                              |
 | -------------- | ------------ | ------------------------------------------------------------------------------------------- |
@@ -69,7 +69,7 @@ Cùng một image có thể mang nhiều tag, mỗi tag một vai trò:
 | Phiên bản      | `1.1.0`      | Thứ con người đọc và deploy: "production đang chạy 1.1.0"                                   |
 | `latest`       | `latest`     | Bản mới nhất của `main` — tiện cho môi trường thử, **không** deploy production bằng tag này |
 
-**Quay lui (rollback)** vì vậy chỉ là deploy lại tag phiên bản trước đó — ví dụ đang chạy `1.1.0` gặp sự cố thì trỏ về `1.0.0`. Các bước xử lý sự cố cụ thể nằm ở [Sổ tay vận hành](operations-runbook.md).
+**Quay lui (rollback)** vì vậy là deploy lại tag phiên bản trước đó — ví dụ đang chạy `1.1.0` gặp sự cố thì trỏ service liên quan về `1.0.0`. Không bắt buộc rollback cả hai nếu sự cố chỉ nằm ở một service, nhưng phải ghi lại cặp version thực tế đang chạy. Các bước xử lý sự cố cụ thể nằm ở [Sổ tay vận hành](operations-runbook.md).
 
 ## 4. Thiết lập một lần trên GitHub
 
@@ -81,10 +81,10 @@ Chưa bật mà workflow chạy sẽ lỗi `GitHub Actions is not permitted to c
 
 - **Không thêm việc cho người viết code.** Kỷ luật duy nhất là conventional commit — thứ hook `commit-msg` đã ép sẵn. Không phải viết file changeset, không phải tự sửa số phiên bản.
 - **Phát hành có chủ đích nhưng không thủ công.** Gom nhiều thay đổi vào một bản phát hành hay phát hành ngay một hotfix đều chỉ là chuyện merge release PR sớm hay muộn.
-- **Không build lại khi phát hành.** Image được gắn tag phiên bản chính là image đã qua kiểm tra ở CI, loại trừ khả năng "bản test một đằng, bản phát hành một nẻo".
+- **Không build lại khi phát hành.** Hai image được gắn tag phiên bản chính là hai image đã qua kiểm tra ở CI, loại trừ khả năng "bản test một đằng, bản phát hành một nẻo".
 
 Một điều tinh tế đáng biết: tag do `GITHUB_TOKEN` tạo ra **không kích hoạt workflow khác** (GitHub chặn để tránh bot gọi bot vòng lặp vô hạn). Vì vậy đừng viết workflow mới kiểu `on: push: tags: [v*]` và mong nó chạy khi release-please tạo tag — nó sẽ im lặng không chạy. Việc gì cần làm lúc phát hành thì đặt vào job sau `release-please` trong chính `release.yml`, như job `tag-image` hiện tại.
 
 ## Tự kiểm tra trước khi phát hành
 
-Chọn một release gần nhất trên GitHub và lần ngược ba thứ: release version, Git commit SHA và GHCR image tag. Ba giá trị phải dẫn về cùng một source state. Sau đó tự trả lời: vì sao production không deploy `latest`, ai quyết định thời điểm phát hành và rollback cần biết tag nào.
+Chọn một release gần nhất trên GitHub và lần ngược bốn thứ: release version, Git commit SHA, Server image tag và Client image tag. Cả bốn phải dẫn về cùng một source state. Sau đó tự trả lời: vì sao production không deploy `latest`, ai quyết định thời điểm phát hành và rollback cần biết tag nào.
