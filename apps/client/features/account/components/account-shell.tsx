@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { User } from "@repo/types";
-import { logout } from "@/app/actions/auth";
+import { logout } from "@/features/auth/actions/auth";
 
 interface AccountShellProps {
   children: React.ReactNode;

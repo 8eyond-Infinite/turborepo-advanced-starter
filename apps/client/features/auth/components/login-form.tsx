@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { login, type LoginState } from "@/app/actions/auth";
+import { login, type LoginState } from "@/features/auth/actions/auth";
 
 // Client Component duy nhất ở đây, chỉ để hiện lỗi và trạng thái đang gửi.
 // Bản thân việc đăng nhập chạy trong Server Action — mật khẩu không đi qua
