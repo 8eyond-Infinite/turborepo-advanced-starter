@@ -114,17 +114,23 @@ unset METRICS_TOKEN
 
 Không có token hoặc token sai phải trả `401`. Ngưỡng dưới đây là điểm bắt đầu, không phải chân lý cho mọi sản phẩm. Sau vài tuần, hãy điều chỉnh theo lưu lượng thật và số liệu bình thường của hệ thống.
 
-| Số đo                                                       | Cảnh báo khi         | Vì sao ngưỡng đó                                                                                |
-| ----------------------------------------------------------- | -------------------- | ----------------------------------------------------------------------------------------------- |
-| `outbox_oldest_pending_age_seconds`                         | > 60 liên tục 5 phút | Publisher quét mỗi 100 ms; event chờ quá một phút nghĩa là vòng lặp đang hỏng, không phải chậm. |
-| `outbox_events{status="failed"}`                            | > 0                  | Event `FAILED` đã thử 10 lần và bị bỏ lại; không tự phục hồi, luôn cần người xem.               |
-| `outbox_events{status="processing"}`                        | > 50 kéo dài         | Nhiều claim bị treo — thường do worker/instance chết giữa chừng.                                |
-| `bullmq_jobs{queue="user-queue",status="waiting"}`          | tăng liên tục 5 phút | Producer còn chạy nhưng worker không theo kịp hoặc đã dừng.                                     |
-| `bullmq_jobs{queue="user-queue",status="failed"}`           | > 0                  | Có job hết retry; đọc worker log theo job/correlation ID trước khi retry thủ công.              |
-| `bullmq_oldest_waiting_job_age_seconds{queue="user-queue"}` | > 60 liên tục 5 phút | Email/side effect đã chờ quá lâu dù queue có thể chưa nhiều job.                                |
-| `http_request_duration_seconds` (p95)                       | > 1s                 | Người dùng bắt đầu cảm nhận được độ trễ.                                                        |
-| Tỷ lệ response 5xx                                          | > 1% trong 5 phút    | Ngưỡng lỗi nền chấp nhận được cho hầu hết sản phẩm.                                             |
-| `/health/ready` trả 503                                     | 2 lần liên tiếp      | Một lần có thể là nhiễu mạng; hai lần là sự cố phụ thuộc.                                       |
+Các ngưỡng cốt lõi đã được mã hóa tại `deploy/observability/alerts.yml`. Prometheus scrape job phải tên `turborepo-api`.
+File rules không tự cài Prometheus hay Alertmanager và cũng không quyết định người nào nhận cảnh báo; deployment thật phải nạp
+file này vào monitoring provider, cấu hình route nhận cảnh báo rồi thử một alert end-to-end.
+
+| Số đo                                                       | Cảnh báo khi           | Vì sao ngưỡng đó                                                                                |
+| ----------------------------------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------- |
+| `outbox_oldest_pending_age_seconds`                         | > 60 liên tục 5 phút   | Publisher quét mỗi 100 ms; event chờ quá một phút nghĩa là vòng lặp đang hỏng, không phải chậm. |
+| `outbox_events{status="failed"}`                            | > 0                    | Event `FAILED` đã thử 10 lần và bị bỏ lại; không tự phục hồi, luôn cần người xem.               |
+| `outbox_events{status="processing"}`                        | > 50 kéo dài           | Nhiều claim bị treo — thường do worker/instance chết giữa chừng.                                |
+| `bullmq_jobs{queue="user-queue",status="waiting"}`          | tăng liên tục 5 phút   | Producer còn chạy nhưng worker không theo kịp hoặc đã dừng.                                     |
+| `bullmq_jobs{queue="user-queue",status="failed"}`           | > 0                    | Có job hết retry; đọc worker log theo job/correlation ID trước khi retry thủ công.              |
+| `bullmq_oldest_waiting_job_age_seconds{queue="user-queue"}` | > 60 liên tục 5 phút   | Email/side effect đã chờ quá lâu dù queue có thể chưa nhiều job.                                |
+| `http_request_duration_seconds` (p95)                       | > 1s                   | Người dùng bắt đầu cảm nhận được độ trễ.                                                        |
+| Tỷ lệ response 5xx                                          | > 5% trong 10 phút     | Rule còn yêu cầu có traffic đáng kể để tránh chia tỷ lệ trên vài request lẻ.                    |
+| `/health/ready` trả 503                                     | 2 lần liên tiếp        | Một lần có thể là nhiễu mạng; hai lần là sự cố phụ thuộc.                                       |
+| `backup_status_available`                                   | = 0 trong 10 phút      | API đã được cấu hình đọc heartbeat nhưng file bị thiếu hoặc volume/permission sai.              |
+| `backup_age_seconds`                                        | > 93.600 trong 15 phút | Không có cycle thành công trong 26 giờ; đã bỏ lỡ lịch backup hằng ngày.                         |
 
 ## 3. Kịch bản xử lý sự cố
 

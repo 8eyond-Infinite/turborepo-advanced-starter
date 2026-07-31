@@ -21,6 +21,19 @@ describe('environment configuration', () => {
     );
   });
 
+  it('normalizes an optional backup heartbeat path', () => {
+    expect(
+      validateEnvironment({
+        ...validConfig,
+        BACKUP_STATUS_FILE: ' /var/lib/backups/.last-success ',
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        BACKUP_STATUS_FILE: '/var/lib/backups/.last-success',
+      }),
+    );
+  });
+
   it.each([
     ['DATABASE_URL', ''],
     ['JWT_ACCESS_SECRET', ''],

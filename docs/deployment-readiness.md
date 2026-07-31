@@ -62,7 +62,7 @@ Người dùng starter cần cung cấp domain API và domain Admin/Client, data
 Checklist sau deploy:
 
 1. `/health/live` và `/health/ready` trả 2xx.
-2. `/metrics` trả `401` khi thiếu credential và trả HTTP/outbox/BullMQ series khi gửi đúng Bearer `METRICS_TOKEN`.
+2. `/metrics` trả `401` khi thiếu credential và trả HTTP/outbox/BullMQ/backup series khi gửi đúng Bearer `METRICS_TOKEN`.
 3. Migration đã chạy đúng release.
 4. Login, refresh sau reload và logout hoạt động.
 5. Route authorization và notification mark-read đúng user ownership.
@@ -70,6 +70,7 @@ Checklist sau deploy:
 7. Caddy cấp TLS đúng domain; CSP cho đúng API/WSS origin.
 8. Worker xử lý queue; outbox không tăng liên tục.
 9. Restore backup được thử trong môi trường cô lập.
+10. Prometheus đã nạp `deploy/observability/alerts.yml`, scrape job tên `turborepo-api` và đường cảnh báo đã được thử.
 
 Khi các mục trên chưa có bằng chứng, deployment chỉ là “container đang chạy”, chưa phải release production.
 
@@ -101,6 +102,6 @@ checksum trước khi gửi tới repository S3/SFTP/REST ở máy khác. Reposi
 bật hoặc upload thất bại. Nhờ vậy một lỗi mạng không thể làm cycle xóa bản local cuối cùng.
 
 Chỉ khi toàn bộ cycle thành công, script mới atomically thay `BACKUP_STATUS_FILE` (mặc định
-`deploy/compose/backups/.last-success`). File này là heartbeat của backup, không phải bản backup. Timer health chạy mỗi giờ và
+`deploy/compose/backup-status/.last-success`). File này là heartbeat của backup, không phải bản backup. Timer health chạy mỗi giờ và
 gọi `verify-backup-freshness.sh`; mặc định status quá 26 giờ, bị thiếu hoặc thiếu field sẽ làm unit fail. Vì backup chính chạy
 mỗi ngày và có random delay tối đa 15 phút, ngưỡng 26 giờ chừa khoảng đệm nhưng vẫn phát hiện một cycle bị bỏ lỡ.

@@ -21,6 +21,11 @@ if [ -z "$image_tag" ] || [ "$image_tag" = "latest" ]; then
   exit 1
 fi
 
+# Create the bind-mount source as the deployment user. If Docker creates it
+# implicitly, it may become root-owned and the backup systemd service cannot
+# atomically replace its heartbeat later.
+mkdir -p "$COMPOSE_DIR/backups" "$COMPOSE_DIR/backup-status"
+
 compose config --quiet
 compose pull api worker migrate
 compose up -d --wait postgres redis

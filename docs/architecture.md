@@ -409,7 +409,7 @@ Hệ thống đã có:
 
 - correlation ID (mã định danh gắn theo một request để lần theo dấu vết của nó trong log) cho luồng HTTP;
 - structured logging tập trung qua `nestjs-pino`: JSON ở production/test, pino-pretty ở development, redact credential/cookie và các field email/token/password phổ biến. API lẫn worker đều lắp cùng `logger.config.ts` qua `app.useLogger` + `bufferLogs`; processor không ghép email người dùng vào message tự do;
-- Prometheus endpoint `GET /metrics` (`src/infrastructure/metrics/`): default process metrics, histogram `http_request_duration_seconds` gắn nhãn theo route template (không phải raw URL, tránh nổ cardinality), gauge outbox và gauge BullMQ theo tập status cố định. API đọc queue state từ Redis dùng chung nên worker không cần mở một HTTP server thứ hai. Production chỉ cho scrape bằng Bearer `METRICS_TOKEN`;
+- Prometheus endpoint `GET /metrics` (`src/infrastructure/metrics/`): default process metrics, histogram `http_request_duration_seconds` gắn nhãn theo route template (không phải raw URL, tránh nổ cardinality), gauge outbox và gauge BullMQ theo tập status cố định. Với Compose production, API còn đọc bind mount backup ở chế độ read-only để xuất `backup_status_available`, `backup_last_success_timestamp_seconds` và `backup_age_seconds`. Backup không tham gia readiness: bản sao lưu lỗi phải cảnh báo operator nhưng không được tự làm API ngừng phục vụ. API đọc queue state từ Redis dùng chung nên worker không cần mở một HTTP server thứ hai. Production chỉ cho scrape bằng Bearer `METRICS_TOKEN`;
 - lỗi domain và lỗi API được chuyển thành response có cấu trúc thống nhất;
 - health checks;
 - audit được ghi bền vững xuống database;

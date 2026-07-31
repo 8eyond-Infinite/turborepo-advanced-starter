@@ -12,4 +12,4 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=true
 ProtectSystem=strict
-ReadOnlyPaths=/opt/turborepo-starter/deploy/compose/backups
+ReadOnlyPaths=/opt/turborepo-starter/deploy/compose/backup-status

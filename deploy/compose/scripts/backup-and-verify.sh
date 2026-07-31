@@ -97,7 +97,7 @@ else
   done
 fi
 
-BACKUP_STATUS_FILE=${BACKUP_STATUS_FILE:-"$BACKUP_DIR/.last-success"}
+BACKUP_STATUS_FILE=${BACKUP_STATUS_FILE:-"$COMPOSE_DIR/backup-status/.last-success"}
 status_dir=$(dirname -- "$BACKUP_STATUS_FILE")
 mkdir -p "$status_dir"
 status_tmp=$(mktemp "$status_dir/.backup-success.XXXXXX")

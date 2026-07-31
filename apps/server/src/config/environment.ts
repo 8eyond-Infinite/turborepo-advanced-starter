@@ -18,6 +18,7 @@ export interface EnvironmentVariables extends Record<string, unknown> {
   JWT_REFRESH_SECRET: string;
   CORS_ORIGINS: string;
   METRICS_TOKEN?: string;
+  BACKUP_STATUS_FILE?: string;
   REFRESH_COOKIE_SAME_SITE: RefreshCookieSameSite;
   MAIL_ENABLED: boolean;
   MAIL_HOST?: string;
@@ -83,6 +84,10 @@ export const validateEnvironment = (
       : 'lax';
   const metricsToken =
     typeof config.METRICS_TOKEN === 'string' ? config.METRICS_TOKEN.trim() : '';
+  const backupStatusFile =
+    typeof config.BACKUP_STATUS_FILE === 'string'
+      ? config.BACKUP_STATUS_FILE.trim()
+      : '';
 
   if (refreshCookieSameSite !== 'lax' && refreshCookieSameSite !== 'none') {
     throw new Error(
@@ -113,6 +118,7 @@ export const validateEnvironment = (
     JWT_ACCESS_SECRET: accessSecret,
     JWT_REFRESH_SECRET: refreshSecret,
     METRICS_TOKEN: metricsToken || undefined,
+    BACKUP_STATUS_FILE: backupStatusFile || undefined,
     REFRESH_COOKIE_SAME_SITE: refreshCookieSameSite,
     MAIL_ENABLED: mailEnabled,
     MAIL_HOST: mailHost || undefined,
