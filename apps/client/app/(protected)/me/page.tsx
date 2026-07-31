@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getCurrentUser } from "@/lib/current-user";
+import { getCurrentUser } from "@/features/account/api/current-user";
 
 export const metadata: Metadata = {
   title: "Hồ sơ của tôi",

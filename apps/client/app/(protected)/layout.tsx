@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { ApiError } from "@/lib/api";
-import { getCurrentUser } from "@/lib/current-user";
+import { getCurrentUser } from "@/features/account/api/current-user";
 import { getSession } from "@/lib/session";
-import { AccountShell } from "./_components/account-shell";
+import { AccountShell } from "@/features/account/components/account-shell";
 
 const loadCurrentUser = async () => {
   try {

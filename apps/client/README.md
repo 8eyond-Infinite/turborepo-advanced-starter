@@ -68,12 +68,13 @@ Nếu hệ thống chạy nhiều Next.js instance, mỗi instance vẫn có th�
 ```text
 apps/client/
 ├── app/
-│   ├── page.tsx              # Trang công khai — có metadata cho SEO
-│   ├── login/
-│   │   ├── page.tsx          # Server Component
-│   │   └── login-form.tsx    # Client Component: chỉ lo lỗi + trạng thái gửi
-│   ├── me/page.tsx           # Server Component: fetch dữ liệu phía server
-│   └── actions/auth.ts       # Server Action: login, logout
+│   ├── (public)/             # Route công khai
+│   ├── (auth)/login/         # Route đăng nhập, chỉ compose Auth feature
+│   └── (protected)/          # Layout và route cần session
+├── features/
+│   ├── auth/                 # Login/logout action và form
+│   ├── account/              # Current-user query và account shell
+│   └── README.md             # Quy tắc tạo feature mới
 ├── lib/
 │   ├── session.ts            # Đọc/ghi cookie phiên (server-only)
 │   ├── refresh-session.ts    # Single-flight refresh trong một Next instance
@@ -83,6 +84,8 @@ apps/client/
 ```
 
 `lib/*` đánh dấu `import "server-only"`: nếu ai lỡ import chúng vào Client Component thì build fail ngay, thay vì âm thầm gửi token xuống trình duyệt.
+
+Chiều phụ thuộc là `app → features → lib/packages`. `app/` không chứa nghiệp vụ và feature không import ngược từ `app/`. Cấu trúc theo chiều dọc này giữ code của một use case gần nhau; đọc login không phải nhảy giữa thư mục action, component và helper dùng chung. Xem [quy ước feature module](features/README.md) trước khi thêm nghiệp vụ Client.
 
 ## 4. Chạy ở local
 
