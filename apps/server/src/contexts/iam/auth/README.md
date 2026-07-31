@@ -133,25 +133,33 @@ sequenceDiagram
 
     Client->>Guard: POST /auth/refresh + refresh token
     Guard->>Strategy: Verify signature/payload
-    Strategy->>Store: isRefreshTokenValid(userId, oldJti)
-    Store-->>Strategy: true
+    Strategy->>Store: Tìm session hoặc replay ngắn hạn
+    Store-->>Strategy: Session cũ còn tồn tại
     Strategy-->>Handler: Authenticated refresh principal
     Handler->>Users: Load current user/permissions
-    Handler->>Store: rotateRefreshToken(oldJti, newJti)
-    Note over Store: Lua atomic: EXISTS old → DEL old → SET new
-    Store-->>Handler: exactly one request receives true
+    Handler->>Store: rotateRefreshToken(oldJti, newJti, tokens)
+    Note over Store: Lua atomic: DEL old → SET new → SET replay 5 giây
+    Store-->>Handler: Cặp token mới
     Handler-->>Client: New access + refresh tokens
+
+    Client->>Guard: Request đồng thời dùng lại oldJti
+    Guard->>Store: Tìm session hoặc replay ngắn hạn
+    Store-->>Handler: Replay của oldJti
+    Handler-->>Client: Chính cặp token đã phát hành ở trên
 ```
 
 Xoay vòng token như vậy (rotation) khiến refresh token cũ khó bị đem dùng lại lần nữa (replay). Khi cấp cặp token mới, handler phải đọc lại trạng thái user và tokenVersion hiện tại từ database, không được sao chép mù quáng payload của token cũ.
 
-Rotation phải diễn ra như một thao tác duy nhất trong Redis. `RedisSessionStore.rotateRefreshToken` gọi `RedisService.replaceIfPresent`; hàm này chạy Lua script để làm ba việc liền nhau:
+Rotation phải diễn ra như một thao tác duy nhất trong Redis. `RedisSessionStore.rotateRefreshToken` gọi `RedisService.replaceIfPresentOrGetReplay`; hàm này chạy Lua script để làm bốn việc liền nhau:
 
 1. kiểm tra key của phiên cũ còn tồn tại;
 2. xóa key cũ;
-3. tạo key cho phiên mới.
+3. tạo key cho phiên mới;
+4. giữ cặp token vừa phát hành dưới key `refresh_replay:{userId}:{oldJti}` trong 5 giây.
 
-Redis không cho request khác chen vào giữa script. Vì vậy, nếu hai request cùng dùng một refresh token, đúng một request thành công; request còn lại nhận `401 UNAUTHORIZED`.
+Redis không cho request khác chen vào giữa script. Vì vậy, nếu hai request cùng dùng một refresh token, đúng một request tạo session mới; request còn lại đọc replay và nhận đúng cặp token đó. Cửa sổ 5 giây chỉ đủ hấp thụ các request đã cùng khởi hành từ nhiều tab/BFF replica, không kéo dài hạn tuyệt đối của session và không sinh thêm JTI.
+
+Replay lưu `successorJti` — JTI của session mới — cùng cặp token được mã hóa bằng AES-256-GCM với khóa dẫn xuất từ `JWT_REFRESH_SECRET`. Redis không giữ token ở dạng đọc được; ciphertext bị sửa hoặc được tạo bằng secret cũ sẽ giải mã thất bại và flow đóng an toàn bằng `401`. Khi logout hoặc revoke session mới, adapter tìm và xóa cả replay đang trỏ tới nó. Revoke các session khác và global logout cũng dọn namespace replay. Nếu bỏ bước này, token cũ có thể đọc lại kết quả tạm thời và làm sống lại session vừa bị chủ động thu hồi.
 
 Không thay script bằng ba lệnh rời `GET → SET → DEL`. Request thứ hai có thể chen vào giữa các lệnh và làm một refresh token sinh ra nhiều phiên mới; lỗi cạnh tranh như vậy gọi là **race condition**.
 
@@ -199,7 +207,7 @@ Hai strategy là chỗ Passport cắm vào để kiểm tra token cho từng req
 - Không có default/fallback JWT secret trong code.
 - Secret dùng cho production phải qua được bước kiểm tra độ dài tối thiểu.
 - Không log password, access token, refresh token hoặc giá trị session trong Redis.
-- Refresh token chỉ được chấp nhận khi JTI của nó vẫn còn nằm trong store.
+- Refresh token chỉ được chấp nhận khi JTI còn là session active, hoặc có replay 5 giây do chính một rotation atomic vừa tạo. Replay chỉ trả lại kết quả cũ, không được sinh session mới.
 - Người mang access token phải khớp trạng thái User/tokenVersion trong database và JTI session trong Redis.
 - Thông báo lỗi không được giúp kẻ tấn công dò ra email nào có tài khoản (account enumeration).
 - IP và user-agent của client chỉ là thông tin ghi kèm để truy vết, không phải bằng chứng xác thực.

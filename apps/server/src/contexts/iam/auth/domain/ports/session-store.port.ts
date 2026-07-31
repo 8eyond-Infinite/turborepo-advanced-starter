@@ -9,6 +9,16 @@ export interface SessionData {
   absoluteExpiresAt?: string;
 }
 
+export interface RefreshTokens {
+  accessToken: string;
+  refreshToken: string;
+}
+
+export interface RefreshRotationResult {
+  rotated: boolean;
+  tokens: RefreshTokens | null;
+}
+
 export interface ISessionStore {
   saveRefreshToken(
     userId: string,
@@ -25,8 +35,10 @@ export interface ISessionStore {
     oldJti: string,
     newJti: string,
     sessionData: SessionData,
+    tokens: RefreshTokens,
     ttlSeconds: number,
-  ): Promise<boolean>;
+  ): Promise<RefreshRotationResult>;
+  getRefreshReplay(userId: string, jti: string): Promise<RefreshTokens | null>;
   revokeRefreshToken(userId: string, jti: string): Promise<void>;
   revokeAllUserSessions(userId: string): Promise<void>;
   revokeOtherUserSessions(

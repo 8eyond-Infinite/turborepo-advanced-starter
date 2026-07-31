@@ -51,7 +51,10 @@ export class JwtRefreshStrategy extends PassportStrategy(
       payload.sub,
       payload.jti,
     );
-    if (!session) {
+    const replay = session
+      ? null
+      : await this.sessionStore.getRefreshReplay(payload.sub, payload.jti);
+    if (!session && !replay) {
       throw new UnauthorizedException(
         'Refresh token has been revoked or expired',
       );
@@ -67,7 +70,7 @@ export class JwtRefreshStrategy extends PassportStrategy(
       email: user.email,
       roles: user.roles,
       jti: payload.jti,
-      sessionId: session.sessionId ?? session.jti,
+      sessionId: session?.sessionId ?? session?.jti,
       refreshToken,
     };
   }

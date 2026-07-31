@@ -238,9 +238,9 @@ Khi Admin xin token mới bằng cookie, response body chỉ trả access token;
 
 Nếu nhiều request cùng nhận `401`, API client gom chúng vào một lần refresh rồi thử lại mỗi request đúng một lần. Nếu refresh thất bại, ứng dụng phát tín hiệu logout.
 
-Next.js BFF cũng gom các request refresh trùng nhau trong phạm vi một instance. Việc này giảm request thừa nhưng không phải chốt bảo mật. Redis ở backend mới bảo đảm refresh token cũ chỉ dùng được một lần, kể cả khi có nhiều Next.js instance.
+Next.js BFF gom các request refresh trùng nhau trong phạm vi một instance. Nếu hai request đi tới hai instance khác nhau, Redis thực hiện atomically ba việc: consume JTI cũ, tạo session mang JTI mới và lưu kết quả refresh trong 5 giây. Request đồng thời đến sau nhận đúng kết quả đã phát hành thay vì tạo thêm session hoặc nhận `401`. Do đó mọi BFF replica ghi cùng một cookie mới, còn refresh token cũ vẫn hết khả năng sử dụng sau cửa sổ chống race rất ngắn.
 
-Một request refresh thua cuộc không xóa cookie nếu access token cũ vẫn còn hạn; làm vậy tránh ghi đè cookie mới từ request thắng. Khi token thực sự hết hạn và refresh thất bại, session mới kết thúc.
+Replay record chứa JTI kế nhiệm để thao tác revoke có thể tìm và xóa nó; cặp token bên trong được mã hóa AES-256-GCM bằng khóa dẫn xuất từ `JWT_REFRESH_SECRET`, không nằm dạng plaintext trong Redis. Logout một session, revoke các session khác và global logout đều dọn replay; đây là invariant ngăn một kết quả refresh tạm thời làm sống lại session đã bị người dùng thu hồi.
 
 Logout ở BFF phải gọi `/auth/logout` để thu hồi session trong Redis rồi mới xóa cookie JWE. Chỉ xóa cookie trên browser chưa phải logout hoàn chỉnh.
 

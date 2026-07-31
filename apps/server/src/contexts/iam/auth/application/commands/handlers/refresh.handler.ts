@@ -52,6 +52,8 @@ export class RefreshCommandHandler implements ICommandHandler<
       oldJti,
     );
     if (!oldData) {
+      const replay = await this.sessionStore.getRefreshReplay(userId, oldJti);
+      if (replay) return Result.ok(replay);
       return Result.fail(new RefreshSessionConsumedException());
     }
 
@@ -96,12 +98,13 @@ export class RefreshCommandHandler implements ICommandHandler<
       oldJti,
       newJti,
       sessionData,
+      { accessToken, refreshToken },
       remainingTtlSeconds,
     );
-    if (!rotated) {
+    if (!rotated.tokens) {
       return Result.fail(new RefreshSessionConsumedException());
     }
 
-    return Result.ok({ accessToken, refreshToken });
+    return Result.ok(rotated.tokens);
   }
 }
