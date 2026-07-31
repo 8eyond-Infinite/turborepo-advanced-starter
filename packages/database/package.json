@@ -24,6 +24,7 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
+    "db:verify-migrations": "prisma migrate deploy && prisma migrate diff --from-config-datasource --to-schema=prisma/schema.prisma --exit-code",
     "db:seed": "prisma db seed",
     "db:push": "prisma db push"
   },

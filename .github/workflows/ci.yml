@@ -115,6 +115,14 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/starter_test?schema=public
 
+      - name: Verify migration chain matches Prisma schema
+        run: pnpm verify:migrations
+        env:
+          # PostgreSQL service starts with a fresh database for every CI job.
+          # migrate deploy replays committed history; migrate diff exits 2 if
+          # the resulting database differs from schema.prisma.
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/starter_test?schema=public
+
       - name: Build workspace dependencies of server
         run: pnpm turbo run build --filter=server^...
         env:
