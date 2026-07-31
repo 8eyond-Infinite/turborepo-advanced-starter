@@ -218,7 +218,24 @@ Mỗi lần `lib/api.ts` gọi NestJS, BFF sinh hoặc tiếp tục header `x-co
 
 Event không chứa request body, cookie, Authorization, email, password, raw backend message hay stack. Adapter mặc định ghi JSON ra stderr để chạy trên Vercel, container hoặc VPS; sink có thể nối sang OpenTelemetry/Sentry sau này mà API boundary và feature không phụ thuộc SDK vendor.
 
-## 7. Production runtime
+## 7. Quality gates: accessibility và hiệu năng
+
+Client có hai hàng rào tự động dành cho những lỗi thường chỉ xuất hiện sau khi ghép các component thành một trang hoàn chỉnh.
+
+Playwright chạy `axe-core` trên trang công khai, trang đăng nhập và trang tài khoản đã đăng nhập. Bộ test chỉ chấp nhận khi không có vi phạm tự động thuộc WCAG 2.0/2.1 mức A hoặc AA. Nó còn đi qua form bằng phím `Tab` và thử skip-link của account shell. Vì công cụ tự động không thể đánh giá nội dung có dễ hiểu hay thao tác có hợp lý với con người hay không, feature mới vẫn cần được thử thủ công bằng bàn phím và, với luồng quan trọng, bằng screen reader.
+
+Production build sinh `.next/diagnostics/route-bundle-stats.json`. Lệnh sau đọc số JavaScript thô mà browser phải nhận ở lần tải đầu cho `/`, `/login` và `/me`:
+
+```bash
+pnpm --filter=client build
+pnpm --filter=client verify:performance
+```
+
+Mỗi route hiện có budget 560 KiB. CI fail khi thiếu route trong artifact hoặc vượt trần. Khi fail, trước tiên tìm Client Component hoặc dependency vừa kéo thêm vào bundle; không tăng budget chỉ để làm CI xanh. Nếu sản phẩm thật sự cần thư viện mới, PR thay đổi budget phải ghi lại số đo trước/sau và lý do chấp nhận chi phí đó.
+
+Budget này đo JavaScript chưa nén trong artifact để phát hiện bundle regression ổn định; nó không thay thế Core Web Vitals trên thiết bị và mạng thật. Dự án sử dụng starter nên nối thêm Real User Monitoring hoặc synthetic performance test sau khi có domain và traffic thật.
+
+## 8. Production runtime
 
 `next.config.ts` bật `output: "standalone"` để build tạo runtime Node.js tối thiểu trong `.next/standalone`. Đây là artifact dùng cho container/VPS; thư mục `public` và `.next/static` vẫn phải được copy riêng. `apps/client/Dockerfile` thực hiện đúng ba bước đó, chạy bằng user không phải root, bind `0.0.0.0:3000` và không mang pnpm/npm vào runtime image.
 
@@ -239,7 +256,7 @@ Image build dùng placeholder không có credential để Next.js kiểm tra pro
 
 CI build, tạo `client-sbom.spdx.json`, quét HIGH/CRITICAL và chỉ publish `ghcr.io/<organization>/<repository>/client:<commit-sha>` sau khi commit đã vào `main`. Image Client và Server dùng cùng SHA nhưng là hai package độc lập; không ghép Next.js vào container API. Vercel deployment không dùng image này, còn VPS/Kubernetes có thể pull đúng artifact đã qua cùng quality gate.
 
-## 8. Mở rộng tiếp theo
+## 9. Mở rộng tiếp theo
 
 - Thêm trang công khai (danh sách sản phẩm, bài viết…) dùng `generateMetadata` và ISR để tận dụng SEO.
 - Mutation cần đăng nhập: viết thêm Server Action gọi `apiFetch`, không mở endpoint proxy chung chung.

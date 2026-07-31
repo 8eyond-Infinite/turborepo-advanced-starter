@@ -426,7 +426,10 @@ Quality CI build với `https://api.ci.example.invalid`, sau đó chạy `script
 
 CI chạy trên GitHub Actions với hai workflow đã triển khai:
 
-- `.github/workflows/ci.yml` — job `quality` (install frozen → prisma generate → lint với `--max-warnings=0` → check-types → unit tests → build → verify Admin production artifact) và job `e2e` (PostgreSQL/Redis/Maildev service containers, sinh `apps/server/.env.test` với database `starter_test`, chạy `pnpm --filter=server test:e2e`).
+- `.github/workflows/ci.yml` — job `quality` (install frozen → prisma generate → lint với `--max-warnings=0` → check-types → unit tests → build → kiểm tra Client JavaScript budget → verify Admin production artifact) và job `e2e` (PostgreSQL/Redis/Maildev service containers, sinh `apps/server/.env.test` với database `starter_test`, chạy `pnpm --filter=server test:e2e`).
+
+Job **Frontend browser E2E** còn quét tự động WCAG A/AA cho các trang Client đại diện, thử điều hướng bàn phím và chạy acceptance flow đăng nhập thật. Đây là regression gate, không phải tuyên bố toàn bộ sản phẩm đã đạt chứng nhận accessibility. JavaScript budget được đọc từ diagnostics của chính production build; nếu route quan trọng biến mất hoặc vượt 560 KiB thì CI dừng trước khi image được publish.
+
 - `.github/workflows/security.yml` — gitleaks secret scan (full history) và `pnpm audit --prod --audit-level=high`, chạy trên push/PR và theo lịch hàng tuần. Gitleaks được pin phiên bản, tải cùng checksum chính thức và xác minh SHA-256 trước khi cài; không gọi API “latest release” trong mỗi job vì kết quả đó phụ thuộc rate limit và trạng thái GitHub API tại thời điểm chạy.
 
 Node được pin qua `.nvmrc`, pnpm qua trường `packageManager`. Dependabot cập nhật npm dependencies và GitHub Actions hàng tuần (`.github/dependabot.yml`). Local có husky pre-commit (lint-staged + prettier) và commit-msg (commitlint, conventional commits).
