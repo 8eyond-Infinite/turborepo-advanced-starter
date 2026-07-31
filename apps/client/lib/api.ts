@@ -1,6 +1,7 @@
 import "server-only";
 import type { ApiErrorResponse } from "@repo/contracts";
 import { clientEnvironment } from "./environment";
+import { reportApiFailure } from "./observability";
 import { getSession } from "./session";
 
 // API_URL không có tiền tố NEXT_PUBLIC_: nó chỉ được đọc ở phía server.
@@ -139,24 +140,29 @@ const readErrorContract = async (
   }
 };
 
-const responseError = async (response: Response): Promise<ApiError> => {
+const responseError = async (
+  response: Response,
+  requestCorrelationId: string,
+): Promise<ApiError> => {
   const contract = await readErrorContract(response);
   return new ApiError({
     ...errorDescriptor(response.status),
     status: response.status,
     code: contract.code,
     translationKey: contract.translationKey,
-    correlationId: response.headers.get("x-correlation-id") ?? undefined,
+    correlationId:
+      response.headers.get("x-correlation-id") ?? requestCorrelationId,
   });
 };
 
-const transportError = (error: unknown): ApiError => {
+const transportError = (error: unknown, correlationId: string): ApiError => {
   if (error instanceof ApiError) return error;
   if (error instanceof Error && error.name === "TimeoutError")
     return new ApiError({
       kind: "timeout",
       status: null,
       message: "Dịch vụ phản hồi quá lâu. Vui lòng thử lại.",
+      correlationId,
       retryable: true,
     });
   if (error instanceof Error && error.name === "AbortError")
@@ -164,12 +170,14 @@ const transportError = (error: unknown): ApiError => {
       kind: "cancelled",
       status: null,
       message: "Yêu cầu đã bị hủy.",
+      correlationId,
       retryable: false,
     });
   return new ApiError({
     kind: "network",
     status: null,
     message: "Không thể kết nối tới dịch vụ. Vui lòng thử lại.",
+    correlationId,
     retryable: true,
   });
 };
@@ -184,12 +192,15 @@ const requestApi = async <T>(
     ? AbortSignal.any([init.signal, timeoutSignal])
     : timeoutSignal;
   const headers = new Headers(init?.headers);
+  const correlationId = headers.get("x-correlation-id") ?? crypto.randomUUID();
+  headers.set("x-correlation-id", correlationId);
   if (!headers.has("Content-Type"))
     headers.set("Content-Type", "application/json");
   // Danh tính luôn do BFF lấy từ session; caller không được ghi đè bearer
   // bằng một giá trị truyền qua RequestInit.
   if (authorization) headers.set("Authorization", authorization);
 
+  const startedAt = performance.now();
   try {
     const response = await fetch(`${API_URL}${path}`, {
       ...init,
@@ -197,7 +208,7 @@ const requestApi = async <T>(
       cache: "no-store",
       signal,
     });
-    if (!response.ok) throw await responseError(response);
+    if (!response.ok) throw await responseError(response, correlationId);
     if (response.status === 204) return undefined as T;
     try {
       return (await response.json()) as T;
@@ -206,12 +217,25 @@ const requestApi = async <T>(
         kind: "unexpected",
         status: response.status,
         message: "Dịch vụ trả về dữ liệu không hợp lệ.",
-        correlationId: response.headers.get("x-correlation-id") ?? undefined,
+        correlationId:
+          response.headers.get("x-correlation-id") ?? correlationId,
         retryable: false,
       });
     }
   } catch (error) {
-    throw transportError(error);
+    const normalized = transportError(error, correlationId);
+    if (normalized.kind !== "cancelled")
+      reportApiFailure({
+        event: "client.bff.api_failed",
+        correlationId: normalized.correlationId ?? correlationId,
+        method: init?.method?.toUpperCase() ?? "GET",
+        path: path.split("?")[0] || "/",
+        kind: normalized.kind,
+        status: normalized.status,
+        retryable: normalized.retryable,
+        durationMs: Math.round(performance.now() - startedAt),
+      });
+    throw normalized;
   }
 };
 
