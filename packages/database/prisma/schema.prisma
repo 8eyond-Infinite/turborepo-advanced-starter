@@ -1,5 +1,5 @@
 datasource db {
-  provider  = "postgresql"
+  provider = "postgresql"
 }
 
 generator client {
@@ -7,16 +7,16 @@ generator client {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  username  String   
-  password  String
-  avatar    String?
-  isActive Boolean @default(true)
-  isDeleted Boolean @default(false)
-  tokenVersion Int @default(0) @map("token_version")
+  id           String  @id @default(uuid())
+  email        String  @unique
+  username     String
+  password     String
+  avatar       String?
+  isActive     Boolean @default(true)
+  isDeleted    Boolean @default(false)
+  tokenVersion Int     @default(0) @map("token_version")
 
-  userRoles UserRole[]
+  userRoles     UserRole[]
   notifications Notification[]
 
   createdAt DateTime @default(now())
@@ -28,33 +28,33 @@ model User {
 }
 
 model Role {
-  id              String           @id @default(uuid())
-  name            String           @unique
-  description     String?
-  isDeleted       Boolean          @default(false)
-  
+  id          String  @id @default(uuid())
+  name        String  @unique
+  description String?
+  isDeleted   Boolean @default(false)
+
   userRoles       UserRole[]
   rolePermissions RolePermission[]
 
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  createdBy       String?
-  updatedBy       String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
+  updatedBy String?
 
   @@map("roles")
 }
 
 model Permission {
-  id              String           @id @default(uuid())
-  name            String           @unique
-  description     String?
-  displayName     String?
-  module          String?
-  
+  id          String  @id @default(uuid())
+  name        String  @unique
+  description String?
+  displayName String?
+  module      String?
+
   rolePermissions RolePermission[]
 
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("permissions")
 }
@@ -82,31 +82,33 @@ model RolePermission {
 }
 
 model AuditLog {
-  id         String   @id @default(uuid())
-  action     String
-  details    String
-  userId     String?
-  userEmail  String?
-  ip         String?
-  userAgent  String?
-  createdAt  DateTime @default(now())
+  id            String   @id @default(uuid())
+  action        String
+  details       String
+  userId        String?
+  userEmail     String?
+  ip            String?
+  userAgent     String?
+  correlationId String?  @map("correlation_id")
+  createdAt     DateTime @default(now())
 
+  @@index([correlationId])
   @@map("audit_logs")
 }
 
 model Menu {
-  id          String   @id @default(uuid())
-  parentId    String?  @map("parent_id")
-  title       String
-  url         String
-  icon        String?
-  order       Int      @default(0)
-  permission  String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(uuid())
+  parentId   String?  @map("parent_id")
+  title      String
+  url        String
+  icon       String?
+  order      Int      @default(0)
+  permission String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  parent      Menu?    @relation("MenuToMenu", fields: [parentId], references: [id], onDelete: Cascade)
-  children    Menu[]   @relation("MenuToMenu")
+  parent   Menu?  @relation("MenuToMenu", fields: [parentId], references: [id], onDelete: Cascade)
+  children Menu[] @relation("MenuToMenu")
 
   @@map("menus")
 }
@@ -116,11 +118,11 @@ model Notification {
   userId    String   @map("user_id")
   title     String
   content   String
-  type      String   
+  type      String
   isRead    Boolean  @default(false) @map("is_read")
   createdAt DateTime @default(now()) @map("created_at")
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notifications")
 }

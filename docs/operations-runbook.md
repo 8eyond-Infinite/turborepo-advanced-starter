@@ -289,11 +289,14 @@ Client BFF gửi cùng header khi gọi API. Runtime log của Next.js có event
 
 Tìm đúng trường `correlationId` trong structured log. Đừng chỉ grep một đoạn message vì nhiều request có thể tạo message giống nhau.
 
-Mã được truyền từ HTTP request sang outbox event, job BullMQ và worker log. Nhờ vậy có thể đi từ một request ban đầu tới email/job nền mà nó tạo ra:
+Mã được truyền từ HTTP request sang audit log, outbox event, job BullMQ và worker log. Nhờ vậy có thể đi từ một request ban đầu tới hành động quản trị và email/job nền mà nó tạo ra:
 
 ```sql
 -- Từ correlation ID, xem những event nào đã phát sinh
 SELECT type, status, occurred_at FROM outbox_events WHERE correlation_id = '<id>';
+
+-- Tìm hành động quản trị được ghi trong cùng request
+SELECT action, user_email, created_at FROM audit_logs WHERE correlation_id = '<id>';
 ```
 
 Nếu query trả row, dùng loại event và thời điểm để tìm tiếp trong API/worker log. Job được tạo bởi lịch chạy nền hoặc script không bắt đầu từ HTTP có thể không có correlation ID; đó là bình thường.

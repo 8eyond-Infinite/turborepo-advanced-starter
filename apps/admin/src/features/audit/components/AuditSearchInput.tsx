@@ -20,7 +20,7 @@ export const AuditSearchInput = ({
   return (
     <SearchInput
       aria-label="Tìm kiếm nhật ký hoạt động"
-      placeholder="Tìm hành động, chi tiết hoặc email..."
+      placeholder="Tìm hành động, email hoặc mã truy vết..."
       value={value}
       onChange={setValue}
     />

@@ -29,6 +29,15 @@ export const AuditLogDetails = ({ log }: AuditLogDetailsProps) => (
           Thiết bị: {log.userAgent || "Unknown"}
         </dd>
       </div>
+      <div className="min-w-0 sm:col-span-3">
+        <dt className="sr-only">Mã truy vết</dt>
+        <dd
+          className="truncate font-mono"
+          title={log.correlationId || undefined}
+        >
+          Mã truy vết: {log.correlationId || "Không có"}
+        </dd>
+      </div>
     </dl>
   </div>
 );

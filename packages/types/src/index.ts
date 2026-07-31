@@ -62,6 +62,7 @@ export interface AuditLog {
   userEmail?: string | null;
   ip?: string | null;
   userAgent?: string | null;
+  correlationId?: string | null;
   createdAt: string;
 }
 

@@ -18,6 +18,7 @@ import {
   type AuditWriter,
 } from '@/contexts/audit/application/ports/audit-writer.port';
 import type { AuthenticatedRequest } from '../http/authenticated-request';
+import { getCorrelationId } from '@infrastructure/observability/correlation-context';
 
 @Injectable()
 export class AuditLogInterceptor implements NestInterceptor {
@@ -72,6 +73,7 @@ export class AuditLogInterceptor implements NestInterceptor {
             userEmail: actor?.email || null,
             ip: typeof ip === 'string' ? ip : JSON.stringify(ip),
             userAgent,
+            correlationId: getCorrelationId() ?? null,
           });
         } catch (error) {
           this.logger.error(
