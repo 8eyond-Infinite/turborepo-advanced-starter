@@ -329,6 +329,12 @@ Trước production cần chọn provider, cấu hình sampling/quota phía prov
 được xem/lưu bao lâu. Không public source map trên CDN. Nếu report ít hơn số lỗi người dùng gặp, kiểm tra cả rate limit của
 browser adapter lẫn sampling/rate limit của provider trước khi kết luận boundary không chạy.
 
+Với Client BFF, tìm cả `client.bff.api_failed` và `client.bff.api_failures_suppressed`. Summary `scope=fingerprint` nghĩa là
+cùng method/path/kind/status đang lặp; `scope=global` nghĩa là nhiều failure khác nhau đã chạm trần instance. `suppressedCount`
+là số lũy kế trong cửa sổ hiện tại tại thời điểm summary được phát, không phải tổng chính xác cuối cùng. Counter là per-instance,
+nên khi điều tra production nhiều replica phải tổng hợp log theo service và time range, không cộng một dòng cuối rồi coi là toàn
+hệ thống.
+
 ## 4. Quy trình phát hành
 
 Phần này là checklist dành cho người đưa một phiên bản đã được review lên môi trường chạy. Nếu chưa biết release PR, version và image tag là gì, hãy đọc [Quy trình phát hành](release-process.md) trước.
