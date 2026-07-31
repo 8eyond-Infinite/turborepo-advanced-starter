@@ -212,6 +212,12 @@ Login kiểm tra lại dữ liệu ở Server Action dù input đã có thuộc 
 
 Mỗi input lỗi dùng `aria-invalid` và `aria-describedby`; form-level failure dùng `role="alert"`. Khi tạo form mới, tái sử dụng `ActionState` nhưng định nghĩa union tên field riêng cho feature, thay vì dùng một object lỗi không kiểu hoặc catch mọi lỗi thành cùng một chuỗi.
 
+### Observability của BFF
+
+Mỗi lần `lib/api.ts` gọi NestJS, BFF sinh hoặc tiếp tục header `x-correlation-id`. Backend dùng lại mã đó trong response và structured log, nên một lỗi có thể được lần từ form Client sang đúng request API. Khi request thất bại, `lib/observability.ts` ghi event JSON `client.bff.api_failed` gồm method, path đã bỏ query string, loại lỗi, status, thời gian và khả năng retry.
+
+Event không chứa request body, cookie, Authorization, email, password, raw backend message hay stack. Adapter mặc định ghi JSON ra stderr để chạy trên Vercel, container hoặc VPS; sink có thể nối sang OpenTelemetry/Sentry sau này mà API boundary và feature không phụ thuộc SDK vendor.
+
 ## 7. Mở rộng tiếp theo
 
 - Thêm trang công khai (danh sách sản phẩm, bài viết…) dùng `generateMetadata` và ISR để tận dụng SEO.

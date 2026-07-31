@@ -272,6 +272,8 @@ Sau khi chặn truy cập:
 
 Mỗi response có header `x-correlation-id`: một mã dùng để nối các log thuộc cùng request. Khi nhận báo lỗi, hãy xin mã này hoặc lấy nó từ proxy log.
 
+Client BFF gửi cùng header khi gọi API. Runtime log của Next.js có event JSON `client.bff.api_failed`; lọc theo `correlationId`, rồi dùng mã đó tìm tiếp trong API/worker log. Event đã bỏ query string và credential, vì vậy không bổ sung body hoặc token vào log khi điều tra thủ công.
+
 Tìm đúng trường `correlationId` trong structured log. Đừng chỉ grep một đoạn message vì nhiều request có thể tạo message giống nhau.
 
 Mã được truyền từ HTTP request sang outbox event, job BullMQ và worker log. Nhờ vậy có thể đi từ một request ban đầu tới email/job nền mà nó tạo ra:
