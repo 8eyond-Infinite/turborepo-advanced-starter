@@ -25,6 +25,7 @@
     "e2e:client": "pnpm e2e:frontend:prepare && pnpm --filter=client e2e",
     "verify:compose": "docker compose --env-file deploy/compose/.env.production.example -f deploy/compose/compose.production.yaml config --quiet",
     "verify:env": "node scripts/verify-environment-contract.mjs",
+    "verify:migrations": "pnpm --filter=@repo/database db:verify-migrations",
     "verify:docs": "node scripts/verify-docs.mjs",
     "verify:render": "node scripts/verify-render-deployment.mjs",
     "prepare": "husky"

@@ -215,7 +215,9 @@ Script seed phải idempotent (chạy lại nhiều lần không làm hỏng d�
 
 `pnpm db:push` ép database khớp schema hiện tại mà không ghi lại lịch sử migration. Chỉ dùng cho database prototype/test kiểu dùng xong bỏ. Không dùng cho staging/production.
 
-Migration chain đã được đối chiếu với schema bằng `prisma migrate diff --from-migrations` và tái tạo đầy đủ schema trên database sạch (migration `20260726073000_add_user_profile_menus_and_notifications` đóng phần drift từng tồn tại: `users.username`, `users.avatar`, bảng `menus` và `notifications`). Database dev local đã được baseline bằng `prisma migrate resolve --applied` cho toàn bộ chain; `prisma migrate status` phải trả "up to date".
+Migration chain được CI đối chiếu với schema bằng `pnpm verify:migrations`. Job bắt đầu bằng PostgreSQL rỗng, chạy toàn bộ lịch sử qua `prisma migrate deploy`, rồi so database kết quả với `schema.prisma` bằng `prisma migrate diff --exit-code`. Exit code `2` nghĩa là có drift và làm CI fail, kể cả khi field/index bị thiếu chưa được E2E chạm tới. Migration `20260726073000_add_user_profile_menus_and_notifications` đóng phần drift từng tồn tại: `users.username`, `users.avatar`, bảng `menus` và `notifications`. Database dev local đã được baseline bằng `prisma migrate resolve --applied` cho toàn bộ chain; `prisma migrate status` phải trả "up to date".
+
+`verify:migrations` không xóa database, nhưng nó sẽ áp mọi migration còn thiếu. Chỉ chạy thủ công với database kiểm thử riêng; không trỏ lệnh kiểm tra vào production. Backend E2E sau gate vẫn dùng `db push --force-reset` trên chính database `_test`, nên test behavior không phụ thuộc dữ liệu mà bước migration vừa tạo.
 
 Lệnh cần replay migration chain (`migrate diff --from-migrations`, `migrate dev`) yêu cầu `SHADOW_DATABASE_URL` trỏ tới một database dùng xong bỏ, ví dụ `postgresql://postgres:password@localhost:5433/starter_shadow`.
 

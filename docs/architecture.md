@@ -367,7 +367,7 @@ schema change
 → prisma migrate dev
 → review migration.sql
 → commit schema + migration
-→ CI/test database applies migrations
+→ CI dựng database rỗng, apply migrations và diff với schema hiện tại
 → deployment runs migrate deploy
 ```
 
