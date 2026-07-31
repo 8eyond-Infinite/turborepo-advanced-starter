@@ -1,5 +1,7 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { collectDefaultMetrics, Gauge, Histogram, Registry } from 'prom-client';
+import { stat } from 'node:fs/promises';
 import { PrismaService } from '@infrastructure/database/prisma.service';
 import { ModuleRef } from '@nestjs/core';
 import { getQueueToken } from '@nestjs/bullmq';
@@ -31,6 +33,7 @@ export class MetricsService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly moduleRef: ModuleRef,
+    private readonly configService: ConfigService,
   ) {}
 
   onModuleInit(): void {
@@ -110,6 +113,52 @@ export class MetricsService implements OnModuleInit {
         );
       },
     });
+
+    const backupStatusFile =
+      this.configService.get<string>('BACKUP_STATUS_FILE');
+    if (backupStatusFile) {
+      new Gauge({
+        name: 'backup_status_available',
+        help: 'Whether the successful backup heartbeat can be read (1 or 0)',
+        registers: [this.registry],
+        async collect() {
+          try {
+            await stat(backupStatusFile);
+            this.set(1);
+          } catch {
+            this.set(0);
+          }
+        },
+      });
+
+      new Gauge({
+        name: 'backup_last_success_timestamp_seconds',
+        help: 'Unix timestamp of the last fully successful backup cycle',
+        registers: [this.registry],
+        async collect() {
+          try {
+            const status = await stat(backupStatusFile);
+            this.set(status.mtimeMs / 1_000);
+          } catch {
+            this.set(0);
+          }
+        },
+      });
+
+      new Gauge({
+        name: 'backup_age_seconds',
+        help: 'Age of the last fully successful backup cycle (-1 when unavailable)',
+        registers: [this.registry],
+        async collect() {
+          try {
+            const status = await stat(backupStatusFile);
+            this.set(Math.max(0, (Date.now() - status.mtimeMs) / 1_000));
+          } catch {
+            this.set(-1);
+          }
+        },
+      });
+    }
   }
 
   metrics(): Promise<string> {

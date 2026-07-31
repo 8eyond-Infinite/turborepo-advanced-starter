@@ -1,0 +1,79 @@
+groups:
+  - name: turborepo-starter
+    rules:
+      - alert: ApiUnavailable
+        expr: up{job="turborepo-api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: Turborepo API is unavailable
+          description: Prometheus has failed to scrape the API for more than two minutes.
+
+      - alert: HighHttpServerErrorRatio
+        expr: |
+          sum(rate(http_request_duration_seconds_count{job="turborepo-api",status_code=~"5.."}[5m]))
+          /
+          sum(rate(http_request_duration_seconds_count{job="turborepo-api"}[5m])) > 0.05
+          and
+          sum(rate(http_request_duration_seconds_count{job="turborepo-api"}[5m])) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: API server-error ratio is above 5%
+          description: The API has sustained both meaningful traffic and a server-error ratio above 5% for ten minutes.
+
+      - alert: OutboxPendingTooLong
+        expr: outbox_oldest_pending_age_seconds{job="turborepo-api"} > 60
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: An outbox event has been pending too long
+          description: At least one pending outbox event has remained unpublished for more than one minute.
+
+      - alert: OutboxFailedEvents
+        expr: outbox_events{job="turborepo-api",status="failed"} > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Failed outbox events require attention
+          description: One or more outbox events have remained in FAILED state for ten minutes.
+
+      - alert: QueueJobWaitingTooLong
+        expr: bullmq_oldest_waiting_job_age_seconds{job="turborepo-api",queue="user-queue"} > 60
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: A background job has waited too long
+          description: The oldest user-queue job has waited or remained delayed for more than one minute.
+
+      - alert: BackupMetricMissing
+        expr: absent(backup_status_available{job="turborepo-api"}) == 1
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: Backup health metric is missing
+          description: The API scrape no longer exposes the configured backup heartbeat contract.
+
+      - alert: BackupHeartbeatUnavailable
+        expr: backup_status_available{job="turborepo-api"} == 0
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: Backup success heartbeat cannot be read
+          description: The API container cannot read the shared last-success heartbeat file.
+
+      - alert: BackupTooOld
+        expr: backup_age_seconds{job="turborepo-api"} > 93600
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: No recent successful database backup
+          description: The last fully successful backup cycle is more than 26 hours old.

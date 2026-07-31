@@ -13,6 +13,7 @@ x-server-environment: &server-environment
   OUTBOX_RETENTION_DAYS: ${OUTBOX_RETENTION_DAYS:-30}
   LOG_LEVEL: ${LOG_LEVEL:-info}
   METRICS_TOKEN: ${METRICS_TOKEN:?METRICS_TOKEN is required}
+  BACKUP_STATUS_FILE: /var/lib/turborepo-backups/.last-success
   MAIL_HOST: ${MAIL_HOST:-}
   MAIL_PORT: ${MAIL_PORT:-587}
   MAIL_FROM: ${MAIL_FROM:-}
@@ -117,6 +118,7 @@ services:
     command: ['node', 'dist/main.js']
     volumes:
       - uploads_data:/app/public/uploads
+      - ./backup-status:/var/lib/turborepo-backups:ro
     expose:
       - '3001'
     healthcheck:

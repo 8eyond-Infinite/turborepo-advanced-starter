@@ -471,7 +471,9 @@ Muốn quay lui (rollback) ứng dụng thì triển khai lại image của phi�
 
 API bật Nest shutdown hooks. Khi được lệnh tắt, adapter, queue, Redis và outbox poller phải ngừng nhận việc mới, chờ các việc đang làm dở trong một giới hạn thời gian, rồi đóng kết nối.
 
-Production bắt buộc đặt `METRICS_TOKEN` ngẫu nhiên tối thiểu 32 ký tự. `GET /metrics` chỉ chấp nhận Bearer token này; local development được phép bỏ trống để quan sát nhanh. API scrape cả trạng thái outbox trong PostgreSQL và queue BullMQ trong Redis. Worker không mở cổng metrics riêng nhưng dùng cùng Pino JSON/redaction với API, nên log của hai process có cùng hình dạng để hệ thống thu thập log xử lý.
+Production bắt buộc đặt `METRICS_TOKEN` ngẫu nhiên tối thiểu 32 ký tự. `GET /metrics` chỉ chấp nhận Bearer token này; local development được phép bỏ trống để quan sát nhanh. API scrape trạng thái outbox trong PostgreSQL, queue BullMQ trong Redis và heartbeat backup từ bind mount read-only. Worker không mở cổng metrics riêng nhưng dùng cùng Pino JSON/redaction với API, nên log của hai process có cùng hình dạng để hệ thống thu thập log xử lý.
+
+`deploy/observability/alerts.yml` là bộ Prometheus rules khởi đầu. Scrape config phải đặt `job_name: turborepo-api`, vì rules cố ý lọc đúng job này để không trộn metrics của môi trường khác. CI chạy `pnpm verify:alerts` để kiểm tra schema, tên duy nhất, duration, severity và annotation. Validator không thay Prometheus runtime: sau khi nạp rules, operator vẫn phải xem trang `/rules` và gửi test notification qua Alertmanager hoặc provider đang dùng.
 
 Health endpoint nên phân biệt:
 
@@ -494,6 +496,10 @@ CI chạy `pnpm verify:backup` với Restic giả lập để khóa contract g�
 password file không đọc được làm cycle fail. Cùng gate kiểm tra freshness contract: heartbeat mới pass; heartbeat quá hạn,
 thiếu hoặc không đủ field phải fail. Đây là contract test cho orchestration; restore drill với PostgreSQL thật và một lần tải
 snapshot từ storage thật vẫn là checkpoint vận hành bắt buộc.
+
+Compose chỉ mount `deploy/compose/backup-status` vào API bằng quyền read-only; thư mục chứa dump không đi vào application container. Boundary này quan trọng: API cần biết thời điểm cycle gần nhất, không cần và không được quyền đọc nội dung database backup. `deploy.sh` tạo cả hai thư mục bằng deployment user trước khi Docker khởi động; nếu để Docker tự tạo, thư mục có thể thuộc root và systemd backup service không ghi heartbeat được. Ba backup metrics chỉ xuất hiện khi `BACKUP_STATUS_FILE` được cấu hình. `backup_status_available=0` nghĩa là path đã được cấu hình nhưng API không đọc được file; `backup_age_seconds=-1` cũng biểu diễn trạng thái unavailable, không được hiểu là backup mới.
+
+Repository khóa `*.sh`, systemd unit, Dockerfile và Caddyfile về LF trong `.gitattributes`. Đây là contract chạy Linux, không phải lựa chọn hiển thị: CRLF có thể làm `/usr/bin/env` hoặc POSIX `sh` báo lỗi dù nội dung nhìn đúng trong editor Windows.
 
 Session/cache trong Redis có thể dựng lại được một phần, nhưng phải hiểu rõ hai điều khi mất Redis: queue còn giữ được việc đang chờ hay không, và các phiên đăng nhập bị ảnh hưởng thế nào.
 

@@ -53,6 +53,9 @@ jobs:
       - name: Validate encrypted off-host backup contract
         run: pnpm verify:backup
 
+      - name: Validate Prometheus alert rules
+        run: pnpm verify:alerts
+
       - name: Lint
         run: pnpm turbo run lint
 

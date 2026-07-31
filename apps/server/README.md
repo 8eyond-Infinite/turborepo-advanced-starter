@@ -344,7 +344,7 @@ Giao kiểu at-least-once (ít nhất một lần) nghĩa là consumer có thể
 >
 > - Vòng đời một event: `PENDING` → `PROCESSING` (claim) → `PUBLISHED`; lỗi thì quay về `PENDING` với backoff, quá ngưỡng thành `FAILED`.
 > - Giao hàng kiểu at-least-once: có thể nhận trùng, nên mọi consumer phải idempotent.
-> - Theo dõi outbox và queue qua `GET /metrics`: `outbox_events{status}`, `outbox_oldest_pending_age_seconds`, `bullmq_jobs{queue,status}` và tuổi job chờ lâu nhất. Production phải gửi Bearer `METRICS_TOKEN`.
+> - Theo dõi outbox, queue và độ mới backup qua `GET /metrics`: `outbox_events{status}`, `outbox_oldest_pending_age_seconds`, `bullmq_jobs{queue,status}`, tuổi job chờ lâu nhất và `backup_*`. Backup gauges chỉ được đăng ký khi `BACKUP_STATUS_FILE` có cấu hình; API chỉ đọc heartbeat, không được mount hoặc đọc database dump. Production phải gửi Bearer `METRICS_TOKEN`.
 
 ## 9. Shared kernel: đặt gì và không đặt gì?
 

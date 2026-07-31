@@ -312,6 +312,12 @@ công gần nhất quá `BACKUP_MAX_AGE_HOURS` (mặc định 26 giờ). Hệ th
 systemctl status turborepo-backup-health.service --no-pager
 ```
 
+Compose mount riêng thư mục `backup-status` vào API ở chế độ read-only; tuyệt đối không đổi mount này thành thư mục `backups`
+chứa dump. Khi scrape `/metrics`, Prometheus dùng job name `turborepo-api` và nạp `deploy/observability/alerts.yml`. Hai đường
+cảnh báo bổ sung cho nhau: systemd phát hiện trực tiếp trên host, còn Prometheus tập trung routing/escalation cùng các alert
+API, outbox và queue. Nếu chưa có Prometheus, health timer vẫn có giá trị nhưng phải nối trạng thái failed của unit vào công cụ
+monitoring VPS đang dùng.
+
 ## 8. Ánh xạ sang AWS
 
 | Contract hiện tại | AWS production target           |

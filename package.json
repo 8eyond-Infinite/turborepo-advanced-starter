@@ -27,6 +27,7 @@
     "verify:env": "node scripts/verify-environment-contract.mjs",
     "verify:migrations": "pnpm --filter=@repo/database db:verify-migrations",
     "verify:backup": "sh deploy/compose/scripts/backup-offsite.test.sh && sh deploy/compose/scripts/verify-backup-freshness.test.sh",
+    "verify:alerts": "node scripts/verify-prometheus-rules.mjs",
     "verify:docs": "node scripts/verify-docs.mjs",
     "verify:render": "node scripts/verify-render-deployment.mjs",
     "prepare": "husky"
@@ -39,7 +40,8 @@
     "lint-staged": "^15.5.2",
     "prettier": "^3.7.4",
     "turbo": "^2.10.4",
-    "typescript": "6.0.3"
+    "typescript": "6.0.3",
+    "yaml": "2.9.0"
   },
   "lint-staged": {
     "*.{ts,tsx,md,json,yml,yaml}": "prettier --write"
