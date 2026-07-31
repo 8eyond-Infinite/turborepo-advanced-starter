@@ -16,9 +16,9 @@ FROM base AS builder
 RUN pnpm install --frozen-lockfile
 COPY . .
 ENV NODE_ENV=production
-ENV API_URL=https://api.build.example.invalid
-ENV SESSION_SECRET=build-only-session-secret-0123456789abcdef
-RUN pnpm turbo run build --filter=client...
+RUN API_URL=https://api.build.example.invalid \
+  SESSION_SECRET=build-only-session-secret-0123456789abcdef \
+  pnpm turbo run build --filter=client...
 
 FROM node:20-alpine AS runner
 ENV NODE_ENV=production

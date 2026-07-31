@@ -217,19 +217,27 @@ jobs:
           retention-days: 7
 
   image:
-    name: Build image, SBOM, vulnerability scan
+    name: Build ${{ matrix.image }} image, SBOM, vulnerability scan
     runs-on: ubuntu-latest
     # Chỉ publish khi code đã qua đủ quality gate và E2E
     needs: [quality, e2e, admin-browser-e2e]
     permissions:
       contents: read
       packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: server
+            dockerfile: apps/server/Dockerfile
+          - image: client
+            dockerfile: apps/client/Dockerfile
     steps:
       - uses: actions/checkout@v4
 
       # ghcr yêu cầu tên image chữ thường; tên repo có chữ hoa
       - name: Resolve image name
-        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}/server" >> "$GITHUB_ENV"
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}/${{ matrix.image }}" >> "$GITHUB_ENV"
 
       # Use the Docker engine already installed on the hosted runner. A
       # container-backed Buildx builder must first pull moby/buildkit from
@@ -237,7 +245,7 @@ jobs:
       - name: Build image locally for scanning
         run: >-
           docker build
-          --file apps/server/Dockerfile
+          --file ${{ matrix.dockerfile }}
           --tag "$IMAGE:${{ github.sha }}"
           .
 
@@ -246,7 +254,7 @@ jobs:
         with:
           image: ${{ env.IMAGE }}:${{ github.sha }}
           format: spdx-json
-          artifact-name: server-sbom.spdx.json
+          artifact-name: ${{ matrix.image }}-sbom.spdx.json
 
       - name: Scan image for vulnerabilities (trivy)
         uses: aquasecurity/trivy-action@v0.36.0
