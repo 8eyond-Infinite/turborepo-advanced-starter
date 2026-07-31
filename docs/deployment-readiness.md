@@ -86,5 +86,12 @@ nội dung email end-to-end.
 `scripts/backup-postgres.sh` tạo PostgreSQL custom-format dump với permission riêng tư và checksum SHA-256 trong
 `deploy/compose/backups`. `scripts/verify-postgres-restore.sh <backup.dump>` kiểm tra checksum, restore vào một database
 cô lập có tên `restore_verify_*`, xác nhận có bảng rồi tự xóa database kiểm tra. Script không restore đè database live.
-Một file dump chỉ được coi là backup usable sau khi restore verifier pass; production vẫn phải sao chép backup đã mã
-hóa sang storage khác host và áp dụng retention policy.
+
+Scheduler gọi `scripts/backup-and-verify.sh`, không gọi hai script rời. Một cycle chỉ được coi là thành công sau khi dump
+mới restore được. `BACKUP_RETENTION_DAYS` để trống thì không xóa gì; chỉ đặt số ngày sau khi bản mã hóa đã được đẩy sang
+storage khác host và quá trình lấy lại bản off-host đã được thử. Retention chỉ chạy sau restore thành công và chỉ xóa cặp
+`.dump`/`.sha256` đúng tên database trong thư mục backup đã resolve; script từ chối filesystem root.
+
+`deploy/systemd/` cung cấp service/timer mẫu chạy mỗi ngày. Unit giả định repo ở `/opt/turborepo-starter`, user/group
+`turborepo`; phải sửa ba giá trị này theo host thật trước khi cài. Systemd chỉ tự động hóa local verified copy — production
+vẫn cần một job/provider riêng mã hóa và sao chép backup ra khỏi VPS.

@@ -487,6 +487,7 @@ Named volume trên máy local không phải là bản sao lưu. PostgreSQL produ
 - khôi phục về đúng một thời điểm (point-in-time recovery) nếu có yêu cầu;
 - diễn tập khôi phục (restore drill) để chắc rằng bản sao lưu dùng được thật;
 - chính sách thời gian lưu giữ bản sao lưu (retention);
+- scheduler gọi `backup-and-verify.sh` và cảnh báo khi cycle thất bại;
 - mã hóa và kiểm soát truy cập.
 
 Session/cache trong Redis có thể dựng lại được một phần, nhưng phải hiểu rõ hai điều khi mất Redis: queue còn giữ được việc đang chờ hay không, và các phiên đăng nhập bị ảnh hưởng thế nào.

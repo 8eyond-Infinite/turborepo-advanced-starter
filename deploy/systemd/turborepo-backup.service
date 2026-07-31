@@ -1,0 +1,19 @@
+[Unit]
+Description=Turborepo starter PostgreSQL backup and restore verification
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+User=turborepo
+Group=turborepo
+WorkingDirectory=/opt/turborepo-starter
+ExecStart=/opt/turborepo-starter/deploy/compose/scripts/backup-and-verify.sh
+
+# The job needs Docker access and its repository backup directory, but no network
+# capability beyond what Docker itself performs.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/turborepo-starter/deploy/compose/backups

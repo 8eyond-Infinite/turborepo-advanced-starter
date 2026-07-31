@@ -35,4 +35,7 @@ if [ ! -s "$backup_file" ]; then
 fi
 
 (cd "$BACKUP_DIR" && sha256sum "$(basename "$backup_file")" > "$(basename "$backup_file").sha256")
+if [ -n "${BACKUP_RESULT_FILE:-}" ]; then
+  printf '%s\n' "$backup_file" > "$BACKUP_RESULT_FILE"
+fi
 echo "PostgreSQL backup created: $backup_file"

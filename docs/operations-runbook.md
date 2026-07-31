@@ -481,6 +481,19 @@ Nếu browser không có request và server không có log, kiểm tra CSP `conn
 | -------------------------------------------- | -------------------- | -------------------------------------------------------------------------------- |
 | Xem PR của Dependabot                        | Hàng tuần            | Gộp bản vá bảo mật sớm; CI đã chặn CVE mức HIGH                                  |
 | Diễn tập khôi phục từ backup                 | Hàng quý             | Backup chưa từng khôi phục thử thì chưa phải backup                              |
+| Kiểm tra timer và bản backup mới nhất        | Hàng tuần            | `systemctl list-timers`; cycle gần nhất phải có restore verifier thành công      |
 | Xem lại quyền và tài khoản admin             | Hàng quý             | Gỡ tài khoản không còn cần                                                       |
 | Kiểm tra kích thước bảng `outbox_events`     | Hàng quý             | Đã tự dọn mỗi giờ theo `OUTBOX_RETENTION_DAYS`; chỉ cần xác nhận nó thật sự chạy |
 | Kiểm tra sàn coverage và các mục nợ kỹ thuật | Mỗi lần lập kế hoạch | Xem mục technical debt trong README                                              |
+
+### 6.1 Khi backup timer thất bại
+
+```bash
+systemctl status turborepo-backup.service --no-pager
+journalctl -u turborepo-backup.service --since '2 days ago' --no-pager
+```
+
+Phân biệt ba checkpoint trong log: dump được tạo; checksum/restore cô lập pass; retention hoàn tất. Nếu dump tạo được nhưng
+restore fail, giữ nguyên file để điều tra và không xóa backup cũ. Nếu disk đầy, không tăng retention hoặc xóa tay trước khi
+xác nhận có bản off-host dùng được. Sửa nguyên nhân rồi chạy lại `sudo systemctl start turborepo-backup.service`; không cần
+restart API/worker vì backup dùng `pg_dump` qua PostgreSQL container đang chạy.
