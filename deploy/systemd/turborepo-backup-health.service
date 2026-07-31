@@ -1,0 +1,15 @@
+[Unit]
+Description=Verify turborepo starter PostgreSQL backup freshness
+
+[Service]
+Type=oneshot
+User=turborepo
+Group=turborepo
+WorkingDirectory=/opt/turborepo-starter
+ExecStart=/opt/turborepo-starter/deploy/compose/scripts/verify-backup-freshness.sh
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadOnlyPaths=/opt/turborepo-starter/deploy/compose/backups

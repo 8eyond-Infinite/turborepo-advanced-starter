@@ -491,8 +491,9 @@ Named volume trên máy local không phải là bản sao lưu. PostgreSQL produ
 - mã hóa và kiểm soát truy cập.
 
 CI chạy `pnpm verify:backup` với Restic giả lập để khóa contract gọi repository và hai file dump/checksum. Test cũng chứng minh
-password file không đọc được làm cycle fail. Đây là contract test cho orchestration; restore drill với PostgreSQL thật và một
-lần tải snapshot từ storage thật vẫn là checkpoint vận hành bắt buộc.
+password file không đọc được làm cycle fail. Cùng gate kiểm tra freshness contract: heartbeat mới pass; heartbeat quá hạn,
+thiếu hoặc không đủ field phải fail. Đây là contract test cho orchestration; restore drill với PostgreSQL thật và một lần tải
+snapshot từ storage thật vẫn là checkpoint vận hành bắt buộc.
 
 Session/cache trong Redis có thể dựng lại được một phần, nhưng phải hiểu rõ hai điều khi mất Redis: queue còn giữ được việc đang chờ hay không, và các phiên đăng nhập bị ảnh hưởng thế nào.
 

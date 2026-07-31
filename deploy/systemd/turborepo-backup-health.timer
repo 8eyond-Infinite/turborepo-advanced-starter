@@ -1,0 +1,11 @@
+[Unit]
+Description=Check turborepo starter PostgreSQL backup freshness hourly
+
+[Timer]
+OnBootSec=10m
+OnUnitActiveSec=1h
+Persistent=true
+Unit=turborepo-backup-health.service
+
+[Install]
+WantedBy=timers.target
