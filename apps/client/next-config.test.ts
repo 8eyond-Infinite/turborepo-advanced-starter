@@ -5,6 +5,9 @@ import nextConfig, {
 } from "./next.config";
 
 describe("Client production headers", () => {
+  it("produces a minimal self-hostable runtime artifact", () => {
+    expect(nextConfig.output).toBe("standalone");
+  });
   it("keeps the production CSP closed to arbitrary origins and eval", () => {
     const policy = createContentSecurityPolicy("production");
     expect(policy).toContain("default-src 'self'");
