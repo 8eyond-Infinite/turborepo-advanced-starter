@@ -469,6 +469,8 @@ Muốn quay lui (rollback) ứng dụng thì triển khai lại image của phi�
 
 API bật Nest shutdown hooks. Khi được lệnh tắt, adapter, queue, Redis và outbox poller phải ngừng nhận việc mới, chờ các việc đang làm dở trong một giới hạn thời gian, rồi đóng kết nối.
 
+Production bắt buộc đặt `METRICS_TOKEN` ngẫu nhiên tối thiểu 32 ký tự. `GET /metrics` chỉ chấp nhận Bearer token này; local development được phép bỏ trống để quan sát nhanh. API scrape cả trạng thái outbox trong PostgreSQL và queue BullMQ trong Redis. Worker không mở cổng metrics riêng nhưng dùng cùng Pino JSON/redaction với API, nên log của hai process có cùng hình dạng để hệ thống thu thập log xử lý.
+
 Health endpoint nên phân biệt:
 
 - liveness: process còn sống hay không;

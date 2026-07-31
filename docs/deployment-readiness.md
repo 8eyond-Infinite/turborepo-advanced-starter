@@ -62,13 +62,14 @@ Người dùng starter cần cung cấp domain API và domain Admin/Client, data
 Checklist sau deploy:
 
 1. `/health/live` và `/health/ready` trả 2xx.
-2. Migration đã chạy đúng release.
-3. Login, refresh sau reload và logout hoạt động.
-4. Route authorization và notification mark-read đúng user ownership.
-5. Socket.IO trả `101`, nhận notification và force logout.
-6. Caddy cấp TLS đúng domain; CSP cho đúng API/WSS origin.
-7. Worker xử lý queue; outbox không tăng liên tục.
-8. Restore backup được thử trong môi trường cô lập.
+2. `/metrics` trả `401` khi thiếu credential và trả HTTP/outbox/BullMQ series khi gửi đúng Bearer `METRICS_TOKEN`.
+3. Migration đã chạy đúng release.
+4. Login, refresh sau reload và logout hoạt động.
+5. Route authorization và notification mark-read đúng user ownership.
+6. Socket.IO trả `101`, nhận notification và force logout.
+7. Caddy cấp TLS đúng domain; CSP cho đúng API/WSS origin.
+8. Worker xử lý queue; outbox không tăng liên tục.
+9. Restore backup được thử trong môi trường cô lập.
 
 Khi các mục trên chưa có bằng chứng, deployment chỉ là “container đang chạy”, chưa phải release production.
 

@@ -17,6 +17,7 @@ export interface EnvironmentVariables extends Record<string, unknown> {
   JWT_ACCESS_SECRET: string;
   JWT_REFRESH_SECRET: string;
   CORS_ORIGINS: string;
+  METRICS_TOKEN?: string;
   REFRESH_COOKIE_SAME_SITE: RefreshCookieSameSite;
   MAIL_ENABLED: boolean;
   MAIL_HOST?: string;
@@ -80,6 +81,8 @@ export const validateEnvironment = (
     typeof config.REFRESH_COOKIE_SAME_SITE === 'string'
       ? config.REFRESH_COOKIE_SAME_SITE.trim().toLowerCase()
       : 'lax';
+  const metricsToken =
+    typeof config.METRICS_TOKEN === 'string' ? config.METRICS_TOKEN.trim() : '';
 
   if (refreshCookieSameSite !== 'lax' && refreshCookieSameSite !== 'none') {
     throw new Error(
@@ -96,6 +99,12 @@ export const validateEnvironment = (
     );
   }
 
+  if (nodeEnvironment === 'production' && metricsToken.length < 32) {
+    throw new Error(
+      'Environment variable METRICS_TOKEN must contain at least 32 characters in production',
+    );
+  }
+
   return {
     ...config,
     NODE_ENV: nodeEnvironment as NodeEnvironment,
@@ -103,6 +112,7 @@ export const validateEnvironment = (
     DATABASE_URL: requireString(config, 'DATABASE_URL'),
     JWT_ACCESS_SECRET: accessSecret,
     JWT_REFRESH_SECRET: refreshSecret,
+    METRICS_TOKEN: metricsToken || undefined,
     REFRESH_COOKIE_SAME_SITE: refreshCookieSameSite,
     MAIL_ENABLED: mailEnabled,
     MAIL_HOST: mailHost || undefined,

@@ -23,6 +23,7 @@ import { validateEnvironment } from './config/environment';
 import { HealthModule } from '@infrastructure/health/health.module';
 import { MetricsModule } from '@infrastructure/metrics/metrics.module';
 import { HttpMetricsInterceptor } from '@infrastructure/metrics/http-metrics.interceptor';
+import { createPinoHttpOptions } from '@infrastructure/observability/logger.config';
 
 @Module({
   imports: [
@@ -38,24 +39,7 @@ import { HttpMetricsInterceptor } from '@infrastructure/metrics/http-metrics.int
       skipIf: () => process.env.NODE_ENV === 'test',
     }),
     LoggerModule.forRoot({
-      pinoHttp: {
-        level:
-          process.env.LOG_LEVEL ??
-          (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),
-        // RequestContextInterceptor emits the single request-completed line;
-        // pino-http's own access log would duplicate it.
-        autoLogging: false,
-        redact: {
-          paths: ['req.headers.authorization', 'req.headers.cookie'],
-        },
-        transport:
-          process.env.NODE_ENV === 'development'
-            ? {
-                target: 'pino-pretty',
-                options: { singleLine: true, translateTime: 'SYS:HH:MM:ss' },
-              }
-            : undefined,
-      },
+      pinoHttp: createPinoHttpOptions(),
     }),
     MetricsModule,
     PrismaModule,

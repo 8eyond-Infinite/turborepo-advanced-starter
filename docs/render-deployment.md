@@ -71,6 +71,7 @@ DATABASE_URL=postgresql://...
 REDIS_URL=redis://...
 JWT_ACCESS_SECRET=<generated>
 JWT_REFRESH_SECRET=<generated>
+METRICS_TOKEN=<generated, scraper dùng làm Bearer token>
 CORS_ORIGINS=https://<admin-domain>,https://<client-domain>
 REFRESH_COOKIE_SAME_SITE=none
 MAIL_HOST=<provider>

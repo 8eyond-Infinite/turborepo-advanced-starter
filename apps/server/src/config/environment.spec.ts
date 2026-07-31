@@ -43,6 +43,27 @@ describe('environment configuration', () => {
     ).toThrow('at least 32 characters');
   });
 
+  it('requires a metrics bearer token in production', () => {
+    expect(() =>
+      validateEnvironment({
+        ...validConfig,
+        NODE_ENV: 'production',
+        JWT_ACCESS_SECRET: 'a'.repeat(32),
+        JWT_REFRESH_SECRET: 'b'.repeat(32),
+      }),
+    ).toThrow('METRICS_TOKEN must contain at least 32 characters');
+
+    expect(
+      validateEnvironment({
+        ...validConfig,
+        NODE_ENV: 'production',
+        JWT_ACCESS_SECRET: 'a'.repeat(32),
+        JWT_REFRESH_SECRET: 'b'.repeat(32),
+        METRICS_TOKEN: 'c'.repeat(32),
+      }),
+    ).toEqual(expect.objectContaining({ METRICS_TOKEN: 'c'.repeat(32) }));
+  });
+
   it('rejects an unsupported refresh cookie policy', () => {
     expect(() =>
       validateEnvironment({

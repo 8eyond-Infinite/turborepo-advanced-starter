@@ -1,8 +1,20 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { collectDefaultMetrics, Gauge, Histogram, Registry } from 'prom-client';
 import { PrismaService } from '@infrastructure/database/prisma.service';
+import { ModuleRef } from '@nestjs/core';
+import { getQueueToken } from '@nestjs/bullmq';
+import type { Job, Queue } from 'bullmq';
+import { USER_QUEUE } from '@iam/users/application/queues/user-queue.constants';
 
 const OUTBOX_STATUSES = ['PENDING', 'PROCESSING', 'FAILED'] as const;
+const QUEUE_STATUSES = [
+  'waiting',
+  'active',
+  'delayed',
+  'completed',
+  'failed',
+  'paused',
+] as const;
 
 @Injectable()
 export class MetricsService implements OnModuleInit {
@@ -16,7 +28,10 @@ export class MetricsService implements OnModuleInit {
     registers: [this.registry],
   });
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly moduleRef: ModuleRef,
+  ) {}
 
   onModuleInit(): void {
     collectDefaultMetrics({ register: this.registry });
@@ -57,6 +72,41 @@ export class MetricsService implements OnModuleInit {
           oldest
             ? Math.max(0, (Date.now() - oldest.occurredAt.getTime()) / 1000)
             : 0,
+        );
+      },
+    });
+
+    // The API observes queue state through the same Redis-backed BullMQ queue
+    // used by the producer and worker. The worker does not need a second HTTP
+    // server solely for Prometheus scraping.
+    const queue = this.moduleRef.get<Queue>(getQueueToken(USER_QUEUE), {
+      strict: false,
+    });
+
+    new Gauge({
+      name: 'bullmq_jobs',
+      help: 'Number of BullMQ jobs by queue and status',
+      labelNames: ['queue', 'status'] as const,
+      registers: [this.registry],
+      async collect() {
+        const counts = await queue.getJobCounts(...QUEUE_STATUSES);
+        for (const status of QUEUE_STATUSES) {
+          this.set({ queue: USER_QUEUE, status }, counts[status] ?? 0);
+        }
+      },
+    });
+
+    new Gauge({
+      name: 'bullmq_oldest_waiting_job_age_seconds',
+      help: 'Age of the oldest waiting or delayed BullMQ job in seconds',
+      labelNames: ['queue'] as const,
+      registers: [this.registry],
+      async collect() {
+        const jobs = await queue.getJobs(['waiting', 'delayed'], 0, 0, true);
+        const oldest = jobs[0] as Job | undefined;
+        this.set(
+          { queue: USER_QUEUE },
+          oldest ? Math.max(0, (Date.now() - oldest.timestamp) / 1000) : 0,
         );
       },
     });
