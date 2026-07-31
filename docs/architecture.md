@@ -415,12 +415,11 @@ Hệ thống đã có:
 - audit được ghi bền vững xuống database;
 - bảng outbox lưu số lần thử (attempts) và lỗi gần nhất của từng event;
 - frontend có giao diện thử lại khi query lỗi, cùng error boundary ở mức toàn ứng dụng và từng route;
-- frontend observability adapter tạo structured incident, redact credential, giữ `x-correlation-id` của API error và tách boundary khỏi SDK của telemetry vendor.
+- frontend observability adapter tạo structured incident, redact credential, giữ `x-correlation-id` của API error và tách boundary khỏi SDK của telemetry vendor. Sink production đi qua cửa sổ giới hạn theo từng tab: chặn cả tổng report và số lần lặp của cùng fingerprint để một render/socket loop không tạo incident flood.
 
-Hệ thống còn cần:
-
-- giới hạn tần suất và giãn dần nhịp ghi log khi hạ tầng lỗi liên tục, để log không bị spam;
-- chọn và cấu hình telemetry provider production, sampling/rate limit, source map upload và retention policy cho frontend incident.
+Outbox publisher đã có exponential backoff tối đa 30 giây, chỉ log lần lỗi đầu/chạm trần và log recovery; vì vậy lỗi database
+không còn ghi theo poll interval 100 ms. Phần còn phụ thuộc dự án thật là chọn telemetry provider production, cấu hình sampling
+và quota toàn hệ thống, upload source map riêng tư và đặt access/retention policy cho frontend incident.
 
 ## 15. Kiểm thử
 

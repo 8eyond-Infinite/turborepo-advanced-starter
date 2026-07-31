@@ -311,7 +311,10 @@ Nếu query trả row, dùng loại event và thời điểm để tìm tiếp t
 
 Khi Admin gặp lỗi không dự kiến, `src/lib/observability.ts` tạo một report gồm mã lỗi, thời điểm, màn hình và thao tác đang làm. Nếu lỗi tới từ API, report còn có correlation ID để tìm request tương ứng trong backend log.
 
-Trong development, tìm report dưới nhãn `[AdminObservability]` ở browser console. Production gửi report tới provider đã cấu hình qua `configureObservabilitySink`.
+Trong development, tìm report dưới nhãn `[AdminObservability]` ở browser console. Production gửi report tới provider đã cấu
+hình qua `configureObservabilitySink`. Adapter chặn incident flood trước provider: mặc định tối đa 50 report/phút trên một tab
+và 5 report cùng fingerprint/phút. Vì counter nằm trong memory của từng tab, quota và sampling phía provider vẫn là lớp bảo
+vệ bắt buộc cho tổng lưu lượng của toàn bộ người dùng.
 
 Report đã cố loại bearer token và JWT, nhưng người điều tra vẫn không được đính kèm request body, cookie, authorization header hoặc toàn bộ auth store vào ticket.
 
@@ -322,7 +325,9 @@ Report đã cố loại bearer token và JWT, nhưng người điều tra vẫn 
 3. Theo correlation ID sang audit log, outbox event hoặc worker job nếu flow có side effect bất đồng bộ.
 4. Nếu nơi nhận telemetry đang lỗi, kiểm tra nó riêng; mất report không đồng nghĩa application cũng down.
 
-Trước production cần chọn provider, giới hạn lượng report, upload source map ở chế độ riêng tư và quy định ai được xem/lưu bao lâu. Không public source map trên CDN.
+Trước production cần chọn provider, cấu hình sampling/quota phía provider, upload source map ở chế độ riêng tư và quy định ai
+được xem/lưu bao lâu. Không public source map trên CDN. Nếu report ít hơn số lỗi người dùng gặp, kiểm tra cả rate limit của
+browser adapter lẫn sampling/rate limit của provider trước khi kết luận boundary không chạy.
 
 ## 4. Quy trình phát hành
 
