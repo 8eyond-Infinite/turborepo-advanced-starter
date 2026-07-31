@@ -218,7 +218,11 @@ Mỗi input lỗi dùng `aria-invalid` và `aria-describedby`; form-level failur
 
 Mỗi lần `lib/api.ts` gọi NestJS, BFF sinh hoặc tiếp tục header `x-correlation-id`. Backend dùng lại mã đó trong response và structured log, nên một lỗi có thể được lần từ form Client sang đúng request API. Khi request thất bại, `lib/observability.ts` ghi event JSON `client.bff.api_failed` gồm method, path đã bỏ query string, loại lỗi, status, thời gian và khả năng retry.
 
-Event không chứa request body, cookie, Authorization, email, password, raw backend message hay stack. Adapter mặc định ghi JSON ra stderr để chạy trên Vercel, container hoặc VPS; sink có thể nối sang OpenTelemetry/Sentry sau này mà API boundary và feature không phụ thuộc SDK vendor.
+Event không chứa request body, cookie, Authorization, email, password, raw backend message hay stack. Adapter mặc định ghi JSON ra stderr để chạy trên Vercel, container hoặc VPS; sink có thể nối sang OpenTelemetry/Sentry sau này bằng `configureBffObservabilitySink()` mà API boundary và feature không phụ thuộc SDK vendor. Sink ném lỗi luôn bị cô lập để telemetry outage không biến một API failure thành BFF failure mới.
+
+Vì API outage có thể làm mọi request cùng lỗi, adapter giới hạn mặc định 100 failure event trong mỗi cửa sổ 60 giây và 5 event có cùng fingerprint. Fingerprint chỉ gồm method, path đã bỏ query, kind và status; correlation ID không tham gia vì mỗi request có ID riêng. Event vượt giới hạn không biến mất hoàn toàn: adapter phát `client.bff.api_failures_suppressed` khi số bị nén đạt 1, 2, 4, 8... Nhờ vậy log vẫn cho biết phạm vi sự cố nhưng tăng theo logarit thay vì theo số request. Summary theo fingerprint giữ method/path/kind/status; summary global chỉ giữ tổng số, không chứa payload nhạy cảm.
+
+Counter nằm trong memory của từng Next.js instance và reset sau mỗi cửa sổ hoặc khi clock quay lùi. Đây là cầu chì cục bộ, không phải distributed quota; production nhiều replica vẫn phải cấu hình sampling/rate limit và retention ở log/telemetry provider.
 
 ## 7. Quality gates: accessibility và hiệu năng
 

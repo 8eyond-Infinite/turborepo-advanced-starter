@@ -416,6 +416,7 @@ Hệ thống đã có:
 - bảng outbox lưu số lần thử (attempts) và lỗi gần nhất của từng event;
 - frontend có giao diện thử lại khi query lỗi, cùng error boundary ở mức toàn ứng dụng và từng route;
 - frontend observability adapter tạo structured incident, redact credential, giữ `x-correlation-id` của API error và tách boundary khỏi SDK của telemetry vendor. Sink production đi qua cửa sổ giới hạn theo từng tab: chặn cả tổng report và số lần lặp của cùng fingerprint để một render/socket loop không tạo incident flood.
+- Client BFF ghi `client.bff.api_failed` ở server boundary và cô lập lỗi của telemetry sink. Rate limiter theo từng Next.js instance chặn tổng event/cùng fingerprint; các lần bị nén được biểu diễn bằng summary ở mốc lũy thừa hai để operator vẫn thấy outage đang lan rộng mà log không tăng tuyến tính theo traffic.
 
 Outbox publisher đã có exponential backoff tối đa 30 giây, chỉ log lần lỗi đầu/chạm trần và log recovery; vì vậy lỗi database
 không còn ghi theo poll interval 100 ms. Phần còn phụ thuộc dự án thật là chọn telemetry provider production, cấu hình sampling
