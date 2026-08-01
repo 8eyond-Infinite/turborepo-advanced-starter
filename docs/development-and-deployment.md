@@ -442,9 +442,9 @@ CI chạy trên GitHub Actions với hai workflow đã triển khai:
 
 Job **Frontend browser E2E** còn quét tự động WCAG A/AA cho các trang Client đại diện, thử điều hướng bàn phím và chạy acceptance flow đăng nhập thật. Đây là regression gate, không phải tuyên bố toàn bộ sản phẩm đã đạt chứng nhận accessibility. JavaScript budget được đọc từ diagnostics của chính production build; nếu route quan trọng biến mất hoặc vượt 560 KiB thì CI dừng trước khi image được publish.
 
-- `.github/workflows/security.yml` — gitleaks secret scan (full history) và `pnpm audit --prod --audit-level=high`, chạy trên push/PR và theo lịch hàng tuần. Gitleaks được pin phiên bản, tải cùng checksum chính thức và xác minh SHA-256 trước khi cài; không gọi API “latest release” trong mỗi job vì kết quả đó phụ thuộc rate limit và trạng thái GitHub API tại thời điểm chạy.
+- `.github/workflows/security.yml` — gitleaks secret scan (full history) và `pnpm audit --audit-level=high`, chạy trên push/PR và theo lịch hàng tuần. Audit bao gồm cả dependency production lẫn công cụ phát triển: package chỉ chạy trong CI vẫn có thể đọc source, token hoặc artifact nên không được mặc định bỏ qua. Các dependency bắc cầu có bản vá được khóa tập trung bằng `pnpm.overrides` ở `package.json`; mỗi override phải qua toàn bộ test/build trước khi merge. Gitleaks được pin phiên bản, tải cùng checksum chính thức và xác minh SHA-256 trước khi cài; không gọi API “latest release” trong mỗi job vì kết quả đó phụ thuộc rate limit và trạng thái GitHub API tại thời điểm chạy.
 
-Node được pin qua `.nvmrc`, pnpm qua trường `packageManager`. Dependabot cập nhật npm dependencies và GitHub Actions hàng tuần (`.github/dependabot.yml`). Local có husky pre-commit (lint-staged + prettier) và commit-msg (commitlint, conventional commits).
+Node được pin qua `.nvmrc`, pnpm qua trường `packageManager`. Các JavaScript action chính dùng runtime Node 24 (`checkout@v6`, `setup-node@v6`, `upload-artifact@v6` và `pnpm/action-setup@v4.4.0`) để không phụ thuộc runtime Node 20 đã bị GitHub deprecate. Dependabot cập nhật npm dependencies và GitHub Actions hàng tuần (`.github/dependabot.yml`). Local có husky pre-commit (lint-staged + prettier) và commit-msg (commitlint, conventional commits).
 
 Job `image` chạy ma trận cho hai artifact độc lập là `server` và `client`, rồi biến source code đã qua kiểm tra thành Docker image:
 

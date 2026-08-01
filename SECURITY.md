@@ -25,3 +25,9 @@ Trong phạm vi: code trong repo này (server, admin, client, packages), workflo
 ## Các lớp phòng thủ đang có
 
 Để người báo cáo đối chiếu nhanh: refresh token nằm trong HttpOnly cookie; access token thu hồi tức thời qua `tokenVersion`; rate limiting trên nhóm `/auth`; helmet; CORS allowlist (HTTP và Socket.IO dùng chung); secret scan (gitleaks) và audit dependency chạy trên mỗi commit; image được quét trivy trước khi publish. Chi tiết trong [docs/architecture.md](docs/architecture.md).
+
+## Ngoại lệ dependency đang được chấp nhận
+
+`pnpm audit` hiện bỏ qua duy nhất `GHSA-qwww-vcr4-c8h2`. Advisory này chỉ ảnh hưởng các API React Server Components thử nghiệm của React Router. Admin dùng React Router ở chế độ SPA và không bật các API RSC đó, nên đường tấn công được mô tả không tồn tại trong ứng dụng này. Đây là ngoại lệ có phạm vi, không phải cách làm cho CI xanh bằng cách bỏ qua mọi cảnh báo.
+
+Khi Admin chuyển sang RSC, hoặc khi có thể nâng React Router lên bản vá mà không phá vỡ API hiện tại, phải xóa mã advisory khỏi `pnpm.auditConfig.ignoreGhsas` và chạy lại toàn bộ quality, browser E2E và dependency audit. Mọi ngoại lệ mới đều phải ghi rõ package, điều kiện khai thác, lý do repo không bị ảnh hưởng và điều kiện xóa ngoại lệ tại đây.
