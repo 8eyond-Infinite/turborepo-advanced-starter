@@ -93,6 +93,7 @@ model AuditLog {
   createdAt     DateTime @default(now())
 
   @@index([correlationId])
+  @@index([createdAt])
   @@map("audit_logs")
 }
 

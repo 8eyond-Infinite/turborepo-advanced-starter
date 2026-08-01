@@ -37,6 +37,7 @@ audit/
 │       ├── get-audit-logs.query.ts
 │       └── handlers/get-audit-logs.handler.ts
 ├── infrastructure/
+│   ├── audit-retention.service.ts
 │   └── prisma-audit-writer.ts
 ├── presentation/
 │   └── controllers/audit-log.controller.ts
@@ -165,7 +166,11 @@ Không được ghi vào audit:
 - session value;
 - dữ liệu cá nhân không cần thiết.
 
-Endpoint đọc audit trả về dữ liệu nhạy cảm nên phải chặn bằng permission. Còn các bài toán giữ dữ liệu bao lâu (retention), xuất dữ liệu, chống sửa trộm bản ghi và che bớt thông tin nhạy cảm (redaction) thuộc về vận hành production, cần chính sách hạ tầng riêng.
+Endpoint đọc audit trả về dữ liệu nhạy cảm nên phải chặn bằng permission. Starter cung cấp **cơ chế** retention nhưng không tự chọn **chính sách**: `AUDIT_RETENTION_DAYS=0` là mặc định và không xóa gì. Chỉ sau khi dự án thật chốt yêu cầu pháp lý, hợp đồng, điều tra và archive mới đặt số ngày dương. Khi bật, `AuditRetentionService` chạy lúc API khởi động và mỗi 24 giờ, xóa đúng record có `createdAt` nhỏ hơn cutoff. Index `audit_logs_createdAt_idx` giúp database tìm phần dữ liệu cũ mà không quét toàn bảng.
+
+Cleanup là fail-open: lỗi xóa được log nhưng không làm API dừng hoặc readiness đỏ. Mỗi transaction chỉ xóa tối đa 1.000 ID; một cycle dừng ở 100 batch (100.000 record), cảnh báo backlog rồi tiếp tục vào ngày sau. Giới hạn này tránh một lần bật policy trên bảng lâu năm tạo transaction xóa khổng lồ. Nhiều API replica có thể chọn trùng ID nhưng `deleteMany` theo primary key khiến replica chạy sau chỉ xóa ít hơn hoặc bằng 0. Không được hiểu retention là archive: record đã xóa không còn trong API. Nếu policy yêu cầu lưu lạnh, bất biến hoặc legal hold, phải export/verify kho lưu trước khi bật biến này và tắt cleanup trong thời gian hold.
+
+Các bài toán xuất dữ liệu, chống sửa trộm bản ghi, legal hold và redaction theo schema nghiệp vụ vẫn thuộc policy production riêng; starter không giả vờ giải quyết chúng bằng một con số retention chung.
 
 > **Tóm lại:**
 >
@@ -175,6 +180,8 @@ Endpoint đọc audit trả về dữ liệu nhạy cảm nên phải chặn b�
 ## 9. Ý nghĩa từng file
 
 `audit-writer.port.ts` là interface tách tầng application khỏi database: application chỉ biết “hãy ghi bản ghi này”, không biết ghi vào đâu. `prisma-audit-writer.ts` nhận bản ghi đó và INSERT vào bảng AuditLog qua Prisma. `get-audit-logs.*` là use case đọc. `audit-log.controller.ts` nhận request HTTP và trả response. `audit-log.module.ts` khai báo interface writer sẽ do adapter Prisma đảm nhiệm và đăng ký các provider.
+
+`audit-retention.service.ts` là lifecycle adapter của chính Audit context. Nó đọc policy từ configuration, quản lý timer và chờ cleanup đang chạy khi application shutdown. Nó không nằm trong query handler hoặc writer vì xóa theo tuổi là maintenance concern, không phải một phần của write/read use case.
 
 Ở thư mục gốc, `audit-log.decorator.ts` chỉ gắn nhãn metadata lên endpoint; `audit-log.interceptor.ts` mới là nơi làm việc: đọc nhãn đó, dựng bản ghi và gọi writer cho mọi endpoint có gắn nhãn.
 

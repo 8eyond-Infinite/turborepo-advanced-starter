@@ -501,6 +501,7 @@ Nếu browser không có request và server không có log, kiểm tra CSP `conn
 | Kiểm tra timer và bản backup mới nhất        | Hàng tuần            | Health timer chạy mỗi giờ; operator vẫn xem alert route và snapshot off-host     |
 | Xem lại quyền và tài khoản admin             | Hàng quý             | Gỡ tài khoản không còn cần                                                       |
 | Kiểm tra kích thước bảng `outbox_events`     | Hàng quý             | Đã tự dọn mỗi giờ theo `OUTBOX_RETENTION_DAYS`; chỉ cần xác nhận nó thật sự chạy |
+| Xem lại audit retention/legal hold           | Hàng quý             | Mặc định tắt; không bật hoặc đổi số ngày nếu chưa có owner của policy            |
 | Kiểm tra sàn coverage và các mục nợ kỹ thuật | Mỗi lần lập kế hoạch | Xem mục technical debt trong README                                              |
 
 ### 6.1 Khi backup timer thất bại
@@ -524,3 +525,19 @@ restart API/worker vì backup dùng `pg_dump` qua PostgreSQL container đang ch�
 Health service fail không nhất thiết database backup đang chạy dở; nó nói rằng **chưa có bằng chứng về một cycle thành công
 đủ mới**. Không sửa timestamp của `.last-success` bằng tay. Kiểm tra log backup chính, sửa nguyên nhân rồi chạy lại toàn bộ
 backup service. Chỉ cycle thật sự pass mới được cập nhật heartbeat.
+
+### 6.2 Khi audit retention báo lỗi
+
+Tìm log context `AuditRetentionService`. Cleanup fail-open nên API vẫn phục vụ; điều đó không có nghĩa lỗi có thể bị bỏ qua,
+vì bảng tiếp tục tăng và policy dữ liệu không được thực thi. Kiểm tra kết nối database, quyền `DELETE`, migration index và disk.
+Không xóa tay theo phỏng đoán. Query read-only trước:
+
+```sql
+SELECT COUNT(*) AS expired_rows
+FROM audit_logs
+WHERE "createdAt" < NOW() - INTERVAL '<retention days> days';
+```
+
+Nếu `AUDIT_RETENTION_DAYS=0`, không có cleanup là behavior đúng. Trước khi đổi sang số dương, xác nhận bằng văn bản thời hạn,
+archive đã lấy lại thử được và không có legal hold. Thay đổi policy qua deployment configuration rồi quan sát log count; không
+chạy câu `DELETE` ad-hoc trong incident.

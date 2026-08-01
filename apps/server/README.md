@@ -139,6 +139,7 @@ Notifications sở hữu notification entity, trạng thái read/unread và API 
 ### Audit
 
 Audit sở hữu audit record và read API. Các context khác chỉ gắn metadata `@AuditLog`; việc ghi dữ liệu đi qua `AuditWriter`.
+Retention cũng thuộc Audit context nhưng mặc định tắt: `AUDIT_RETENTION_DAYS=0`. Dự án thật chỉ bật sau khi chốt archive, legal hold và thời hạn lưu; cleanup lỗi được log nhưng không làm gián đoạn API.
 
 ### Analytics, Menu và Storage
 

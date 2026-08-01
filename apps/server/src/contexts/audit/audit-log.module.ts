@@ -5,12 +5,14 @@ import { AuditLogController } from './presentation/controllers/audit-log.control
 import { GetAuditLogsQueryHandler } from './application/queries/handlers/get-audit-logs.handler';
 import { AUDIT_WRITER } from './application/ports/audit-writer.port';
 import { PrismaAuditWriter } from './infrastructure/prisma-audit-writer';
+import { AuditRetentionService } from './infrastructure/audit-retention.service';
 
 @Module({
   imports: [CqrsModule, PrismaModule],
   controllers: [AuditLogController],
   providers: [
     GetAuditLogsQueryHandler,
+    AuditRetentionService,
     {
       provide: AUDIT_WRITER,
       useClass: PrismaAuditWriter,
