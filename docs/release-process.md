@@ -77,6 +77,8 @@ Mỗi package GHCR (`server` và `client`) có thể mang nhiều tag. Hai packa
 
 Repository dùng branch protection để biến quy trình trong tài liệu thành rule thực thi được. `main` yêu cầu pull request, branch phải cập nhật với base và các check lõi phải xanh: quality/build, Backend E2E, Frontend browser E2E, image/SBOM/vulnerability scan cho Server và Client, dependency audit và secret scan. Maintainer cũng không được bỏ qua rule; force-push và delete branch bị tắt.
 
+Merge policy chỉ cho squash merge, tự xóa source branch và cho phép auto-merge sau khi required checks xanh. PR title phải theo Conventional Commits vì nó trở thành commit duy nhất trên `main`. Quy tắc một PR → một commit phát hành giúp release-please không tạo hai changelog entry cho cùng một feature từ merge commit và commit con.
+
 Vercel Preview không nằm trong required checks của starter vì không có API staging thuộc sở hữu repo. Ở dự án sản phẩm, chỉ thêm Vercel vào danh sách bắt buộc sau khi Preview thật sự gọi được backend staging; một deployment chỉ build được với URL `.invalid` vẫn là artifact-only.
 
 ### Quyền cho release automation

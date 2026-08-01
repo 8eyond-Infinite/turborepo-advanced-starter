@@ -32,6 +32,8 @@ Cài môi trường theo mục "Quick start" trong [README.md](README.md).
 
 `main` được bảo vệ bằng GitHub branch protection. Mọi thay đổi, kể cả của maintainer, phải đi qua pull request và các check bắt buộc: quality/build, Backend E2E, Frontend browser E2E, hai image scan, dependency audit và secret scan. Vercel Preview không phải required check vì starter không sở hữu một API staging public; project sản phẩm chỉ nên đưa Vercel vào required checks sau khi Preview đã có backend staging thật.
 
+Repository chỉ cho **squash merge** và tự xóa branch sau merge. PR title phải là một Conventional Commit hợp lệ vì title đó trở thành commit duy nhất trên `main`. Không bật lại merge commit hoặc rebase merge: release-please có thể nhìn cả PR merge lẫn các `feat:` con và đưa cùng một thay đổi vào release note hai lần.
+
 ## Commit message
 
 Commit theo [Conventional Commits](https://www.conventionalcommits.org/) — hook `commit-msg` (commitlint) sẽ chặn message sai định dạng:
