@@ -69,6 +69,14 @@ services:
     ports:
       - '1083:1080'
       - '1025:1025'
+    healthcheck:
+      # The image default probes localhost, which resolves to IPv6 on some
+      # Docker hosts while Maildev listens on IPv4. Pin the loopback family.
+      test: ['CMD', 'wget', '--spider', '-q', 'http://127.0.0.1:1080/']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
 
 volumes:
   postgres_data:
