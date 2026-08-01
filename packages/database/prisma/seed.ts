@@ -212,6 +212,10 @@ async function main() {
           email: adminEmail,
           username: 'admin',
           password: await bcrypt.hash(adminPassword, 10),
+          // The bootstrap administrator is provisioned by an operator rather
+          // than through public registration. Mark it verified so enabling
+          // EMAIL_VERIFICATION_REQUIRED cannot lock operators out.
+          emailVerifiedAt: new Date(),
           isActive: true,
           isDeleted: false,
         },

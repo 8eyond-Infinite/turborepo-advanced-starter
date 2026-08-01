@@ -231,6 +231,8 @@ Không xóa row outbox để “làm sạch”. Row đó là bằng chứng cho 
 
 **Người dùng thấy:** thao tác tạo user hoặc vô hiệu hóa user thành công nhưng email không tới.
 
+Trường hợp đăng ký công khai cũng đi qua worker khi email verification được bật. Nếu user báo “đăng ký xong nhưng không đăng nhập được”, kiểm tra `EMAIL_VERIFICATION_REQUIRED`, rồi xác nhận họ có nhận mail chứa `/verify-email` hay không. Có thể yêu cầu user dùng `/check-email` để gửi lại; không cần tạo account lần nữa.
+
 API không gửi email trực tiếp. Nó đưa một job vào queue; worker là process riêng đọc job và gọi SMTP. Vì vậy cần tìm xem job đã đi tới đâu.
 
 **Bước 1 — Worker có đang chạy không?**
@@ -257,6 +259,8 @@ Worker phải `Up` và log startup có dòng đang consume queue.
 - Không có job: quay lại outbox; event có thể chưa được publisher chuyển vào queue.
 
 **Bước 3 — Khôi phục:** sửa Redis/SMTP hoặc khởi động lại worker sau khi đã lưu log. Job còn trong queue sẽ được xử lý tiếp. Không tạo lại user chỉ để kích hoạt email lần nữa vì sẽ tạo nghiệp vụ trùng.
+
+Với email xác minh, resend tạo token mới và vô hiệu link cũ. Endpoint luôn trả `202`, nên response giống nhau không chứng minh job đã được tạo; đối chiếu worker log và SMTP provider. Không truy vấn token gốc trong PostgreSQL vì database chỉ có SHA-256 hash.
 
 ### 3.5 Nghi ngờ tài khoản bị chiếm quyền
 

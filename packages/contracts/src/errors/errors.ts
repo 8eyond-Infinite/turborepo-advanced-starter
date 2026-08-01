@@ -10,6 +10,16 @@ export const Errors = {
     translationKey: 'exceptions.password.reset.token.invalid',
     statusCode: 400,
   },
+  EMAIL_NOT_VERIFIED: {
+    code: 'EMAIL_NOT_VERIFIED',
+    translationKey: 'exceptions.email.not.verified',
+    statusCode: 403,
+  },
+  INVALID_EMAIL_VERIFICATION_TOKEN: {
+    code: 'INVALID_EMAIL_VERIFICATION_TOKEN',
+    translationKey: 'exceptions.email.verification.token.invalid',
+    statusCode: 400,
+  },
   UNAUTHORIZED: {
     code: 'UNAUTHORIZED',
     translationKey: 'exceptions.unauthorized',

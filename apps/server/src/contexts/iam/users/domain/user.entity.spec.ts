@@ -58,6 +58,18 @@ describe('UserEntity', () => {
     expect(user.tokenVersion).toBe(initialTokenVersion);
   });
 
+  it('requires verification again when the email address changes', () => {
+    const user = UserEntity.register({
+      id: 'verified-user',
+      email: 'old@example.com',
+      username: 'verified',
+      passwordHash: 'hash',
+      emailVerifiedAt: new Date(),
+    });
+    user.updateInfo('new@example.com', user.username, user.avatar);
+    expect(user.emailVerifiedAt).toBeNull();
+  });
+
   it('revokes access tokens once only when the assigned role set changes', () => {
     const user = registerUser();
     const initialTokenVersion = user.tokenVersion;

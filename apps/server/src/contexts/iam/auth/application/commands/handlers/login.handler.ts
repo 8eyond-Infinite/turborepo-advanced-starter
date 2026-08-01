@@ -23,6 +23,7 @@ import {
   getRefreshSessionAbsoluteExpiry,
   REFRESH_SESSION_ABSOLUTE_TTL_SECONDS,
 } from '../../../domain/session-policy';
+import { EmailNotVerifiedException } from '../../../domain/exceptions/email-not-verified.exception';
 
 @CommandHandler(LoginCommand)
 export class LoginCommandHandler implements ICommandHandler<
@@ -62,6 +63,13 @@ export class LoginCommandHandler implements ICommandHandler<
     );
     if (!isPasswordValid) {
       return Result.fail(new InvalidCredentialsException());
+    }
+
+    if (
+      this.configService.get<boolean>('EMAIL_VERIFICATION_REQUIRED', false) &&
+      !user.emailVerifiedAt
+    ) {
+      return Result.fail(new EmailNotVerifiedException());
     }
 
     const permissions = await this.userRepository.getPermissions(user.id);

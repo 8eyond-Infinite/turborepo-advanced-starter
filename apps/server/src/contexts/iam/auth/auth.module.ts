@@ -12,6 +12,8 @@ import {
   RevokeOtherSessionsCommandHandler,
   RequestPasswordResetHandler,
   ResetPasswordHandler,
+  VerifyEmailHandler,
+  RequestEmailVerificationHandler,
 } from './application/commands/handlers';
 import { GetActiveSessionsQueryHandler } from './application/queries/handlers';
 import { UsersModule } from '../users/users.module';
@@ -23,6 +25,9 @@ import { AccessTokenValidator } from './application/services/access-token-valida
 import { QueueModule } from '@infrastructure/queue/queue.module';
 import { PASSWORD_RESET_TOKEN_STORE } from './domain/ports/password-reset-token-store.port';
 import { PrismaPasswordResetTokenStore } from './infrastructure/stores/prisma-password-reset-token.store';
+import { EMAIL_VERIFICATION_TOKEN_STORE } from './domain/ports/email-verification-token-store.port';
+import { PrismaEmailVerificationTokenStore } from './infrastructure/stores/prisma-email-verification-token.store';
+import { EmailVerificationService } from './application/services/email-verification.service';
 
 @Module({
   imports: [
@@ -51,9 +56,16 @@ import { PrismaPasswordResetTokenStore } from './infrastructure/stores/prisma-pa
     AccessTokenValidator,
     RequestPasswordResetHandler,
     ResetPasswordHandler,
+    VerifyEmailHandler,
+    RequestEmailVerificationHandler,
+    EmailVerificationService,
     {
       provide: PASSWORD_RESET_TOKEN_STORE,
       useClass: PrismaPasswordResetTokenStore,
+    },
+    {
+      provide: EMAIL_VERIFICATION_TOKEN_STORE,
+      useClass: PrismaEmailVerificationTokenStore,
     },
   ],
   exports: [

@@ -18,6 +18,11 @@ export interface UserRepository {
   findById(id: string): Promise<UserEntity | null>;
   findByEmail(email: string): Promise<UserEntity | null>;
   changePassword(userId: string, passwordHash: string): Promise<boolean>;
+  markEmailVerified(
+    userId: string,
+    email: string,
+    verifiedAt: Date,
+  ): Promise<boolean>;
   findExistingRoleNames(names: string[]): Promise<string[]>;
   getPermissions(userId: string): Promise<string[]>;
   findAll(

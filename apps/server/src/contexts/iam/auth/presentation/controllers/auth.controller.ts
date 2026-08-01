@@ -26,6 +26,8 @@ import {
   LoginDto,
   RequestPasswordResetDto,
   ResetPasswordDto,
+  VerifyEmailDto,
+  RequestEmailVerificationDto,
 } from '../dtos';
 import {
   RegisterCommand,
@@ -37,6 +39,8 @@ import {
   RevokeOtherSessionsCommand,
   RequestPasswordResetCommand,
   ResetPasswordCommand,
+  VerifyEmailCommand,
+  RequestEmailVerificationCommand,
 } from '../../application/commands';
 
 import { GetActiveSessionsQuery } from '../../application/queries';
@@ -86,6 +90,27 @@ export class AuthController {
     return { success: true };
   }
 
+  @Post('email-verification/request')
+  @Throttle({ default: { limit: 3, ttl: 60_000 } })
+  @HttpCode(HttpStatus.ACCEPTED)
+  async requestEmailVerification(@Body() dto: RequestEmailVerificationDto) {
+    await this.commandBus.execute(
+      new RequestEmailVerificationCommand(dto.email),
+    );
+    return {
+      accepted: true,
+      message: 'If verification is needed, a link will be sent.',
+    };
+  }
+
+  @Post('email-verification/confirm')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @HttpCode(HttpStatus.OK)
+  async verifyEmail(@Body() dto: VerifyEmailDto) {
+    await this.commandBus.execute(new VerifyEmailCommand(dto.token));
+    return { success: true };
+  }
+
   @Post('register')
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.CREATED)
@@ -104,7 +129,10 @@ export class AuthController {
       }),
     );
     const user = result.unwrap();
-    return UserPresenter.toResponse(user);
+    return {
+      ...UserPresenter.toResponse(user),
+      emailVerificationRequired: !user.emailVerifiedAt,
+    };
   }
 
   @Post('login')

@@ -95,6 +95,25 @@ const login = async (
 };
 
 test.describe("Client authentication boundary", () => {
+  test("registers through the BFF without exposing tokens to the browser", async ({
+    page,
+  }) => {
+    const identity = uniqueIdentity();
+    await page.goto("/register");
+    await page.getByLabel("Email").fill(identity.email);
+    await page.getByLabel("Tên hiển thị").fill(identity.username);
+    await page.getByLabel("Mật khẩu", { exact: true }).fill(identity.password);
+    await page.getByLabel("Nhập lại mật khẩu").fill(identity.password);
+    await page.getByRole("button", { name: "Tạo tài khoản" }).click();
+
+    await expect(page).toHaveURL(/\/login\?registered=1$/);
+    expect(
+      (await page.context().cookies()).some(
+        (cookie) => cookie.name === SESSION_COOKIE,
+      ),
+    ).toBe(false);
+  });
+
   test("redirects an unauthenticated visitor to the requested protected page", async ({
     page,
   }) => {

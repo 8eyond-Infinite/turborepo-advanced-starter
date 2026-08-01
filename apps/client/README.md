@@ -37,6 +37,10 @@ Hệ quả cụ thể:
 
 ## 2. Vòng đời một phiên đăng nhập
 
+Trước login có thể có một bước xác minh email. Form `/register` gọi backend qua Server Action, không gọi API trực tiếp từ browser. Nếu backend trả `emailVerificationRequired=true`, Client chuyển người dùng tới `/check-email`; liên kết trong mail mở `/verify-email?token=...`, và Server Action gửi token tới endpoint confirm. Màn hình check-email cũng có form gửi lại link. Response gửi lại luôn nói chung chung để giao diện không tiết lộ email nào đã tồn tại.
+
+Khi policy backend đang tắt, đăng ký chuyển thẳng tới `/login?registered=1`. Khi policy bật, login bằng đúng password nhưng email chưa xác minh hiển thị hướng dẫn gửi lại link. Client chỉ trình bày trạng thái; backend mới là nơi quyết định có được cấp token hay không.
+
 ```mermaid
 sequenceDiagram
     actor U as Người dùng
@@ -69,7 +73,7 @@ Nếu hệ thống chạy nhiều Next.js instance, mỗi instance vẫn có th�
 apps/client/
 ├── app/
 │   ├── (public)/             # Route công khai
-│   ├── (auth)/login/         # Route đăng nhập, chỉ compose Auth feature
+│   ├── (auth)/               # Login/register/verify/reset, chỉ compose Auth feature
 │   └── (protected)/          # Layout và route cần session
 ├── features/
 │   ├── auth/                 # Login/logout action và form

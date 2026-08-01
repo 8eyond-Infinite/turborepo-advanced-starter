@@ -15,6 +15,7 @@ export class PrismaUserMapper {
       isActive: raw.isActive,
       isDeleted: raw.isDeleted,
       tokenVersion: raw.tokenVersion,
+      emailVerifiedAt: raw.emailVerifiedAt,
       roles: raw.userRoles ? raw.userRoles.map((ur) => ur.role.name) : [],
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,

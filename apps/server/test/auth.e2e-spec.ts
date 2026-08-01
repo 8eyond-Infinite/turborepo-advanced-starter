@@ -9,6 +9,7 @@ import { PrismaService } from '../src/infrastructure/database/prisma.service';
 import { getQueueToken } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { USER_QUEUE } from '../src/contexts/iam/users/application/queues/user-queue.constants';
+import { ConfigService } from '@nestjs/config';
 
 describe('AuthController (E2E)', () => {
   let app: INestApplication;
@@ -198,6 +199,71 @@ describe('AuthController (E2E)', () => {
         unexpected: true,
       })
       .expect(HttpStatus.BAD_REQUEST);
+  });
+
+  it('/auth/email-verification -> blocks login until a one-time link is consumed', async () => {
+    const config = app.get(ConfigService);
+    config.set('EMAIL_VERIFICATION_REQUIRED', true);
+    const email = `verify.${Date.now()}@example.com`;
+    const password = 'verify-password-123';
+
+    try {
+      const registered = await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({ email, username: `verify_${Date.now()}`, password })
+        .expect(HttpStatus.CREATED);
+      expect(registered.body.emailVerificationRequired).toBe(true);
+
+      await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ email, password })
+        .expect(HttpStatus.FORBIDDEN)
+        .expect(({ body }) => expect(body.code).toBe('EMAIL_NOT_VERIFIED'));
+
+      const unknown = await request(app.getHttpServer())
+        .post('/auth/email-verification/request')
+        .send({ email: `unknown.${Date.now()}@example.com` })
+        .expect(HttpStatus.ACCEPTED);
+      const known = await request(app.getHttpServer())
+        .post('/auth/email-verification/request')
+        .send({ email })
+        .expect(HttpStatus.ACCEPTED);
+      expect(known.body).toEqual(unknown.body);
+
+      const queue = app.get<Queue>(getQueueToken(USER_QUEUE));
+      const verificationJob = await waitForQueueJob(
+        queue,
+        (job) =>
+          job.name === 'send-email-verification' &&
+          typeof job.data === 'object' &&
+          job.data !== null &&
+          'email' in job.data &&
+          job.data.email === email,
+      );
+      const verificationUrl = new URL(
+        (verificationJob.data as { verificationUrl: string }).verificationUrl,
+      );
+      const token = verificationUrl.searchParams.get('token');
+      expect(token).toBeTruthy();
+
+      await request(app.getHttpServer())
+        .post('/auth/email-verification/confirm')
+        .send({ token })
+        .expect(HttpStatus.OK);
+      await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ email, password })
+        .expect(HttpStatus.OK);
+      await request(app.getHttpServer())
+        .post('/auth/email-verification/confirm')
+        .send({ token })
+        .expect(HttpStatus.BAD_REQUEST)
+        .expect(({ body }) =>
+          expect(body.code).toBe('INVALID_EMAIL_VERIFICATION_TOKEN'),
+        );
+    } finally {
+      config.set('EMAIL_VERIFICATION_REQUIRED', false);
+    }
   });
 
   it('/auth/login (POST) -> Nên trả về Access & Refresh Token', async () => {

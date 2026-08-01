@@ -36,6 +36,15 @@ export function LoginForm({ next }: { next: string }) {
         </p>
       ) : null}
 
+      {state.verificationRequired && state.status === "error" ? (
+        <Link
+          href={`/check-email?email=${encodeURIComponent(state.values?.email ?? "")}`}
+          className="text-sm underline"
+        >
+          Gửi lại email xác minh
+        </Link>
+      ) : null}
+
       <label className="flex flex-col gap-1 text-sm">
         Email
         <input
@@ -86,6 +95,9 @@ export function LoginForm({ next }: { next: string }) {
       >
         {isPending ? "Đang đăng nhập…" : "Đăng nhập"}
       </button>
+      <Link href="/register" className="text-sm underline">
+        Chưa có tài khoản? Tạo tài khoản
+      </Link>
     </form>
   );
 }

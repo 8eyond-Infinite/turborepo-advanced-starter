@@ -12,6 +12,7 @@ export interface UserProps {
   isActive: boolean;
   isDeleted: boolean;
   tokenVersion: number;
+  emailVerifiedAt?: Date | null;
   avatar?: string | null;
   roles: string[];
   createdAt: Date;
@@ -28,6 +29,7 @@ export interface UserPrimitives {
   isActive: boolean;
   isDeleted: boolean;
   tokenVersion: number;
+  emailVerifiedAt: Date | null;
   avatar?: string | null;
   roles: string[];
   createdAt: Date;
@@ -53,6 +55,7 @@ export class UserEntity extends AggregateRoot {
     avatar?: string | null;
     roles?: string[];
     createdBy?: string;
+    emailVerifiedAt?: Date | null;
   }): UserEntity {
     const user = UserEntity.create({
       id: new UserId(props.id),
@@ -63,6 +66,7 @@ export class UserEntity extends AggregateRoot {
       isActive: true,
       isDeleted: false,
       tokenVersion: 0,
+      emailVerifiedAt: props.emailVerifiedAt ?? null,
       roles: props.roles || ['USER'],
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -100,6 +104,9 @@ export class UserEntity extends AggregateRoot {
   public get tokenVersion(): number {
     return this.props.tokenVersion;
   }
+  public get emailVerifiedAt(): Date | null {
+    return this.props.emailVerifiedAt ?? null;
+  }
   public get roles(): string[] {
     return this.props.roles;
   }
@@ -135,9 +142,11 @@ export class UserEntity extends AggregateRoot {
     avatar?: string | null,
     updatedBy?: string,
   ): void {
+    const emailChanged = this.props.email.value !== new Email(email).value;
     this.props.email = new Email(email);
     this.props.username = new Username(username);
     this.props.avatar = avatar ?? null;
+    if (emailChanged) this.props.emailVerifiedAt = null;
     this.trackUpdate(updatedBy);
   }
 
@@ -192,6 +201,7 @@ export class UserEntity extends AggregateRoot {
       isActive: this.props.isActive,
       isDeleted: this.props.isDeleted,
       tokenVersion: this.props.tokenVersion,
+      emailVerifiedAt: this.props.emailVerifiedAt ?? null,
       roles: this.props.roles,
       createdAt: this.props.createdAt,
       updatedAt: this.props.updatedAt,

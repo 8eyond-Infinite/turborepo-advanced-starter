@@ -84,6 +84,7 @@ export class PrismaUserRepository implements UserRepository {
         isActive: data.isActive,
         isDeleted: data.isDeleted,
         tokenVersion: data.tokenVersion,
+        emailVerifiedAt: data.emailVerifiedAt,
         updatedBy: data.updatedBy,
       },
       create: {
@@ -96,6 +97,7 @@ export class PrismaUserRepository implements UserRepository {
         isDeleted: data.isDeleted,
         tokenVersion: data.tokenVersion,
         createdBy: data.createdBy,
+        emailVerifiedAt: data.emailVerifiedAt,
       },
     });
 
@@ -173,6 +175,24 @@ export class PrismaUserRepository implements UserRepository {
         tokenVersion: { increment: 1 },
         updatedAt: new Date(),
       },
+    });
+    return result.count === 1;
+  }
+
+  async markEmailVerified(
+    userId: string,
+    email: string,
+    verifiedAt: Date,
+  ): Promise<boolean> {
+    const result = await this.prisma.user.updateMany({
+      where: {
+        id: userId,
+        email,
+        isActive: true,
+        isDeleted: false,
+        emailVerifiedAt: null,
+      },
+      data: { emailVerifiedAt: verifiedAt, updatedAt: verifiedAt },
     });
     return result.count === 1;
   }

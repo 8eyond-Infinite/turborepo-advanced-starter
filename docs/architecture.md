@@ -204,6 +204,8 @@ Cơ chế giao event là at-least-once — một event có thể được xử l
 
 ## 7. Authentication và authorization
 
+Auth còn sở hữu policy xác minh email. User aggregate giữ trạng thái `emailVerifiedAt`, nhưng Auth sinh/consume token, điều phối mail và chặn login khi `EMAIL_VERIFICATION_REQUIRED=true`. Việc chia như vậy giữ Users là nguồn sự thật về danh tính, còn quy trình chứng minh danh tính nằm cùng các use case đăng ký và đăng nhập. Token gốc không đi vào aggregate hoặc log; PostgreSQL chỉ lưu hash và worker nhận một job nhạy cảm có vòng đời ngắn.
+
 ### Token model
 
 - Access token sống ngắn, được gửi qua header `Authorization: Bearer`.

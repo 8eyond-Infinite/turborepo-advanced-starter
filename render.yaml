@@ -34,6 +34,8 @@ services:
         sync: false
       - key: CLIENT_URL
         sync: false
+      - key: EMAIL_VERIFICATION_REQUIRED
+        value: false
       - key: REFRESH_COOKIE_SAME_SITE
         value: none
       - key: MAIL_HOST
@@ -92,6 +94,11 @@ services:
           name: turborepo-starter-api
           type: web
           envVarKey: CLIENT_URL
+      - key: EMAIL_VERIFICATION_REQUIRED
+        fromService:
+          name: turborepo-starter-api
+          type: web
+          envVarKey: EMAIL_VERIFICATION_REQUIRED
       - key: REFRESH_COOKIE_SAME_SITE
         fromService:
           name: turborepo-starter-api

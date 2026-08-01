@@ -29,6 +29,16 @@ test.describe("Client accessibility contract", () => {
 
     await page.goto("/login");
     await expectNoWcagViolations(page);
+
+    for (const path of [
+      "/register",
+      "/forgot-password",
+      "/check-email",
+      "/verify-email",
+    ]) {
+      await page.goto(path);
+      await expectNoWcagViolations(page);
+    }
   });
 
   test("supports the login form with a keyboard", async ({ page }) => {
