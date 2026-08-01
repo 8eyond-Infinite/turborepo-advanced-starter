@@ -1,6 +1,6 @@
 {
   "name": "turborepo-advanced-starter",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "scripts": {
     "bootstrap": "node scripts/bootstrap.mjs",
