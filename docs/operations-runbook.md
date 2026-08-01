@@ -416,7 +416,9 @@ Sau khi hoàn tất, kiểm tra `.env.example` nếu tên biến thay đổi và
 
 ### 5.1 Admin đã được seed nhưng không còn biết password
 
-Phần này chủ yếu dành cho bài lab single-node. Production phải dùng flow password reset đã audit hoặc quy trình khẩn cấp được tổ chức phê duyệt.
+Production trước tiên dùng flow tự phục vụ: mở Client `/forgot-password`, nhập email admin, lấy mail từ SMTP provider rồi đặt mật khẩu mới. Link chỉ sống 30 phút và dùng một lần; thành công thu hồi mọi session. Nếu form luôn báo đã nhận yêu cầu nhưng không có mail, kiểm tra worker log `Password reset request could not be scheduled`/`Password reset email`, BullMQ và cấu hình `CLIENT_URL`, `MAIL_ENABLED`, `MAIL_HOST`, `MAIL_FROM`. Không tìm token gốc trong PostgreSQL: database chỉ giữ hash và BullMQ xóa payload nhạy cảm sau khi job kết thúc.
+
+Phần script bên dưới chỉ dành cho bài lab single-node khi mail cố ý tắt. Production không được bỏ qua recovery flow bằng cách update database trực tiếp; trường hợp khẩn cấp phải có xác minh danh tính, change record và phê duyệt của tổ chức.
 
 Đầu tiên, xác định loại lỗi đăng nhập:
 

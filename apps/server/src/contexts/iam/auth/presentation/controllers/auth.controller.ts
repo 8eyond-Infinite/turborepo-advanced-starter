@@ -21,7 +21,12 @@ import {
   ApiResponse,
   ApiBearerAuth,
 } from '@nestjs/swagger';
-import { RegisterDto, LoginDto } from '../dtos';
+import {
+  RegisterDto,
+  LoginDto,
+  RequestPasswordResetDto,
+  ResetPasswordDto,
+} from '../dtos';
 import {
   RegisterCommand,
   LoginCommand,
@@ -30,6 +35,8 @@ import {
   LogoutAllCommand,
   RevokeSessionCommand,
   RevokeOtherSessionsCommand,
+  RequestPasswordResetCommand,
+  ResetPasswordCommand,
 } from '../../application/commands';
 
 import { GetActiveSessionsQuery } from '../../application/queries';
@@ -52,6 +59,32 @@ export class AuthController {
     private readonly commandBus: CommandBus,
     private readonly queryBus: QueryBus,
   ) {}
+
+  @Post('password-reset/request')
+  @Throttle({ default: { limit: 3, ttl: 60_000 } })
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({ summary: 'Request a password reset email' })
+  @ApiResponse({ status: 202, description: 'Request accepted' })
+  async requestPasswordReset(@Body() dto: RequestPasswordResetDto) {
+    await this.commandBus.execute(new RequestPasswordResetCommand(dto.email));
+    return {
+      accepted: true,
+      message: 'If the account exists, a reset link will be sent.',
+    };
+  }
+
+  @Post('password-reset/confirm')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reset a password with a one-time token' })
+  @ApiResponse({ status: 200, description: 'Password reset successfully' })
+  @ApiResponse({ status: 400, description: 'Token invalid or expired' })
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    await this.commandBus.execute(
+      new ResetPasswordCommand(dto.token, dto.password),
+    );
+    return { success: true };
+  }
 
   @Post('register')
   @Throttle({ default: { limit: 5, ttl: 60_000 } })

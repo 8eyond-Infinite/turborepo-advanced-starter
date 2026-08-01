@@ -309,6 +309,76 @@ describe('AuthController (E2E)', () => {
     );
   });
 
+  it('/auth/password-reset -> one-time token changes password and revokes existing sessions', async () => {
+    const resetEmail = `reset.${Date.now()}@example.com`;
+    const resetOriginalPassword = 'reset-original-password-123';
+    await request(app.getHttpServer())
+      .post('/auth/register')
+      .send({
+        email: resetEmail,
+        username: `reset_${Date.now()}`,
+        password: resetOriginalPassword,
+      })
+      .expect(HttpStatus.CREATED);
+    const existingSession = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: resetEmail, password: resetOriginalPassword })
+      .expect(HttpStatus.OK);
+
+    const unknownResponse = await request(app.getHttpServer())
+      .post('/auth/password-reset/request')
+      .send({ email: `unknown.${Date.now()}@example.com` })
+      .expect(HttpStatus.ACCEPTED);
+    const knownResponse = await request(app.getHttpServer())
+      .post('/auth/password-reset/request')
+      .send({ email: resetEmail })
+      .expect(HttpStatus.ACCEPTED);
+    expect(knownResponse.body).toEqual(unknownResponse.body);
+
+    const userQueue = app.get<Queue>(getQueueToken(USER_QUEUE));
+    const resetJob = await waitForQueueJob(
+      userQueue,
+      (job) =>
+        job.name === 'send-password-reset-email' &&
+        typeof job.data === 'object' &&
+        job.data !== null &&
+        'email' in job.data &&
+        job.data.email === resetEmail,
+    );
+    const resetUrl = new URL((resetJob.data as { resetUrl: string }).resetUrl);
+    const resetToken = resetUrl.searchParams.get('token');
+    expect(resetToken).toBeTruthy();
+
+    const replacementPassword = 'replacement-password-123';
+    await request(app.getHttpServer())
+      .post('/auth/password-reset/confirm')
+      .send({ token: resetToken, password: replacementPassword })
+      .expect(HttpStatus.OK);
+
+    await request(app.getHttpServer())
+      .get('/users/me')
+      .set('Authorization', `Bearer ${existingSession.body.accessToken}`)
+      .expect(HttpStatus.UNAUTHORIZED);
+    await waitForUnauthorizedRefresh(existingSession.body.refreshToken);
+
+    await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: resetEmail, password: resetOriginalPassword })
+      .expect(HttpStatus.UNAUTHORIZED);
+    await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: resetEmail, password: replacementPassword })
+      .expect(HttpStatus.OK);
+
+    await request(app.getHttpServer())
+      .post('/auth/password-reset/confirm')
+      .send({ token: resetToken, password: 'another-password-123' })
+      .expect(HttpStatus.BAD_REQUEST)
+      .expect(({ body }) => {
+        expect(body.code).toBe('INVALID_PASSWORD_RESET_TOKEN');
+      });
+  });
+
   it('/users/me (GET) -> Nên lấy được thông tin cá nhân của người dùng đăng nhập', async () => {
     const loginRes = await request(app.getHttpServer())
       .post('/auth/login')

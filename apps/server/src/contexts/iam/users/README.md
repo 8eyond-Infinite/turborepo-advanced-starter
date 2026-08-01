@@ -192,6 +192,9 @@ Quy tắc “từ chối toàn bộ” giữ response, aggregate và các row `U
 
 - password hash;
 - tokenVersion;
+
+Password reset đi qua `UserRepository.changePassword()`, một credential write hẹp chỉ cập nhật password hash và tăng `tokenVersion` bằng cùng một câu lệnh database. Nó không gọi `save()` với snapshot aggregate cũ, vì việc đồng bộ lại toàn bộ roles trong lúc một admin cũng đang sửa quyền có thể làm mất cập nhật mới hơn.
+
 - domain event nội bộ;
 - persistence join records.
 

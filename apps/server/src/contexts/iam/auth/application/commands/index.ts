@@ -5,3 +5,5 @@ export * from './logout.command';
 export * from './logout-all.command';
 export * from './revoke-session.command';
 export * from './revoke-other-sessions.command';
+export * from './request-password-reset.command';
+export * from './reset-password.command';

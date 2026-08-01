@@ -104,6 +104,7 @@ install -m 600 \
 - `POSTGRES_*`, `DATABASE_URL`, `REDIS_PASSWORD` là datastore credential;
 - hai JWT secret độc lập, tối thiểu 32 ký tự;
 - `CORS_ORIGINS` là exact browser origins, không có slash cuối;
+- `CLIENT_URL` là origin HTTPS của Client nhận link password reset; bài drill loopback dùng `http://localhost:3005`;
 - `API_ADDRESS=http://localhost` cho diễn tập local;
 - SMTP và storage provider theo môi trường.
 

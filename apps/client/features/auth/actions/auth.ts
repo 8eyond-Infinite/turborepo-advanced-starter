@@ -9,6 +9,10 @@ import { safeRedirectPath } from "@/lib/safe-redirect";
 type LoginField = "email" | "password";
 type LoginValues = { email: string };
 export type LoginState = ActionState<LoginField, LoginValues>;
+type EmailField = "email";
+type PasswordResetField = "password" | "confirmPassword";
+export type RequestPasswordResetState = ActionState<EmailField, LoginValues>;
+export type ResetPasswordState = ActionState<PasswordResetField>;
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -53,6 +57,81 @@ export async function login(
   }
 
   redirect(safeRedirectPath(next));
+}
+
+export async function requestPasswordReset(
+  _prev: RequestPasswordResetState,
+  formData: FormData,
+): Promise<RequestPasswordResetState> {
+  const email = String(formData.get("email") ?? "").trim();
+  if (!EMAIL_PATTERN.test(email)) {
+    return {
+      status: "error",
+      fieldErrors: { email: ["Hãy nhập một địa chỉ email hợp lệ."] },
+      values: { email },
+    };
+  }
+
+  try {
+    await apiFetchPublic("/auth/password-reset/request", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+    return { status: "success" };
+  } catch (error) {
+    const publicError = toPublicApiError(error);
+    return {
+      status: "error",
+      formError: publicError.message,
+      correlationId: publicError.correlationId,
+      values: { email },
+    };
+  }
+}
+
+export async function resetPassword(
+  _prev: ResetPasswordState,
+  formData: FormData,
+): Promise<ResetPasswordState> {
+  const token = String(formData.get("token") ?? "");
+  const password = String(formData.get("password") ?? "");
+  const confirmPassword = String(formData.get("confirmPassword") ?? "");
+  const fieldErrors: Partial<Record<PasswordResetField, string[]>> = {};
+  if (password.length < 12)
+    fieldErrors.password = ["Mật khẩu phải có ít nhất 12 ký tự."];
+  if (confirmPassword !== password)
+    fieldErrors.confirmPassword = ["Hai mật khẩu chưa trùng nhau."];
+  if (Object.keys(fieldErrors).length > 0)
+    return { status: "error", fieldErrors };
+  if (token.length < 32)
+    return {
+      status: "error",
+      formError: "Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.",
+    };
+
+  try {
+    await apiFetchPublic("/auth/password-reset/confirm", {
+      method: "POST",
+      body: JSON.stringify({ token, password }),
+    });
+    return { status: "success" };
+  } catch (error) {
+    if (
+      error instanceof ApiError &&
+      error.code === "INVALID_PASSWORD_RESET_TOKEN"
+    ) {
+      return {
+        status: "error",
+        formError: "Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.",
+      };
+    }
+    const publicError = toPublicApiError(error);
+    return {
+      status: "error",
+      formError: publicError.message,
+      correlationId: publicError.correlationId,
+    };
+  }
 }
 
 export async function logout(): Promise<void> {

@@ -165,6 +165,18 @@ export class PrismaUserRepository implements UserRepository {
     return raw ? PrismaUserMapper.toDomain(raw) : null;
   }
 
+  async changePassword(userId: string, passwordHash: string): Promise<boolean> {
+    const result = await this.prisma.user.updateMany({
+      where: { id: userId, isActive: true, isDeleted: false },
+      data: {
+        password: passwordHash,
+        tokenVersion: { increment: 1 },
+        updatedAt: new Date(),
+      },
+    });
+    return result.count === 1;
+  }
+
   async findExistingRoleNames(names: string[]): Promise<string[]> {
     if (names.length === 0) return [];
 

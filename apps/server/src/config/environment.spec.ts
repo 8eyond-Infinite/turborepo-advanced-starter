@@ -18,6 +18,7 @@ describe('environment configuration', () => {
         REFRESH_COOKIE_SAME_SITE: 'lax',
         MAIL_ENABLED: false,
         AUDIT_RETENTION_DAYS: 0,
+        CLIENT_URL: 'http://localhost:3005',
       }),
     );
   });
@@ -106,6 +107,36 @@ describe('environment configuration', () => {
     expect(() =>
       validateEnvironment({ ...validConfig, MAIL_ENABLED: 'yes' }),
     ).toThrow('MAIL_ENABLED must be true or false');
+  });
+
+  it('requires an HTTPS client URL in production except for loopback drills', () => {
+    const production = {
+      ...validConfig,
+      NODE_ENV: 'production',
+      JWT_ACCESS_SECRET: 'a'.repeat(32),
+      JWT_REFRESH_SECRET: 'b'.repeat(32),
+      METRICS_TOKEN: 'c'.repeat(32),
+    };
+    expect(() =>
+      validateEnvironment({
+        ...production,
+        CLIENT_URL: 'http://client.example.com',
+      }),
+    ).toThrow('CLIENT_URL must use https in production');
+    expect(
+      validateEnvironment({
+        ...production,
+        CLIENT_URL: 'https://client.example.com/path',
+      }),
+    ).toEqual(
+      expect.objectContaining({ CLIENT_URL: 'https://client.example.com' }),
+    );
+    expect(
+      validateEnvironment({
+        ...production,
+        CLIENT_URL: 'http://localhost:3005',
+      }),
+    ).toEqual(expect.objectContaining({ CLIENT_URL: 'http://localhost:3005' }));
   });
 
   it('normalizes and validates audit retention', () => {

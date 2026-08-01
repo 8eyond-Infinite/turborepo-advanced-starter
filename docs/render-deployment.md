@@ -54,6 +54,7 @@ Không đưa migration vào `CMD` của API. Khi tăng số replica, startup mig
 | Biến           | Giá trị                                                                           |
 | -------------- | --------------------------------------------------------------------------------- |
 | `CORS_ORIGINS` | Danh sách origin Admin/Client, phân cách bằng dấu phẩy; chỉ origin, không có path |
+| `CLIENT_URL`   | Origin HTTPS của Client, dùng để tạo link đặt lại mật khẩu                        |
 | `MAIL_HOST`    | SMTP host của provider                                                            |
 | `MAIL_PORT`    | Cổng SMTP provider hỗ trợ                                                         |
 | `MAIL_FROM`    | Địa chỉ sender đã được provider cho phép                                          |
@@ -73,6 +74,7 @@ JWT_ACCESS_SECRET=<generated>
 JWT_REFRESH_SECRET=<generated>
 METRICS_TOKEN=<generated, scraper dùng làm Bearer token>
 CORS_ORIGINS=https://<admin-domain>,https://<client-domain>
+CLIENT_URL=https://<client-domain>
 REFRESH_COOKIE_SAME_SITE=none
 MAIL_HOST=<provider>
 MAIL_PORT=<provider-port>

@@ -13,7 +13,7 @@ export class BullmqQueueAdapter implements IJobQueuePort {
     queueName: string,
     jobName: string,
     data: unknown,
-    options?: { jobId?: string },
+    options?: { jobId?: string; sensitive?: boolean },
   ): Promise<void> {
     const queueToken = getQueueToken(queueName);
     const queue = this.moduleRef.get<Queue>(queueToken, { strict: false });
@@ -33,8 +33,8 @@ export class BullmqQueueAdapter implements IJobQueuePort {
         type: 'exponential',
         delay: 1_000,
       },
-      removeOnComplete: 1_000,
-      removeOnFail: 5_000,
+      removeOnComplete: options?.sensitive ? true : 1_000,
+      removeOnFail: options?.sensitive ? true : 5_000,
     });
   }
 }

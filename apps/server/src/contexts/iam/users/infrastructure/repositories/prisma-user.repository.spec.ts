@@ -43,3 +43,24 @@ describe('PrismaUserRepository administrator invariant', () => {
     expect(transaction.userRole.deleteMany).not.toHaveBeenCalled();
   });
 });
+
+describe('PrismaUserRepository.changePassword', () => {
+  it('updates only an active credential and increments tokenVersion atomically', async () => {
+    const updateMany = jest.fn().mockResolvedValue({ count: 1 });
+    const repository = new PrismaUserRepository({
+      user: { updateMany },
+    } as unknown as PrismaService);
+
+    await expect(
+      repository.changePassword('user-id', 'new-hash'),
+    ).resolves.toBe(true);
+    expect(updateMany).toHaveBeenCalledWith({
+      where: { id: 'user-id', isActive: true, isDeleted: false },
+      data: {
+        password: 'new-hash',
+        tokenVersion: { increment: 1 },
+        updatedAt: expect.any(Date),
+      },
+    });
+  });
+});

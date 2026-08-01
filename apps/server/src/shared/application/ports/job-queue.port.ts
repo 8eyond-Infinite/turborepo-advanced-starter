@@ -5,6 +5,6 @@ export interface IJobQueuePort {
     queueName: string,
     jobName: string,
     data: unknown,
-    options?: { jobId?: string },
+    options?: { jobId?: string; sensitive?: boolean },
   ): Promise<void>;
 }

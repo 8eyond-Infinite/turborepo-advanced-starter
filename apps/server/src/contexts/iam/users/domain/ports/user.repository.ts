@@ -17,6 +17,7 @@ export interface UserRepository {
   savePreservingLastAdministrator(user: UserEntity): Promise<boolean>;
   findById(id: string): Promise<UserEntity | null>;
   findByEmail(email: string): Promise<UserEntity | null>;
+  changePassword(userId: string, passwordHash: string): Promise<boolean>;
   findExistingRoleNames(names: string[]): Promise<string[]>;
   getPermissions(userId: string): Promise<string[]>;
   findAll(

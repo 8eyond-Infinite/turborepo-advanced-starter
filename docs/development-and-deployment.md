@@ -132,7 +132,10 @@ DIRECT_URL=postgresql://postgres:password@localhost:5433/starter_db?schema=publi
 REDIS_HOST=localhost
 REDIS_PORT=6380
 CORS_ORIGINS=http://localhost:5173,http://localhost:3005
+CLIENT_URL=http://localhost:3005
 ```
+
+`CLIENT_URL` không phải CORS allowlist. Nó là origin backend dùng để tạo link password reset. Local trỏ `http://localhost:3005`; môi trường public phải trỏ đúng Client HTTPS, không có path.
 
 Container configuration dùng DNS service:
 
