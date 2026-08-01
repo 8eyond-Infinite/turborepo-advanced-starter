@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.1.0](https://github.com/8eyond-Infinite/turborepo-advanced-starter/compare/v1.0.0...v1.1.0) (2026-08-01)
+
+
+### Tính năng mới
+
+* **audit:** add bounded retention cleanup ([6a2af98](https://github.com/8eyond-Infinite/turborepo-advanced-starter/commit/6a2af98de89038df87eec809dae364809d22185a))
+* **auth:** add email verification flow ([d23eb64](https://github.com/8eyond-Infinite/turborepo-advanced-starter/commit/d23eb64e9b48eb1cc10b5cbf0c5913f4617f8330))
+* **auth:** add secure password recovery ([3da6ab5](https://github.com/8eyond-Infinite/turborepo-advanced-starter/commit/3da6ab55a1343c01bb80f724ab89fe1141904ed8))
+
+
+### Sửa lỗi
+
+* **database:** make fresh-clone bootstrap deterministic ([#85](https://github.com/8eyond-Infinite/turborepo-advanced-starter/issues/85)) ([c8a44b6](https://github.com/8eyond-Infinite/turborepo-advanced-starter/commit/c8a44b61b987637a1c145d2e92e7caa7dd48e083))
+
 ## [1.0.0](https://github.com/8eyond-Infinite/turborepo-advanced-starter/compare/v0.1.0...v1.0.0) (2026-07-31)
 
 
