@@ -131,7 +131,8 @@ run("pnpm install");
 step("Chờ database sẵn sàng");
 waitForHealthy("starter-postgres");
 waitForHealthy("starter-redis");
-info("Postgres và Redis đều healthy.");
+waitForHealthy("starter-maildev");
+info("Postgres, Redis và Maildev đều healthy.");
 
 step("Sinh Prisma client và áp migration");
 run("pnpm db:generate");

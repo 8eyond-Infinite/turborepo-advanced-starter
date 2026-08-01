@@ -163,6 +163,8 @@ pnpm e2e:admin
 
 Không thay `up --wait` bằng `up -d`. Khi Docker Desktop vừa khởi động, container có thể mang trạng thái running trong lúc PostgreSQL vẫn đang chuẩn bị nhận kết nối; lệnh `dropdb` khi đó sẽ lỗi ngẫu nhiên.
 
+Maildev được probe qua `127.0.0.1:1080` bên trong container. Không đổi lại thành `localhost`: trên một số Docker host tên đó resolve sang IPv6 `::1`, trong khi Maildev 2.1 chỉ listen IPv4 và container sẽ bị báo `unhealthy` dù web UI đang chạy. `pnpm bootstrap` chờ cả Postgres, Redis và Maildev healthy trước khi migrate/seed.
+
 Script không đụng tới database phát triển `starter_db`. Playwright khởi động API ở `127.0.0.1:3101` và Admin ở `127.0.0.1:5174`. Cổng riêng ngăn test dùng nhầm process development; cùng hostname giúp cookie `SameSite=Lax` hoạt động giống topology đang được kiểm tra.
 
 Client có browser suite riêng:
@@ -210,6 +212,8 @@ edit schema.prisma
 Không sửa migration đã được dùng bởi môi trường khác.
 
 ### Seed
+
+Seed import permission constants từ `@repo/contracts`. Vì clone mới chưa có `packages/contracts/dist`, script `@repo/database#db:seed` build package này trước rồi mới gọi Prisma seed. Không bỏ bước chuẩn bị đó hoặc gọi thẳng `prisma db seed` trong automation; máy đã từng build có thể chạy được nhờ artifact cũ và che mất lỗi onboarding.
 
 ```powershell
 pnpm db:seed
