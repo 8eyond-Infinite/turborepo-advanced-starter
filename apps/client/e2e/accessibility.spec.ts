@@ -39,6 +39,10 @@ test.describe("Client accessibility contract", () => {
     await page.keyboard.press("Tab");
     await expect(page.getByLabel("Mật khẩu", { exact: true })).toBeFocused();
     await page.keyboard.press("Tab");
+    await expect(
+      page.getByRole("link", { name: "Quên mật khẩu?" }),
+    ).toBeFocused();
+    await page.keyboard.press("Tab");
     await expect(page.getByRole("button", { name: "Đăng nhập" })).toBeFocused();
   });
 
