@@ -17,6 +17,7 @@ describe('environment configuration', () => {
         DATABASE_URL: validConfig.DATABASE_URL,
         REFRESH_COOKIE_SAME_SITE: 'lax',
         MAIL_ENABLED: false,
+        AUDIT_RETENTION_DAYS: 0,
       }),
     );
   });
@@ -105,6 +106,18 @@ describe('environment configuration', () => {
     expect(() =>
       validateEnvironment({ ...validConfig, MAIL_ENABLED: 'yes' }),
     ).toThrow('MAIL_ENABLED must be true or false');
+  });
+
+  it('normalizes and validates audit retention', () => {
+    expect(
+      validateEnvironment({ ...validConfig, AUDIT_RETENTION_DAYS: '365' }),
+    ).toEqual(expect.objectContaining({ AUDIT_RETENTION_DAYS: 365 }));
+    expect(() =>
+      validateEnvironment({ ...validConfig, AUDIT_RETENTION_DAYS: '-1' }),
+    ).toThrow('AUDIT_RETENTION_DAYS must be a non-negative integer');
+    expect(() =>
+      validateEnvironment({ ...validConfig, AUDIT_RETENTION_DAYS: '30.5' }),
+    ).toThrow('AUDIT_RETENTION_DAYS must be a non-negative integer');
   });
 
   it('parses a CORS allowlist', () => {

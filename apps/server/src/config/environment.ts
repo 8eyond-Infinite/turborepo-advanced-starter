@@ -19,6 +19,7 @@ export interface EnvironmentVariables extends Record<string, unknown> {
   CORS_ORIGINS: string;
   METRICS_TOKEN?: string;
   BACKUP_STATUS_FILE?: string;
+  AUDIT_RETENTION_DAYS: number;
   REFRESH_COOKIE_SAME_SITE: RefreshCookieSameSite;
   MAIL_ENABLED: boolean;
   MAIL_HOST?: string;
@@ -52,6 +53,20 @@ const parseBoolean = (value: unknown, key: string): boolean => {
   if (value === true || value === 'true') return true;
   if (value === false || value === 'false') return false;
   throw new Error(`Environment variable ${key} must be true or false`);
+};
+
+const parseNonNegativeInteger = (
+  value: unknown,
+  key: string,
+  defaultValue: number,
+): number => {
+  const parsed = Number(value ?? defaultValue);
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    throw new Error(
+      `Environment variable ${key} must be a non-negative integer`,
+    );
+  }
+  return parsed;
 };
 
 export const validateEnvironment = (
@@ -119,6 +134,11 @@ export const validateEnvironment = (
     JWT_REFRESH_SECRET: refreshSecret,
     METRICS_TOKEN: metricsToken || undefined,
     BACKUP_STATUS_FILE: backupStatusFile || undefined,
+    AUDIT_RETENTION_DAYS: parseNonNegativeInteger(
+      config.AUDIT_RETENTION_DAYS,
+      'AUDIT_RETENTION_DAYS',
+      0,
+    ),
     REFRESH_COOKIE_SAME_SITE: refreshCookieSameSite,
     MAIL_ENABLED: mailEnabled,
     MAIL_HOST: mailHost || undefined,

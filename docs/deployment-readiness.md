@@ -71,6 +71,7 @@ Checklist sau deploy:
 8. Worker xử lý queue; outbox không tăng liên tục.
 9. Restore backup được thử trong môi trường cô lập.
 10. Prometheus đã nạp `deploy/observability/alerts.yml`, scrape job tên `turborepo-api` và đường cảnh báo đã được thử.
+11. `AUDIT_RETENTION_DAYS` là `0`, hoặc số ngày đã có owner phê duyệt cùng archive/legal-hold procedure.
 
 Khi các mục trên chưa có bằng chứng, deployment chỉ là “container đang chạy”, chưa phải release production.
 

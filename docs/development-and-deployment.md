@@ -481,6 +481,12 @@ Health endpoint nên phân biệt:
 - readiness: instance đã sẵn sàng nhận traffic hay chưa;
 - dependency detail: trạng thái database/Redis cho người vận hành xem, nhưng không để lộ secret.
 
+`AUDIT_RETENTION_DAYS` là policy dữ liệu, không phải tuning hiệu năng. Giá trị `0` mặc định tắt cleanup. Số ngày dương làm API
+cleanup audit record cũ lúc bootstrap và mỗi 24 giờ theo batch 1.000, tối đa 100.000 record/cycle; migration tạo index
+`audit_logs_createdAt_idx` bằng `CREATE INDEX CONCURRENTLY` để lọc cutoff mà không chặn audit write lúc deploy. Không copy
+`OUTBOX_RETENTION_DAYS` sang audit theo thói quen: outbox là delivery bookkeeping, còn audit có thể chịu hợp đồng, legal hold
+hoặc yêu cầu archive khác hoàn toàn.
+
 ## 16. Backup và dữ liệu
 
 Named volume trên máy local không phải là bản sao lưu. PostgreSQL production cần:

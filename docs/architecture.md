@@ -413,6 +413,7 @@ Hệ thống đã có:
 - lỗi domain và lỗi API được chuyển thành response có cấu trúc thống nhất;
 - health checks;
 - audit được ghi bền vững xuống database;
+- audit retention là policy cấu hình, mặc định tắt. Khi số ngày dương, lifecycle service của Audit xóa record cũ mỗi ngày qua index `createdAt`; cleanup fail-open và không thay thế archive/legal hold;
 - bảng outbox lưu số lần thử (attempts) và lỗi gần nhất của từng event;
 - frontend có giao diện thử lại khi query lỗi, cùng error boundary ở mức toàn ứng dụng và từng route;
 - frontend observability adapter tạo structured incident, redact credential, giữ `x-correlation-id` của API error và tách boundary khỏi SDK của telemetry vendor. Sink production đi qua cửa sổ giới hạn theo từng tab: chặn cả tổng report và số lần lặp của cùng fingerprint để một render/socket loop không tạo incident flood.
