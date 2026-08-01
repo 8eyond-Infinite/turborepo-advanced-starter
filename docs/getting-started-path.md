@@ -219,4 +219,4 @@ pnpm turbo run lint check-types test build
 
 - Đọc [architecture.md](architecture.md) một lượt từ đầu — giờ bạn đã có đủ nền để hiểu các quyết định và trade-off trong đó.
 - Đọc [development-and-deployment.md](development-and-deployment.md) khi cần làm việc với Docker, CI, migration cho môi trường thật.
-- Mục "Trạng thái và technical debt quan trọng" trong README gốc là danh sách việc thật đang chờ — chọn một món mà làm chính là cách học sâu nhất.
+- Khi đã chọn application hoặc bounded context để làm việc, đọc phần giới hạn, anti-pattern và checklist review ở cuối handbook tương ứng. Chọn một giới hạn có test bảo vệ để cải thiện là cách học sâu nhất.

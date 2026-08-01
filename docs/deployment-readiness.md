@@ -1,8 +1,8 @@
 # Deployment readiness
 
-> **Phần IV · Chương 17 — Kiểm tra khả năng triển khai**
+> **Phần IV · Chương 16 — Kiểm tra khả năng triển khai**
 >
-> Chương trước: [Render adapter](render-deployment.md) · [Mục lục handbook](README.md) · Chương sau: [Release process](release-process.md)
+> Chương trước: [Deployment contract](provider-neutral-deployment.md) · [Mục lục handbook](README.md) · Chương sau: [Release process](release-process.md)
 
 Starter này không cần có một production deployment đang chạy. Nó cần có một deployment contract đủ rõ để dự án được tạo từ starter có thể đi từ local tới VPS, EC2 hoặc provider khác bằng cách thay environment và composition root, không thay business code.
 
@@ -37,7 +37,7 @@ pnpm --filter=admin verify:production
 
 Để kiểm tra topology thật trên Ubuntu, tạo `deploy/compose/.env.production` từ example, pull image theo commit SHA, chạy migration one-off rồi gọi `deploy/compose/scripts/verify.sh`. File environment chứa secret phải có quyền `600` và không được commit.
 
-Đây là gate bắt buộc cho starter. Nó không cần AWS account, Render project, Vercel project hay backend public.
+Đây là gate bắt buộc cho starter. Nó không cần tài khoản cloud, Vercel project hay backend public.
 
 ## 3. Vercel là integration tùy chọn
 

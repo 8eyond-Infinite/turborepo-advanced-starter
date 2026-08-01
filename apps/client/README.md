@@ -25,13 +25,13 @@ flowchart LR
 
 Hệ quả cụ thể:
 
-|                                       | Admin (SPA + bearer) | Client (BFF)             |
-| ------------------------------------- | -------------------- | ------------------------ |
-| Nơi giữ access token                  | Bộ nhớ JavaScript    | Cookie HttpOnly của Next |
-| Ai gọi API                            | Trình duyệt          | Server Next.js           |
-| Có cần CORS không                     | Có                   | Không                    |
-| Render nội dung đã đăng nhập ở server | Không                | Có                       |
-| XSS lấy được token không              | Có thể               | Không                    |
+|                                     | Admin (SPA + bearer) | Client (BFF)             |
+| ----------------------------------- | -------------------- | ------------------------ |
+| Nơi giữ access token                | Bộ nhớ JavaScript    | Cookie HttpOnly của Next |
+| Ai gọi API                          | Trình duyệt          | Server Next.js           |
+| Có cần CORS không                   | Có                   | Không                    |
+| Dựng nội dung đã đăng nhập ở server | Không                | Có                       |
+| XSS lấy được token không            | Có thể               | Không                    |
 
 Đây không phải "cách đúng hơn" một cách tuyệt đối — đó là đánh đổi. **Chọn SPA + bearer** khi làm màn hình nội bộ sau đăng nhập, tương tác nhiều, không quan tâm SEO. **Chọn BFF** khi có trang công khai cần SEO, hoặc khi muốn token không bao giờ chạm trình duyệt.
 

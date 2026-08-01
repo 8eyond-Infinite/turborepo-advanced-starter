@@ -25,28 +25,28 @@ const collectMarkdown = (directory) =>
     return entry.isFile() && entry.name.endsWith('.md') ? [absolutePath] : [];
   });
 
-const chapterFiles = new Set([
+const orderedChapterFiles = [
   'README.md',
-  'CONTRIBUTING.md',
-  'SECURITY.md',
-  'apps/admin/README.md',
-  'apps/client/README.md',
-  'apps/server/README.md',
-  'apps/server/src/contexts/audit/README.md',
-  'apps/server/src/contexts/iam/auth/README.md',
-  'apps/server/src/contexts/iam/roles/README.md',
-  'apps/server/src/contexts/iam/users/README.md',
-  'apps/server/src/contexts/notifications/README.md',
-  'docs/architecture.md',
-  'docs/development-and-deployment.md',
   'docs/getting-started-path.md',
   'docs/glossary.md',
-  'docs/operations-runbook.md',
-  'docs/provider-neutral-deployment.md',
-  'docs/release-process.md',
-  'docs/render-deployment.md',
   'docs/tech-stack.md',
-]);
+  'docs/architecture.md',
+  'apps/server/README.md',
+  'apps/admin/README.md',
+  'apps/client/README.md',
+  'apps/server/src/contexts/iam/auth/README.md',
+  'apps/server/src/contexts/iam/users/README.md',
+  'apps/server/src/contexts/iam/roles/README.md',
+  'apps/server/src/contexts/notifications/README.md',
+  'apps/server/src/contexts/audit/README.md',
+  'docs/development-and-deployment.md',
+  'docs/provider-neutral-deployment.md',
+  'docs/deployment-readiness.md',
+  'docs/release-process.md',
+  'docs/operations-runbook.md',
+];
+const appendixFiles = ['CONTRIBUTING.md', 'SECURITY.md'];
+const chapterFiles = new Set([...orderedChapterFiles, ...appendixFiles]);
 
 const handbook = readFileSync(
   path.join(repositoryRoot, 'docs', 'README.md'),
@@ -83,6 +83,49 @@ for (const absoluteFile of markdownFiles) {
     !/^> \*\*(Phần|Phụ lục)/m.test(content)
   ) {
     errors.push(`${relativeFile}: missing handbook chapter marker`);
+  }
+
+  const chapterNumber = orderedChapterFiles.indexOf(relativeFile) + 1;
+  if (
+    chapterNumber > 0 &&
+    !new RegExp(`^> \\*\\*Phần [IVX]+ · Chương ${chapterNumber} —`, 'm').test(
+      content,
+    )
+  ) {
+    errors.push(
+      `${relativeFile}: chapter marker must identify chapter ${chapterNumber}`,
+    );
+  }
+
+  if (chapterNumber > 0) {
+    const navigationBlock = content.split('\n').slice(0, 7).join('\n');
+    const navigationTargets = new Set(
+      [...navigationBlock.matchAll(/\[[^\]]+\]\(([^)#]+)(?:#[^)]+)?\)/g)].map(
+        (match) =>
+          path
+            .relative(
+              repositoryRoot,
+              path.resolve(
+                path.dirname(absoluteFile),
+                match[1].replace(/^<|>$/g, ''),
+              ),
+            )
+            .split(path.sep)
+            .join('/'),
+      ),
+    );
+    const expectedNeighbors = [
+      orderedChapterFiles[chapterNumber - 2],
+      orderedChapterFiles[chapterNumber],
+    ].filter(Boolean);
+
+    for (const expectedNeighbor of expectedNeighbors) {
+      if (!navigationTargets.has(expectedNeighbor)) {
+        errors.push(
+          `${relativeFile}: navigation must link to adjacent chapter ${expectedNeighbor}`,
+        );
+      }
+    }
   }
 
   if (
@@ -123,5 +166,5 @@ if (errors.length > 0) {
 }
 
 console.log(
-  `Documentation verified: ${markdownFiles.length} files, ${chapterFiles.size} chapters/appendices, no broken local links.`,
+  `Documentation verified: ${markdownFiles.length} files, ${orderedChapterFiles.length} ordered chapters, ${appendixFiles.length} appendices, no broken local links.`,
 );

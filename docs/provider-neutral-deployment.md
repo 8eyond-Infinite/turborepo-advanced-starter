@@ -2,13 +2,13 @@
 
 > **Phần IV · Chương 15 — Một lần build, nhiều nơi chạy**
 >
-> Chương trước: [Development và Docker](development-and-deployment.md) · [Mục lục handbook](README.md) · Chương sau: [Render adapter](render-deployment.md)
+> Chương trước: [Development và Docker](development-and-deployment.md) · [Mục lục handbook](README.md) · Chương sau: [Deployment readiness](deployment-readiness.md)
 
 Chương này trả lời một câu hỏi thực tế: cần chạy những chương trình nào để backend phục vụ được người dùng, và phải khởi động chúng theo thứ tự nào để không làm hỏng dữ liệu?
 
 Hãy hình dung một nhà hàng nhỏ. Caddy là cửa đón khách; API là nhân viên nhận yêu cầu; worker là khu xử lý việc nền; PostgreSQL là sổ cái; Redis là bảng công việc nhanh. Migration là việc sửa cấu trúc sổ trước ca làm. Không nhân viên API nào được tự sửa sổ mỗi lần bắt đầu ca.
 
-Năm vai trò trên và thứ tự khởi động của chúng tạo thành **quy ước triển khai** (deployment contract) của dự án. Ta sẽ diễn tập quy ước đó trên Ubuntu/WSL2. Sau này chuyển sang VPS, Render hay AWS, tên dịch vụ có thể đổi nhưng trách nhiệm của từng vai trò vẫn giữ nguyên.
+Năm vai trò trên và thứ tự khởi động của chúng tạo thành **quy ước triển khai** (deployment contract) của dự án. Ta sẽ diễn tập quy ước đó trên Ubuntu/WSL2. Sau này chuyển sang VPS, máy ảo hoặc một nền tảng container, tên dịch vụ có thể đổi nhưng trách nhiệm của từng vai trò vẫn giữ nguyên.
 
 ## 1. Phạm vi và mức bảo đảm
 
@@ -339,4 +339,4 @@ Sự chuyển đổi này thay deployment composition root, không thay domain/a
 
 Bạn đã hiểu deployment contract khi có thể vẽ lại năm ô Caddy, API, worker, PostgreSQL và Redis rồi giải thích đường kết nối giữa chúng. Bạn cũng phải trả lời được vì sao migration chạy trước rollout, vì sao worker không dùng HTTP healthcheck của API và vì sao rollback image không đồng nghĩa rollback database.
 
-Nếu mục tiêu tiếp theo là Render, sang [Chương 16](render-deployment.md). Nếu chuẩn bị một VPS, quay lại mục 4 và xác nhận kết quả sau từng bước; đừng copy toàn bộ command trước khi hiểu file environment đang cung cấp secret nào.
+Nếu chuẩn bị một VPS, quay lại mục 4 và xác nhận kết quả sau từng bước; đừng copy toàn bộ command trước khi hiểu file environment đang cung cấp secret nào. Trước khi gọi starter là deployable, sang [Chương 16](deployment-readiness.md) để chạy các gate không phụ thuộc nhà cung cấp.

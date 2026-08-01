@@ -4,6 +4,8 @@
 
 Nếu đây là lần đầu bạn vào repository, đừng đọc ngẫu nhiên từng README. Hãy bắt đầu từ Phần I và đi theo thứ tự. Nếu hệ thống đang có sự cố, bỏ qua lộ trình học và mở thẳng [Sổ tay vận hành](operations-runbook.md).
 
+Handbook được viết cho lập trình viên đã biết TypeScript ở mức cơ bản nhưng chưa biết dự án, NestJS, DDD hay cách triển khai hệ thống. Bạn không cần thuộc thuật ngữ kiến trúc trước khi đọc. Khi một khái niệm mới xuất hiện, chương phải giải thích vấn đề đời thường trước, sau đó mới gọi tên kỹ thuật và chỉ vào code thật. Đây không phải tài liệu dành cho người dùng cuối của sản phẩm.
+
 ## Câu chuyện xuyên suốt
 
 Trong các chương, ta dùng một tình huống chung để nối kiến trúc với code:
@@ -60,12 +62,27 @@ Phần này trả lời cách đưa code từ máy lập trình viên đến m�
 
 14. [Chương 14 — Development, Docker và database](development-and-deployment.md)
 15. [Chương 15 — Deployment không phụ thuộc nhà cung cấp](provider-neutral-deployment.md)
-16. [Chương 16 — Render là một deployment adapter](render-deployment.md)
-17. [Chương 17 — Kiểm tra khả năng triển khai](deployment-readiness.md)
-18. [Chương 17 — Release và version](release-process.md)
-19. [Chương 18 — Operations Runbook](operations-runbook.md)
+16. [Chương 16 — Kiểm tra khả năng triển khai](deployment-readiness.md)
+17. [Chương 17 — Release và version](release-process.md)
+18. [Chương 18 — Operations Runbook](operations-runbook.md)
 
 Không đọc runbook như giáo trình nhập môn. Nó được thiết kế để tra nhanh khi hệ thống lỗi. Muốn hiểu lý do đằng sau các lệnh vận hành, hãy đọc Chương 14–17 trước.
+
+## Tra flow nghiệp vụ theo công việc
+
+Không phải lúc nào bạn cũng cần đọc cả cuốn. Bảng này đưa bạn tới chương giải thích trọn flow, thay vì chỉ tới file có tên gần giống vấn đề.
+
+| Khi cần hiểu hoặc sửa                                      | Đọc flow chính ở đâu?                                                                                                         | Đọc thêm khi chạm giao diện hoặc hạ tầng                                 |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Login, refresh, logout, reset password, xác minh email     | [Auth](../apps/server/src/contexts/iam/auth/README.md)                                                                        | [Admin](../apps/admin/README.md) hoặc [Client](../apps/client/README.md) |
+| Tạo, sửa, khóa tài khoản và gán role                       | [Users](../apps/server/src/contexts/iam/users/README.md)                                                                      | [Roles](../apps/server/src/contexts/iam/roles/README.md)                 |
+| Kiểm tra role/permission và phân biệt lỗi 401 với 403      | [Roles](../apps/server/src/contexts/iam/roles/README.md)                                                                      | [Kiến trúc hệ thống](architecture.md)                                    |
+| Tạo notification, outbox, realtime và cập nhật cache       | [Notifications](../apps/server/src/contexts/notifications/README.md)                                                          | [Admin](../apps/admin/README.md)                                         |
+| Truy ra ai đã thực hiện một thao tác quản trị              | [Audit](../apps/server/src/contexts/audit/README.md)                                                                          | [Operations Runbook](operations-runbook.md)                              |
+| Chạy local, migration, Docker hoặc kiểm soát dung lượng    | [Development, Docker và database](development-and-deployment.md)                                                              | [Deployment contract](provider-neutral-deployment.md)                    |
+| Deploy, rollback, backup/restore hoặc xử lý production lỗi | [Deployment readiness](deployment-readiness.md), [Release](release-process.md) và [Operations Runbook](operations-runbook.md) | Adapter của provider đang dùng                                           |
+
+Nếu flow cần sửa không có trong bảng và cũng không thuộc rõ một bounded context, đừng tạo ngay một thư mục `shared`. Trước tiên xác định phần nào sở hữu quy tắc nghiệp vụ; [Chương 5](architecture.md) và [Backend Handbook](../apps/server/README.md) giải thích cách quyết định ranh giới đó.
 
 ## Phụ lục
 

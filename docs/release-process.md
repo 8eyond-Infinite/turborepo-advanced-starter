@@ -2,7 +2,7 @@
 
 > **Phần IV · Chương 17 — Từ commit đến phiên bản có thể rollback**
 >
-> Chương trước: [Render adapter](render-deployment.md) · [Mục lục handbook](README.md) · Chương sau: [Operations Runbook](operations-runbook.md)
+> Chương trước: [Deployment readiness](deployment-readiness.md) · [Mục lục handbook](README.md) · Chương sau: [Operations Runbook](operations-runbook.md)
 
 Build thành công chưa phải là release. Release là một quyết định có thể truy vết: ta chọn tập thay đổi nào, gắn cho nó version nào, image nào đúng là artifact đã qua CI và nếu lỗi thì quay về đâu.
 
