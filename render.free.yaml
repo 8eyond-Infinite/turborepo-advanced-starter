@@ -33,6 +33,8 @@ services:
         generateValue: true
       - key: CORS_ORIGINS
         sync: false
+      - key: CLIENT_URL
+        sync: false
       - key: REFRESH_COOKIE_SAME_SITE
         value: none
       - key: ALLOW_PRODUCTION_SEED

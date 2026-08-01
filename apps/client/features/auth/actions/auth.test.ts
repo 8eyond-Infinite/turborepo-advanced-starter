@@ -21,7 +21,7 @@ vi.mock("@/lib/session", () => ({
 }));
 
 import { ApiError } from "@/lib/api";
-import { login, logout } from "./auth";
+import { login, logout, requestPasswordReset, resetPassword } from "./auth";
 
 const fetchMock = vi.fn<typeof fetch>();
 
@@ -122,5 +122,65 @@ describe("logout", () => {
 
     expect(clearSession).toHaveBeenCalledOnce();
     expect(redirect).toHaveBeenCalledWith("/");
+  });
+});
+
+describe("password reset", () => {
+  it("validates the request email before calling the API", async () => {
+    const data = new FormData();
+    data.set("email", "invalid");
+    await expect(
+      requestPasswordReset({ status: "idle" }, data),
+    ).resolves.toMatchObject({
+      status: "error",
+      fieldErrors: { email: [expect.any(String)] },
+    });
+    expect(apiFetchPublic).not.toHaveBeenCalled();
+  });
+
+  it("returns the same success state after a reset request", async () => {
+    apiFetchPublic.mockResolvedValue({ accepted: true });
+    const data = new FormData();
+    data.set("email", "member@example.com");
+    await expect(
+      requestPasswordReset({ status: "idle" }, data),
+    ).resolves.toEqual({ status: "success" });
+    expect(apiFetchPublic).toHaveBeenCalledWith(
+      "/auth/password-reset/request",
+      expect.any(Object),
+    );
+  });
+
+  it("does not submit mismatched replacement passwords", async () => {
+    const data = new FormData();
+    data.set("token", "t".repeat(43));
+    data.set("password", "new-password-123");
+    data.set("confirmPassword", "different-password");
+    await expect(
+      resetPassword({ status: "idle" }, data),
+    ).resolves.toMatchObject({
+      status: "error",
+      fieldErrors: { confirmPassword: [expect.any(String)] },
+    });
+    expect(apiFetchPublic).not.toHaveBeenCalled();
+  });
+
+  it("maps an invalid reset token to a safe public message", async () => {
+    apiFetchPublic.mockRejectedValue(
+      new ApiError({
+        kind: "validation",
+        status: 400,
+        code: "INVALID_PASSWORD_RESET_TOKEN",
+        message: "internal",
+      }),
+    );
+    const data = new FormData();
+    data.set("token", "t".repeat(43));
+    data.set("password", "new-password-123");
+    data.set("confirmPassword", "new-password-123");
+    await expect(resetPassword({ status: "idle" }, data)).resolves.toEqual({
+      status: "error",
+      formError: "Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.",
+    });
   });
 });

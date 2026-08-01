@@ -5,6 +5,11 @@ export const Errors = {
     translationKey: 'exceptions.invalid.credentials',
     statusCode: 401,
   },
+  INVALID_PASSWORD_RESET_TOKEN: {
+    code: 'INVALID_PASSWORD_RESET_TOKEN',
+    translationKey: 'exceptions.password.reset.token.invalid',
+    statusCode: 400,
+  },
   UNAUTHORIZED: {
     code: 'UNAUTHORIZED',
     translationKey: 'exceptions.unauthorized',

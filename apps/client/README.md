@@ -212,6 +212,8 @@ Không catch rồi biến mọi lỗi thành “không tìm thấy”. Server Co
 
 Login kiểm tra lại dữ liệu ở Server Action dù input đã có thuộc tính HTML. Browser validation chỉ cải thiện trải nghiệm và có thể bị bỏ qua; server validation mới là ranh giới tin cậy. Sau khi validation pass, action gọi API qua `apiFetchPublic()`, lưu session rồi mới `redirect()` bên ngoài `try/catch`. Khi API lỗi, form nhận thông điệp an toàn và correlation ID; code nội bộ, token và raw response không vượt qua ranh giới server/client.
 
+Password recovery dùng hai public route. `/forgot-password` gửi email qua Server Action và luôn hiển thị cùng một kết quả thành công; UI không được xác nhận email nào có tài khoản. Link mail mở `/reset-password?token=...`; token chỉ đi từ search param vào hidden field rồi qua Server Action tới API, không được ghi log hay lưu cookie. Mật khẩu mới tối thiểu 12 ký tự và phải nhập khớp hai lần. Thành công không tự đăng nhập: backend đã thu hồi mọi thiết bị, nên người dùng quay lại `/login` bằng credential mới.
+
 Mỗi input lỗi dùng `aria-invalid` và `aria-describedby`; form-level failure dùng `role="alert"`. Khi tạo form mới, tái sử dụng `ActionState` nhưng định nghĩa union tên field riêng cho feature, thay vì dùng một object lỗi không kiểu hoặc catch mọi lỗi thành cùng một chuỗi.
 
 ### Observability của BFF

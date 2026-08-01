@@ -7,6 +7,7 @@ import { USER_QUEUE, USER_JOBS } from './user-queue.constants';
 
 interface UserQueueJobData {
   email: string;
+  resetUrl?: string;
   // Do BullmqQueueAdapter gắn vào; cho phép nối log của worker với HTTP
   // request đã kích hoạt job này.
   correlationId?: string;
@@ -115,6 +116,27 @@ export class UserQueueProcessor extends WorkerHost {
         this.logger.log(
           `[Worker] Account deactivation email sent to ${email}.`,
         );
+        return { sent: true, email };
+      }
+      case USER_JOBS.SEND_PASSWORD_RESET_EMAIL: {
+        const { email, resetUrl } = job.data;
+        if (!resetUrl)
+          throw new Error('Password reset job is missing resetUrl');
+        if (!this.transporter) {
+          this.logger.log(
+            '[Worker] Password reset email skipped: MAIL_ENABLED=false',
+          );
+          return { sent: false, email };
+        }
+
+        await this.transporter.sendMail({
+          from: fromEmail,
+          to: email,
+          subject: 'Đặt lại mật khẩu',
+          text: `Mở liên kết này để đặt lại mật khẩu. Liên kết hết hạn sau 30 phút và chỉ dùng được một lần: ${resetUrl}`,
+          html: `<p>Bạn vừa yêu cầu đặt lại mật khẩu.</p><p><a href="${resetUrl.replaceAll('&', '&amp;').replaceAll('"', '&quot;')}">Đặt lại mật khẩu</a></p><p>Liên kết hết hạn sau 30 phút và chỉ dùng được một lần. Nếu bạn không gửi yêu cầu này, hãy bỏ qua email.</p>`,
+        });
+        this.logger.log(`[Worker] Password reset email sent to ${email}.`);
         return { sent: true, email };
       }
       default: {

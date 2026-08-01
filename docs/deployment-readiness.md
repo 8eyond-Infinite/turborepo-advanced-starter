@@ -72,6 +72,7 @@ Checklist sau deploy:
 9. Restore backup được thử trong môi trường cô lập.
 10. Prometheus đã nạp `deploy/observability/alerts.yml`, scrape job tên `turborepo-api` và đường cảnh báo đã được thử.
 11. `AUDIT_RETENTION_DAYS` là `0`, hoặc số ngày đã có owner phê duyệt cùng archive/legal-hold procedure.
+12. `CLIENT_URL` tạo đúng link `/reset-password`, SMTP nhận được mail, token dùng lại bị từ chối và session cũ chết sau khi đổi mật khẩu.
 
 Khi các mục trên chưa có bằng chứng, deployment chỉ là “container đang chạy”, chưa phải release production.
 

@@ -5,3 +5,5 @@ export * from './revoke-session.handler';
 export * from './login.handler';
 export * from './refresh.handler';
 export * from './revoke-other-sessions.handler';
+export * from './request-password-reset.handler';
+export * from './reset-password.handler';

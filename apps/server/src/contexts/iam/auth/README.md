@@ -102,6 +102,38 @@ Email không tồn tại và password sai đều phải trả về cùng một l
 
 ## 5. Access request validation
 
+### Password reset không phải là một login rút gọn
+
+Người dùng mở `/forgot-password` ở Client và nhập email. API luôn trả `202` với cùng một nội dung, kể cả khi email không tồn tại, tài khoản đã khóa hoặc đã xóa. Quy tắc này ngăn người ngoài dùng form để dò danh sách tài khoản. Endpoint còn bị giới hạn ba request mỗi phút trên một nguồn gọi.
+
+Với tài khoản hợp lệ, Auth sinh 32 byte ngẫu nhiên. Chuỗi gốc chỉ được đặt vào link gửi qua mail queue; bảng `password_reset_tokens` chỉ lưu SHA-256 hash, user, hạn 30 phút và thời điểm đã dùng. Yêu cầu mới xóa token chưa dùng trước đó của chính user, vì chỉ liên kết mới nhất nên còn hiệu lực.
+
+Khi Client gửi token và mật khẩu mới tới `/auth/password-reset/confirm`, store dùng một câu update có điều kiện để đánh dấu token đã dùng. Hai request đồng thời vì vậy không thể cùng thắng. Handler nhờ `PasswordHasher` và credential-write port của Users đổi đúng hai field `password`/`tokenVersion`, không gọi `save()` toàn aggregate rồi vô tình ghi đè profile hoặc role vừa đổi đồng thời. Session được xóa trước atomic credential write: nếu bước lưu lỗi, thiết bị cũ vẫn bị đóng thay vì có cơ hội refresh sang token mới.
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Client
+    participant Auth
+    participant DB as PostgreSQL
+    participant Queue as BullMQ/Worker
+    participant Sessions as Redis
+
+    User->>Client: Nhập email
+    Client->>Auth: POST /password-reset/request
+    Auth->>DB: Lưu hash + hạn 30 phút
+    Auth->>Queue: Gửi link chứa token gốc
+    Auth-->>Client: 202 giống nhau cho mọi email
+    User->>Client: Mở link, nhập mật khẩu mới
+    Client->>Auth: POST /password-reset/confirm
+    Auth->>DB: Consume hash nếu còn hạn/chưa dùng
+    Auth->>Sessions: Thu hồi mọi phiên
+    Auth->>DB: Lưu password hash + tăng tokenVersion
+    Auth-->>Client: 200, yêu cầu đăng nhập lại
+```
+
+`CLIENT_URL` là origin Client dùng để tạo link. Production public phải dùng HTTPS; `http://localhost:3005` chỉ được chấp nhận cho bài diễn tập loopback. Job reset được đánh dấu sensitive nên BullMQ xóa record ngay sau khi hoàn tất hoặc hết retry, thay vì giữ URL/token trong lịch sử completed/failed. Khi `MAIL_ENABLED=false`, worker ghi rõ email bị skip; form vẫn không được tiết lộ tài khoản có tồn tại hay không.
+
 `AccessTokenValidator` chấp nhận đọc cả database và Redis ở mỗi lần xác thực để đổi lấy khả năng thu hồi token có hiệu lực ngay lập tức:
 
 1. verify chữ ký bằng `JWT_ACCESS_SECRET`;
@@ -179,16 +211,18 @@ Vì `JwtStrategy` đối chiếu JTI với Redis trên từng request, logout m�
 
 ## 8. API surface
 
-| Endpoint                            | Guard              | Use case                            |
-| ----------------------------------- | ------------------ | ----------------------------------- |
-| `POST /auth/register`               | Public             | Tạo account                         |
-| `POST /auth/login`                  | Public             | Xác thực và cấp token               |
-| `POST /auth/refresh`                | Refresh JWT        | Rotate token                        |
-| `POST /auth/logout`                 | Refresh JWT        | Revoke current session              |
-| `POST /auth/logout/global`          | Access JWT         | Revoke all refresh sessions         |
-| `POST /auth/sessions/revoke-others` | Refresh JWT cookie | Revoke mọi phiên trừ phiên hiện tại |
-| `GET /auth/sessions`                | Access JWT         | Liệt kê active sessions             |
-| `DELETE /auth/sessions/:jti`        | Access JWT         | Revoke một session                  |
+| Endpoint                            | Guard              | Use case                               |
+| ----------------------------------- | ------------------ | -------------------------------------- |
+| `POST /auth/register`               | Public             | Tạo account                            |
+| `POST /auth/login`                  | Public             | Xác thực và cấp token                  |
+| `POST /auth/refresh`                | Refresh JWT        | Rotate token                           |
+| `POST /auth/logout`                 | Refresh JWT        | Revoke current session                 |
+| `POST /auth/logout/global`          | Access JWT         | Revoke all refresh sessions            |
+| `POST /auth/sessions/revoke-others` | Refresh JWT cookie | Revoke mọi phiên trừ phiên hiện tại    |
+| `GET /auth/sessions`                | Access JWT         | Liệt kê active sessions                |
+| `DELETE /auth/sessions/:jti`        | Access JWT         | Revoke một session                     |
+| `POST /auth/password-reset/request` | Public + throttle  | Yêu cầu link reset, response đồng nhất |
+| `POST /auth/password-reset/confirm` | Public + throttle  | Consume token và thu hồi mọi phiên     |
 
 DTO chịu trách nhiệm kiểm tra dữ liệu vào lúc chạy (runtime validation). Controller chỉ làm ba việc: gom input cùng thông tin client (IP, user-agent), gửi command/query vào CQRS bus, rồi mở kết quả ra để trả về HTTP.
 
@@ -214,7 +248,7 @@ Hai strategy là chỗ Passport cắm vào để kiểm tra token cho từng req
 
 ## 11. Cách mở rộng
 
-Khi thêm MFA hoặc chức năng đặt lại mật khẩu, trước tiên xác định flow đó thuộc Auth hay Users. Việc tạo, kiểm tra và cho hết hạn các token/mã xác nhận thuộc Auth; việc đổi password hash và tăng tokenVersion thuộc Users. Hai context nên nói chuyện với nhau qua use case/port rõ ràng, không để Auth gọi thẳng vào bảng User qua Prisma.
+Password reset là ví dụ cho cách chia Auth và Users: việc tạo, kiểm tra và cho hết hạn token thuộc Auth; việc đổi password hash và tăng tokenVersion thuộc Users. Hai context nói chuyện qua use case/port rõ ràng, Auth không gọi thẳng vào bảng User qua Prisma. Khi thêm MFA hoặc email verification, giữ nguyên nguyên tắc này.
 
 Use case mới cần:
 

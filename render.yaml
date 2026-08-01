@@ -32,6 +32,8 @@ services:
         generateValue: true
       - key: CORS_ORIGINS
         sync: false
+      - key: CLIENT_URL
+        sync: false
       - key: REFRESH_COOKIE_SAME_SITE
         value: none
       - key: MAIL_HOST
@@ -85,6 +87,11 @@ services:
           name: turborepo-starter-api
           type: web
           envVarKey: CORS_ORIGINS
+      - key: CLIENT_URL
+        fromService:
+          name: turborepo-starter-api
+          type: web
+          envVarKey: CLIENT_URL
       - key: REFRESH_COOKIE_SAME_SITE
         fromService:
           name: turborepo-starter-api

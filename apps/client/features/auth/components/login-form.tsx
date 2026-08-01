@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { login, type LoginState } from "@/features/auth/actions/auth";
+import Link from "next/link";
 
 // Client Component duy nhất ở đây, chỉ để hiện lỗi và trạng thái đang gửi.
 // Bản thân việc đăng nhập chạy trong Server Action — mật khẩu không đi qua
@@ -73,6 +74,10 @@ export function LoginForm({ next }: { next: string }) {
           </span>
         ) : null}
       </label>
+
+      <Link href="/forgot-password" className="text-sm underline">
+        Quên mật khẩu?
+      </Link>
 
       <button
         type="submit"

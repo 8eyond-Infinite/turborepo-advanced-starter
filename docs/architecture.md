@@ -246,6 +246,8 @@ Logout ở BFF phải gọi `/auth/logout` để thu hồi session trong Redis r
 
 Session lifecycle phân biệt hai use case: `logout/global` xóa mọi refresh session và tăng `tokenVersion` để đá tất cả thiết bị ngay; `sessions/revoke-others` được xác thực bằng refresh cookie và bảo toàn JTI hiện tại. Hai endpoint không thể dùng thay thế cho nhau.
 
+Password reset đi qua cả Auth và Users nhưng không làm mờ ownership. Auth sở hữu token reset một lần: sinh entropy, hash trước khi lưu, kiểm tra hạn và consume atomically. Users cung cấp credential-write port chỉ cập nhật password hash và tăng `tokenVersion`; Auth không gọi Prisma User trực tiếp và cũng không save một snapshot aggregate cũ có thể ghi đè role/profile vừa đổi. Link gốc chỉ tồn tại trong email job sensitive; BullMQ xóa payload đó sau completion hoặc final failure. Sau khi consume token, mọi Redis session bị thu hồi trước credential write, nên thiết bị cũ không có cửa sổ refresh sang credential state mới.
+
 ## 8. Audit
 
 Audit là một bounded context riêng với năng lực application đầy đủ, không phải vài dòng `console.log`. Tầng application gọi audit port; adapter Prisma ghi bản ghi bền vững xuống database, gồm ai làm (actor), làm gì (action), lên đối tượng nào (target), kèm IP, user agent, correlation ID và chi tiết phù hợp. Correlation ID đi từ request context vào cả HTTP log, audit record, outbox và queue, nên operator có thể lần một hành động quản trị qua các process mà không dựa vào timestamp gần giống nhau.

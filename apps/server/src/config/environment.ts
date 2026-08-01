@@ -25,6 +25,7 @@ export interface EnvironmentVariables extends Record<string, unknown> {
   MAIL_HOST?: string;
   MAIL_PORT: number;
   MAIL_FROM?: string;
+  CLIENT_URL: string;
 }
 
 const requireString = (
@@ -103,6 +104,31 @@ export const validateEnvironment = (
     typeof config.BACKUP_STATUS_FILE === 'string'
       ? config.BACKUP_STATUS_FILE.trim()
       : '';
+  const clientUrl =
+    typeof config.CLIENT_URL === 'string' && config.CLIENT_URL.trim()
+      ? config.CLIENT_URL.trim()
+      : 'http://localhost:3005';
+  let parsedClientUrl: URL;
+  try {
+    parsedClientUrl = new URL(clientUrl);
+  } catch {
+    throw new Error('Environment variable CLIENT_URL must be a valid URL');
+  }
+  if (!['http:', 'https:'].includes(parsedClientUrl.protocol)) {
+    throw new Error('Environment variable CLIENT_URL must use http or https');
+  }
+  const isLoopbackClient = ['localhost', '127.0.0.1', '::1'].includes(
+    parsedClientUrl.hostname,
+  );
+  if (
+    nodeEnvironment === 'production' &&
+    parsedClientUrl.protocol !== 'https:' &&
+    !isLoopbackClient
+  ) {
+    throw new Error(
+      'Environment variable CLIENT_URL must use https in production',
+    );
+  }
 
   if (refreshCookieSameSite !== 'lax' && refreshCookieSameSite !== 'none') {
     throw new Error(
@@ -144,6 +170,7 @@ export const validateEnvironment = (
     MAIL_HOST: mailHost || undefined,
     MAIL_PORT: parsePort(config.MAIL_PORT ?? 587),
     MAIL_FROM: mailFrom || undefined,
+    CLIENT_URL: parsedClientUrl.origin,
     CORS_ORIGINS:
       typeof config.CORS_ORIGINS === 'string' &&
       config.CORS_ORIGINS.trim().length > 0
