@@ -7,3 +7,5 @@ export * from './refresh.handler';
 export * from './revoke-other-sessions.handler';
 export * from './request-password-reset.handler';
 export * from './reset-password.handler';
+export * from './verify-email.handler';
+export * from './request-email-verification.handler';

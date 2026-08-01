@@ -33,6 +33,7 @@ Users không ký token, cũng không quản lý phiên refresh; đó là việc 
 Aggregate bảo vệ state transition:
 
 - `register()` tạo user mới active, chưa deleted, version bằng 0 và phát `UserRegisteredEvent`.
+- `emailVerifiedAt` cho biết địa chỉ hiện tại đã được chứng minh quyền sở hữu hay chưa. Đổi email luôn xóa mốc này; Auth quyết định khi nào policy bắt buộc xác minh và là nơi consume verification token.
 - `updateInfo()` thay email/username/avatar và cập nhật audit fields, nhưng không thu hồi access token vì các field profile không thay đổi quyền truy cập.
 - `updateRoles()` chuẩn hóa role trùng và chỉ tăng tokenVersion khi tập role thực sự thay đổi. Gửi lại cùng các role theo thứ tự khác không làm token cũ mất hiệu lực.
 - `deactivate()` tắt truy cập, tăng tokenVersion và phát `UserDeactivatedEvent`.

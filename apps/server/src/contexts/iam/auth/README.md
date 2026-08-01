@@ -134,6 +134,41 @@ sequenceDiagram
 
 `CLIENT_URL` là origin Client dùng để tạo link. Production public phải dùng HTTPS; `http://localhost:3005` chỉ được chấp nhận cho bài diễn tập loopback. Job reset được đánh dấu sensitive nên BullMQ xóa record ngay sau khi hoàn tất hoặc hết retry, thay vì giữ URL/token trong lịch sử completed/failed. Khi `MAIL_ENABLED=false`, worker ghi rõ email bị skip; form vẫn không được tiết lộ tài khoản có tồn tại hay không.
 
+### Xác minh email: chứng minh người đăng ký sở hữu hộp thư
+
+`EMAIL_VERIFICATION_REQUIRED` là công tắc triển khai. Giá trị mặc định `false` giữ starter tương thích với môi trường chưa có SMTP: đăng ký xong có thể đăng nhập ngay. Khi đặt `true`, tài khoản vẫn được tạo nhưng chưa được đăng nhập cho tới khi mở liên kết xác minh. Đây là policy của backend; ẩn form ở Client không thể thay thế bước kiểm tra trong `LoginCommandHandler`.
+
+Luồng đầy đủ diễn ra như sau:
+
+```mermaid
+sequenceDiagram
+    actor User as Người dùng
+    participant Client as Next.js Client
+    participant Auth as Auth context
+    participant DB as PostgreSQL
+    participant Queue as BullMQ/Worker
+
+    User->>Client: Gửi form đăng ký
+    Client->>Auth: POST /auth/register
+    Auth->>DB: Tạo user chưa xác minh
+    Auth->>DB: Lưu SHA-256 của token, hạn 24 giờ
+    Auth->>Queue: Job nhạy cảm chứa link một lần
+    Auth-->>Client: emailVerificationRequired=true
+    Client-->>User: Chuyển tới /check-email
+    User->>Client: Mở /verify-email?token=...
+    Client->>Auth: POST /auth/email-verification/confirm
+    Auth->>DB: Consume token + đặt emailVerifiedAt
+    Auth-->>Client: 200, có thể đăng nhập
+```
+
+Token gốc là 32 byte ngẫu nhiên và chỉ tồn tại trong URL gửi qua queue. PostgreSQL chỉ giữ hash, email tại thời điểm phát, hạn 24 giờ và thời điểm consume. Khi confirm, repository chỉ đánh dấu verified nếu user vẫn mang đúng email đã gắn với token; link cũ vì vậy không thể xác minh một địa chỉ vừa được đổi. Một yêu cầu gửi lại xóa token cũ của chính user, nên chỉ link mới nhất còn dùng được. Consume dùng update có điều kiện; hai request đồng thời không thể cùng xác minh thành công. Job được đánh dấu `sensitive`, vì vậy BullMQ xóa payload chứa URL sau khi hoàn tất hoặc hết retry.
+
+`POST /auth/email-verification/request` luôn trả cùng một response `202`, dù email không tồn tại, đã xác minh, bị khóa hay bị xóa. Endpoint bị giới hạn ba request mỗi phút. Cách trả lời đồng nhất này ngăn form trở thành công cụ dò tài khoản. Login chỉ trả `EMAIL_NOT_VERIFIED` sau khi password đã đúng; người không biết password vẫn chỉ thấy lỗi credentials chung.
+
+Migration đánh dấu mọi user có trước tính năng là đã xác minh. Seed cũng đánh dấu bootstrap admin là đã xác minh, vì tài khoản đó do operator provision chứ không đi qua đăng ký công khai. Khi email profile thay đổi, `UserEntity` xóa `emailVerifiedAt`; nếu policy đang bật, chủ tài khoản phải dùng màn hình gửi lại email trước lần login tiếp theo.
+
+Nếu `MAIL_ENABLED=false` trong lúc policy bật, đăng ký vẫn thành công nhưng người dùng không nhận được link. Cấu hình này chỉ phù hợp khi test flow bằng cách đọc job hoặc khi operator chủ động kiểm soát việc xác minh; production phục vụ người dùng thật phải bật SMTP và thử delivery trước release.
+
 `AccessTokenValidator` chấp nhận đọc cả database và Redis ở mỗi lần xác thực để đổi lấy khả năng thu hồi token có hiệu lực ngay lập tức:
 
 1. verify chữ ký bằng `JWT_ACCESS_SECRET`;
@@ -211,18 +246,20 @@ Vì `JwtStrategy` đối chiếu JTI với Redis trên từng request, logout m�
 
 ## 8. API surface
 
-| Endpoint                            | Guard              | Use case                               |
-| ----------------------------------- | ------------------ | -------------------------------------- |
-| `POST /auth/register`               | Public             | Tạo account                            |
-| `POST /auth/login`                  | Public             | Xác thực và cấp token                  |
-| `POST /auth/refresh`                | Refresh JWT        | Rotate token                           |
-| `POST /auth/logout`                 | Refresh JWT        | Revoke current session                 |
-| `POST /auth/logout/global`          | Access JWT         | Revoke all refresh sessions            |
-| `POST /auth/sessions/revoke-others` | Refresh JWT cookie | Revoke mọi phiên trừ phiên hiện tại    |
-| `GET /auth/sessions`                | Access JWT         | Liệt kê active sessions                |
-| `DELETE /auth/sessions/:jti`        | Access JWT         | Revoke một session                     |
-| `POST /auth/password-reset/request` | Public + throttle  | Yêu cầu link reset, response đồng nhất |
-| `POST /auth/password-reset/confirm` | Public + throttle  | Consume token và thu hồi mọi phiên     |
+| Endpoint                                | Guard              | Use case                               |
+| --------------------------------------- | ------------------ | -------------------------------------- |
+| `POST /auth/register`                   | Public             | Tạo account                            |
+| `POST /auth/login`                      | Public             | Xác thực và cấp token                  |
+| `POST /auth/refresh`                    | Refresh JWT        | Rotate token                           |
+| `POST /auth/logout`                     | Refresh JWT        | Revoke current session                 |
+| `POST /auth/logout/global`              | Access JWT         | Revoke all refresh sessions            |
+| `POST /auth/sessions/revoke-others`     | Refresh JWT cookie | Revoke mọi phiên trừ phiên hiện tại    |
+| `GET /auth/sessions`                    | Access JWT         | Liệt kê active sessions                |
+| `DELETE /auth/sessions/:jti`            | Access JWT         | Revoke một session                     |
+| `POST /auth/password-reset/request`     | Public + throttle  | Yêu cầu link reset, response đồng nhất |
+| `POST /auth/password-reset/confirm`     | Public + throttle  | Consume token và thu hồi mọi phiên     |
+| `POST /auth/email-verification/request` | Public + throttle  | Gửi lại link, response đồng nhất       |
+| `POST /auth/email-verification/confirm` | Public + throttle  | Consume token và xác minh email        |
 
 DTO chịu trách nhiệm kiểm tra dữ liệu vào lúc chạy (runtime validation). Controller chỉ làm ba việc: gom input cùng thông tin client (IP, user-agent), gửi command/query vào CQRS bus, rồi mở kết quả ra để trả về HTTP.
 

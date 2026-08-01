@@ -8,6 +8,7 @@ import { USER_QUEUE, USER_JOBS } from './user-queue.constants';
 interface UserQueueJobData {
   email: string;
   resetUrl?: string;
+  verificationUrl?: string;
   // Do BullmqQueueAdapter gắn vào; cho phép nối log của worker với HTTP
   // request đã kích hoạt job này.
   correlationId?: string;
@@ -137,6 +138,30 @@ export class UserQueueProcessor extends WorkerHost {
           html: `<p>Bạn vừa yêu cầu đặt lại mật khẩu.</p><p><a href="${resetUrl.replaceAll('&', '&amp;').replaceAll('"', '&quot;')}">Đặt lại mật khẩu</a></p><p>Liên kết hết hạn sau 30 phút và chỉ dùng được một lần. Nếu bạn không gửi yêu cầu này, hãy bỏ qua email.</p>`,
         });
         this.logger.log(`[Worker] Password reset email sent to ${email}.`);
+        return { sent: true, email };
+      }
+      case USER_JOBS.SEND_EMAIL_VERIFICATION: {
+        const { email, verificationUrl } = job.data;
+        if (!verificationUrl) {
+          throw new Error('Email verification job is missing verificationUrl');
+        }
+        if (!this.transporter) {
+          this.logger.log(
+            '[Worker] Email verification skipped: MAIL_ENABLED=false',
+          );
+          return { sent: false, email };
+        }
+        const safeUrl = verificationUrl
+          .replaceAll('&', '&amp;')
+          .replaceAll('"', '&quot;');
+        await this.transporter.sendMail({
+          from: fromEmail,
+          to: email,
+          subject: 'Xác minh địa chỉ email',
+          text: `Mở liên kết này để xác minh email. Liên kết hết hạn sau 24 giờ và chỉ dùng được một lần: ${verificationUrl}`,
+          html: `<p>Hãy xác minh địa chỉ email để hoàn tất đăng ký.</p><p><a href="${safeUrl}">Xác minh email</a></p><p>Liên kết hết hạn sau 24 giờ và chỉ dùng được một lần.</p>`,
+        });
+        this.logger.log('[Worker] Email verification sent.');
         return { sent: true, email };
       }
       default: {

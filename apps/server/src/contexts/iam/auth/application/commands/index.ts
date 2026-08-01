@@ -7,3 +7,5 @@ export * from './revoke-session.command';
 export * from './revoke-other-sessions.command';
 export * from './request-password-reset.command';
 export * from './reset-password.command';
+export * from './verify-email.command';
+export * from './request-email-verification.command';

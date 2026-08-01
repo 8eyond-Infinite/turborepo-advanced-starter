@@ -73,6 +73,7 @@ Checklist sau deploy:
 10. Prometheus đã nạp `deploy/observability/alerts.yml`, scrape job tên `turborepo-api` và đường cảnh báo đã được thử.
 11. `AUDIT_RETENTION_DAYS` là `0`, hoặc số ngày đã có owner phê duyệt cùng archive/legal-hold procedure.
 12. `CLIENT_URL` tạo đúng link `/reset-password`, SMTP nhận được mail, token dùng lại bị từ chối và session cũ chết sau khi đổi mật khẩu.
+13. Nếu `EMAIL_VERIFICATION_REQUIRED=true`, link `/verify-email` mở đúng Client, token chỉ dùng một lần, resend không làm lộ email tồn tại và bootstrap admin vẫn đăng nhập được.
 
 Khi các mục trên chưa có bằng chứng, deployment chỉ là “container đang chạy”, chưa phải release production.
 
@@ -83,6 +84,8 @@ trạng thái `sent: false` và log lý do skip; nó không retry vào một SMT
 chỉ khởi động nếu có `MAIL_HOST` và `MAIL_FROM`; `MAIL_PORT` phải là port hợp lệ. Production bật mail phải dùng SMTP
 provider thật. Deployment drill có thể để mail tắt để kiểm tra outbox/queue, hoặc trỏ vào Mailpit/Maildev để kiểm tra
 nội dung email end-to-end.
+
+Không bật `EMAIL_VERIFICATION_REQUIRED` trên production phục vụ user thật trong khi `MAIL_ENABLED=false`. Trạng thái đó không làm container unhealthy, nhưng làm user mới mắc kẹt sau đăng ký. Release checklist phải kiểm tra cả queue worker lẫn một email xác minh nhận thật.
 
 ### Backup/restore drill
 

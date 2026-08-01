@@ -19,6 +19,7 @@ describe('environment configuration', () => {
         MAIL_ENABLED: false,
         AUDIT_RETENTION_DAYS: 0,
         CLIENT_URL: 'http://localhost:3005',
+        EMAIL_VERIFICATION_REQUIRED: false,
       }),
     );
   });
@@ -107,6 +108,21 @@ describe('environment configuration', () => {
     expect(() =>
       validateEnvironment({ ...validConfig, MAIL_ENABLED: 'yes' }),
     ).toThrow('MAIL_ENABLED must be true or false');
+  });
+
+  it('parses the email verification policy strictly', () => {
+    expect(
+      validateEnvironment({
+        ...validConfig,
+        EMAIL_VERIFICATION_REQUIRED: 'true',
+      }),
+    ).toEqual(expect.objectContaining({ EMAIL_VERIFICATION_REQUIRED: true }));
+    expect(() =>
+      validateEnvironment({
+        ...validConfig,
+        EMAIL_VERIFICATION_REQUIRED: 'yes',
+      }),
+    ).toThrow('EMAIL_VERIFICATION_REQUIRED must be true or false');
   });
 
   it('requires an HTTPS client URL in production except for loopback drills', () => {

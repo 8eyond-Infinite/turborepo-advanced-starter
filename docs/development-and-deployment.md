@@ -133,9 +133,12 @@ REDIS_HOST=localhost
 REDIS_PORT=6380
 CORS_ORIGINS=http://localhost:5173,http://localhost:3005
 CLIENT_URL=http://localhost:3005
+EMAIL_VERIFICATION_REQUIRED=false
 ```
 
-`CLIENT_URL` không phải CORS allowlist. Nó là origin backend dùng để tạo link password reset. Local trỏ `http://localhost:3005`; môi trường public phải trỏ đúng Client HTTPS, không có path.
+`CLIENT_URL` không phải CORS allowlist. Nó là origin backend dùng để tạo link password reset và xác minh email. Local trỏ `http://localhost:3005`; môi trường public phải trỏ đúng Client HTTPS, không có path.
+
+`EMAIL_VERIFICATION_REQUIRED=false` cho phép starter chạy khi chưa có SMTP. Đặt `true` khi sản phẩm yêu cầu chứng minh quyền sở hữu email. Khi bật ở môi trường thật, đồng thời phải bật và thử cấu hình mail; nếu không, user mới sẽ được tạo nhưng không thể nhận liên kết để đăng nhập.
 
 Container configuration dùng DNS service:
 

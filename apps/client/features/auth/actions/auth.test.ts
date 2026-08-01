@@ -21,7 +21,15 @@ vi.mock("@/lib/session", () => ({
 }));
 
 import { ApiError } from "@/lib/api";
-import { login, logout, requestPasswordReset, resetPassword } from "./auth";
+import {
+  login,
+  logout,
+  requestPasswordReset,
+  resetPassword,
+  register,
+  verifyEmail,
+  resendEmailVerification,
+} from "./auth";
 
 const fetchMock = vi.fn<typeof fetch>();
 
@@ -181,6 +189,59 @@ describe("password reset", () => {
     await expect(resetPassword({ status: "idle" }, data)).resolves.toEqual({
       status: "error",
       formError: "Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.",
+    });
+  });
+});
+
+describe("email verification", () => {
+  it("routes a newly unverified account to the check-email page", async () => {
+    apiFetchPublic.mockResolvedValue({ emailVerificationRequired: true });
+    const data = new FormData();
+    data.set("email", "member@example.com");
+    data.set("username", "member");
+    data.set("password", "new-password-123");
+    data.set("confirmPassword", "new-password-123");
+    await register({ status: "idle" }, data);
+    expect(redirect).toHaveBeenCalledWith(
+      "/check-email?email=member%40example.com",
+    );
+  });
+
+  it("rejects a malformed verification token before calling the API", async () => {
+    const data = new FormData();
+    data.set("token", "short");
+    await expect(verifyEmail({ status: "idle" }, data)).resolves.toMatchObject({
+      status: "error",
+    });
+    expect(apiFetchPublic).not.toHaveBeenCalled();
+  });
+
+  it("returns a uniform success state after requesting another link", async () => {
+    apiFetchPublic.mockResolvedValue({ accepted: true });
+    const data = new FormData();
+    data.set("email", "member@example.com");
+    await expect(
+      resendEmailVerification({ status: "idle" }, data),
+    ).resolves.toEqual({ status: "success" });
+  });
+
+  it("maps the not-verified login state without exposing backend details", async () => {
+    apiFetchPublic.mockRejectedValue(
+      new ApiError({
+        kind: "forbidden",
+        status: 403,
+        code: "EMAIL_NOT_VERIFIED",
+        message: "internal",
+      }),
+    );
+    const data = new FormData();
+    data.set("email", "member@example.com");
+    data.set("password", "valid-password");
+    data.set("next", "/me");
+    await expect(login({ status: "idle" }, data)).resolves.toMatchObject({
+      status: "error",
+      verificationRequired: true,
+      values: { email: "member@example.com" },
     });
   });
 });

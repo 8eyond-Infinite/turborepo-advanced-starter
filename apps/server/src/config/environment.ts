@@ -26,6 +26,7 @@ export interface EnvironmentVariables extends Record<string, unknown> {
   MAIL_PORT: number;
   MAIL_FROM?: string;
   CLIENT_URL: string;
+  EMAIL_VERIFICATION_REQUIRED: boolean;
 }
 
 const requireString = (
@@ -171,6 +172,10 @@ export const validateEnvironment = (
     MAIL_PORT: parsePort(config.MAIL_PORT ?? 587),
     MAIL_FROM: mailFrom || undefined,
     CLIENT_URL: parsedClientUrl.origin,
+    EMAIL_VERIFICATION_REQUIRED: parseBoolean(
+      config.EMAIL_VERIFICATION_REQUIRED,
+      'EMAIL_VERIFICATION_REQUIRED',
+    ),
     CORS_ORIGINS:
       typeof config.CORS_ORIGINS === 'string' &&
       config.CORS_ORIGINS.trim().length > 0
