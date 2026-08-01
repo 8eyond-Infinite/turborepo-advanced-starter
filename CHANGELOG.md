@@ -6,11 +6,8 @@
 ### Tính năng mới
 
 * **audit:** add bounded retention cleanup ([6a2af98](https://github.com/8eyond-Infinite/turborepo-advanced-starter/commit/6a2af98de89038df87eec809dae364809d22185a))
-* **audit:** add bounded retention cleanup ([2388bc3](https://github.com/8eyond-Infinite/turborepo-advanced-starter/commit/2388bc3fd74b15abd116825030ebc4706593970b))
 * **auth:** add email verification flow ([d23eb64](https://github.com/8eyond-Infinite/turborepo-advanced-starter/commit/d23eb64e9b48eb1cc10b5cbf0c5913f4617f8330))
-* **auth:** add email verification flow ([deebff0](https://github.com/8eyond-Infinite/turborepo-advanced-starter/commit/deebff0b101fb0227dcb921e3ebd5dad6ece7044))
 * **auth:** add secure password recovery ([3da6ab5](https://github.com/8eyond-Infinite/turborepo-advanced-starter/commit/3da6ab55a1343c01bb80f724ab89fe1141904ed8))
-* **auth:** add secure password recovery ([9374357](https://github.com/8eyond-Infinite/turborepo-advanced-starter/commit/9374357de1bb6f34ac67c770e2bd1992290285e0))
 
 
 ### Sửa lỗi
