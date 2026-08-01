@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/8eyond-Infinite/turborepo-advanced-starter/compare/v1.1.0...v1.1.1) (2026-08-01)
+
+
+### Sửa lỗi
+
+* **security:** close dependency audit baseline ([#87](https://github.com/8eyond-Infinite/turborepo-advanced-starter/issues/87)) ([82e0097](https://github.com/8eyond-Infinite/turborepo-advanced-starter/commit/82e0097f132d37c0ee3fa3e6d02c8fd614f76482))
+
 ## [1.1.0](https://github.com/8eyond-Infinite/turborepo-advanced-starter/compare/v1.0.0...v1.1.0) (2026-08-01)
 
 
