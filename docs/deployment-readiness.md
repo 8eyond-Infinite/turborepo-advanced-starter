@@ -51,9 +51,12 @@ Vercel Preview chỉ usable khi có API staging public và CORS cho preview orig
 VITE_API_URL=https://api.staging.example.com
 ```
 
-Nếu starter chưa có backend public, Vercel Preview không phải quality gate của repository. Có hai lựa chọn: tắt/không bắt buộc Vercel Preview check, hoặc cấu hình API staging thật rồi đặt `VITE_API_URL` trong Vercel Preview.
+Nếu starter chưa có backend public, Vercel Preview không phải quality gate bắt buộc của repository. Có hai chế độ rõ ràng:
 
-Không điền localhost vào Vercel, không dùng API production cho mọi preview, và không điền URL giả rồi coi preview là usable. URL giả chỉ phù hợp với CI artifact build.
+- **Artifact-only:** đặt `VITE_API_URL`/`API_URL` thành một origin `.invalid` và tạo `SESSION_SECRET` riêng cho Preview. Deployment phải build xanh nhưng login/API không được coi là usable.
+- **Usable Preview:** triển khai API staging thật, cấu hình CORS cho preview origin và đặt URL staging vào cả hai project.
+
+Không điền localhost vào Vercel, không dùng API production cho mọi preview, và không gọi artifact-only Preview là môi trường kiểm thử end-to-end. Production phải có environment riêng; không tái sử dụng Preview session secret.
 
 ## 4. Khi chuyển sang môi trường thật
 

@@ -73,6 +73,14 @@ Mỗi package GHCR (`server` và `client`) có thể mang nhiều tag. Hai packa
 
 ## 4. Thiết lập một lần trên GitHub
 
+### Bảo vệ `main`
+
+Repository dùng branch protection để biến quy trình trong tài liệu thành rule thực thi được. `main` yêu cầu pull request, branch phải cập nhật với base và các check lõi phải xanh: quality/build, Backend E2E, Frontend browser E2E, image/SBOM/vulnerability scan cho Server và Client, dependency audit và secret scan. Maintainer cũng không được bỏ qua rule; force-push và delete branch bị tắt.
+
+Vercel Preview không nằm trong required checks của starter vì không có API staging thuộc sở hữu repo. Ở dự án sản phẩm, chỉ thêm Vercel vào danh sách bắt buộc sau khi Preview thật sự gọi được backend staging; một deployment chỉ build được với URL `.invalid` vẫn là artifact-only.
+
+### Quyền cho release automation
+
 release-please dùng `GITHUB_TOKEN` để mở PR, mà mặc định GitHub **không cho** Actions tạo PR. Bật một lần tại: **Settings → Actions → General → Workflow permissions → tick "Allow GitHub Actions to create and approve pull requests"**. Repo nằm trong organization thì phải bật ở cả cấp organization (cùng đường dẫn Settings của org) — cấp org tắt thì cấp repo có tick cũng vô hiệu.
 
 Chưa bật mà workflow chạy sẽ lỗi `GitHub Actions is not permitted to create or approve pull requests` — gặp đúng dòng đó thì quay lại đây.

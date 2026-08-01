@@ -30,6 +30,8 @@ Cài môi trường theo mục "Quick start" trong [README.md](README.md).
 5. **Mở PR** — CI phải xanh cả ba job (quality, e2e, image) và Security workflow. Coverage của admin không được tụt dưới sàn; phủ thêm test thì nâng sàn trong `apps/admin/vitest.config.ts`.
 6. **Cập nhật tài liệu trong cùng PR** nếu thay đổi chạm flow, contract, command, port hoặc cách vận hành — tài liệu mô tả sai code thật bị coi là bug.
 
+`main` được bảo vệ bằng GitHub branch protection. Mọi thay đổi, kể cả của maintainer, phải đi qua pull request và các check bắt buộc: quality/build, Backend E2E, Frontend browser E2E, hai image scan, dependency audit và secret scan. Vercel Preview không phải required check vì starter không sở hữu một API staging public; project sản phẩm chỉ nên đưa Vercel vào required checks sau khi Preview đã có backend staging thật.
+
 ## Commit message
 
 Commit theo [Conventional Commits](https://www.conventionalcommits.org/) — hook `commit-msg` (commitlint) sẽ chặn message sai định dạng:
