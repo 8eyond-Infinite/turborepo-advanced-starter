@@ -4,14 +4,14 @@ import { buildRedisConnection } from './redis-connection';
 describe('buildRedisConnection', () => {
   it('prefers a managed Redis connection URL', () => {
     const config = new ConfigService({
-      REDIS_URL: 'rediss://render-user:p%40ss@redis.internal:6380',
+      REDIS_URL: 'rediss://managed-user:p%40ss@redis.internal:6380',
       REDIS_HOST: 'ignored',
     });
 
     expect(buildRedisConnection(config)).toEqual({
       host: 'redis.internal',
       port: 6380,
-      username: 'render-user',
+      username: 'managed-user',
       password: 'p@ss',
       tls: {},
     });

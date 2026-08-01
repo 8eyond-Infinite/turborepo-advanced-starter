@@ -71,14 +71,6 @@ docker compose \
 
 ### Bước 4 — Kiểm tra đúng hợp đồng public
 
-Với Render:
-
-```powershell
-$env:API_URL = "https://<api>.onrender.com"
-$env:ADMIN_ORIGIN = "https://<admin>.vercel.app"
-pnpm verify:render
-```
-
 Với Compose:
 
 ```bash
@@ -96,7 +88,7 @@ Verifier kiểm tra liveness, readiness và CORS. Nếu health đều xanh nhưn
 | Cả hai OK nhưng `outbox_oldest_pending_age_seconds` lớn | Event không được phát đi                  | Mục 3.3     |
 | Cả hai OK, người dùng báo không nhận được email         | Worker không chạy hoặc job kẹt            | Mục 3.4     |
 
-Topology và lệnh deploy/rollback được giải thích tại [Triển khai backend không phụ thuộc nhà cung cấp](provider-neutral-deployment.md). Cấu hình riêng của Render nằm tại [Render deployment](render-deployment.md).
+Topology và lệnh deploy/rollback được giải thích tại [Triển khai backend không phụ thuộc nhà cung cấp](provider-neutral-deployment.md).
 
 ## 2. Ngưỡng cảnh báo đề xuất
 
@@ -508,7 +500,7 @@ Nếu browser không có request và server không có log, kiểm tra CSP `conn
 | Xem lại quyền và tài khoản admin             | Hàng quý             | Gỡ tài khoản không còn cần                                                       |
 | Kiểm tra kích thước bảng `outbox_events`     | Hàng quý             | Đã tự dọn mỗi giờ theo `OUTBOX_RETENTION_DAYS`; chỉ cần xác nhận nó thật sự chạy |
 | Xem lại audit retention/legal hold           | Hàng quý             | Mặc định tắt; không bật hoặc đổi số ngày nếu chưa có owner của policy            |
-| Kiểm tra sàn coverage và các mục nợ kỹ thuật | Mỗi lần lập kế hoạch | Xem mục technical debt trong README                                              |
+| Kiểm tra sàn coverage và các giới hạn đã ghi | Mỗi lần lập kế hoạch | Xem phần giới hạn/mở rộng tiếp theo trong handbook của application hoặc context  |
 
 ### 6.1 Khi backup timer thất bại
 

@@ -91,7 +91,7 @@ sequenceDiagram
     participant Router
 
     Browser->>Main: Load JavaScript bundle
-    Main->>App: Render
+    Main->>App: Dựng ứng dụng
     App->>Auth: initialize()
     alt Không có refresh token
         Auth-->>App: Unauthenticated
@@ -102,7 +102,7 @@ sequenceDiagram
         API-->>Auth: User + roles + permissions
         Auth-->>App: Authenticated
     end
-    App->>Router: Render route tree
+    App->>Router: Dựng route tree
 ```
 
 Trong thời gian bootstrap, `App` hiển thị loading toàn màn hình. Điều này ngăn router chuyển nhầm người dùng sang `/login` trước khi quá trình khôi phục phiên hoàn thành.
@@ -184,7 +184,7 @@ Refresh token nằm trong cookie `HttpOnly`, vì vậy JavaScript không thể �
 
 `HttpOnly` không giải quyết mọi dạng XSS. Mã độc đang chạy ngay trong tab vẫn có thể gọi `/auth/refresh`, vì trình duyệt tự đính cookie. Do đó code vẫn phải tránh render HTML chưa làm sạch và phải kiểm soát dependency phía trình duyệt.
 
-Khi Admin và API cùng một site, backend dùng `SameSite=Lax`. Môi trường Vercel/Render khác site phải dùng `SameSite=None` cùng `Secure`, nhưng một số browser vẫn chặn cookie bên thứ ba. Production nên dùng các subdomain chung một domain, chẳng hạn `admin.example.com` và `api.example.com`.
+Khi Admin và API cùng một site, backend dùng `SameSite=Lax`. Nếu hai ứng dụng nằm ở hai site khác nhau, cookie phải dùng `SameSite=None` cùng `Secure`, nhưng một số browser vẫn chặn cookie bên thứ ba. Production nên dùng các subdomain chung một domain, chẳng hạn `admin.example.com` và `api.example.com`.
 
 ## 6. Server state và UI state
 

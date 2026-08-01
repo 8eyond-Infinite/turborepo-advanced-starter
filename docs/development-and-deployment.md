@@ -406,15 +406,9 @@ Nếu dữ liệu quan trọng, đừng để PostgreSQL production sống chế
 
 Bản build Vite của Admin chỉ là các file tĩnh, có thể phục vụ qua CDN hoặc static host. Next.js cần một tiến trình Node đang chạy nếu dùng render động (dynamic rendering); chỉ xuất ra file tĩnh (static export) được khi hành vi của sản phẩm cho phép.
 
-### Render topology cho backend
-
-Backend production được codify tại `render.yaml` thành bốn resource cùng region: Docker web service cho API, Docker background worker dùng cùng image, managed PostgreSQL và managed Key Value. API/worker nhận `DATABASE_URL` và `REDIS_URL` qua private connection string; datastore không mở public inbound. API chạy migration bằng `node scripts/migrate.mjs` ở pre-deploy, trước rollout, còn worker không chạy migration.
-
-`render.free.yaml` là Blueprint demo riêng: một free API, free PostgreSQL, free Redis, không worker; migration và seed chạy tuần tự trước startup vì free plan không có pre-deploy command. Đọc [Triển khai backend trên Render](render-deployment.md) trước khi chọn file. Không biến topology free thành production bằng cách nâng plan rời rạc trong dashboard.
-
 ### Provider-neutral single-node topology
 
-`deploy/compose/compose.production.yaml` hiện thực cùng process boundary mà không phụ thuộc Render: Caddy nhận public traffic; API và worker dùng chung immutable image; migration chạy one-off trước rollout; PostgreSQL/Redis nằm trên internal network và persistent volume. CI kiểm tra manifest bằng `pnpm verify:compose`.
+`deploy/compose/compose.production.yaml` hiện thực process boundary không phụ thuộc nhà cung cấp: Caddy nhận public traffic; API và worker dùng chung immutable image; migration chạy one-off trước rollout; PostgreSQL/Redis nằm trên internal network và persistent volume. CI kiểm tra manifest bằng `pnpm verify:compose`.
 
 Topology này dùng để diễn tập production trên Ubuntu/WSL2, đưa lên VPS nhỏ hoặc làm bước trung gian trước ECS. Nó không phải high availability và database container không thay thế managed database khi dữ liệu khách hàng quan trọng. Cách tạo environment, build/pull image, deploy, seed, verify và rollback nằm tại [Triển khai backend không phụ thuộc nhà cung cấp](provider-neutral-deployment.md).
 
@@ -434,15 +428,51 @@ Admin dùng Git integration của Vercel. Project Settings cần giữ:
 
 Quality CI build với `https://api.ci.example.invalid`, sau đó chạy `scripts/verify-production-build.mjs`. Verifier fail nếu artifact có localhost, source map, thiếu CSP, thiếu header contract hoặc mất catch-all rewrite. Turbo khai báo `VITE_API_URL` trong `globalEnv`, vì output frontend thay đổi theo biến này và không được tái dùng remote cache từ origin khác.
 
-## 13. CI pipeline
+## 13. CI và CD: từ commit đến artifact
 
-CI chạy trên GitHub Actions với hai workflow đã triển khai:
+**CI (Continuous Integration)** nghĩa là mọi thay đổi được ghép vào repository phải được một máy sạch kiểm tra tự động. Máy CI không tin kết quả từ laptop của lập trình viên: nó cài đúng lockfile, tạo Prisma client, kiểm tra format/kiểu, chạy test và build lại từ đầu. Nếu một gate đỏ, thay đổi chưa đủ điều kiện để merge hoặc tạo artifact.
 
-- `.github/workflows/ci.yml` — job `quality` (install frozen → prisma generate → lint với `--max-warnings=0` → check-types → unit tests → build → kiểm tra Client JavaScript budget → verify Admin production artifact) và job `e2e` (PostgreSQL/Redis/Maildev service containers, sinh `apps/server/.env.test` với database `starter_test`, chạy `pnpm --filter=server test:e2e`).
+**CD** có hai cách hiểu dễ bị trộn:
+
+- **Continuous Delivery** tự động tạo artifact đã kiểm tra và để nó sẵn sàng triển khai, nhưng con người quyết định khi nào phát hành và deploy.
+- **Continuous Deployment** đi xa hơn: mỗi thay đổi qua gate sẽ tự động được đưa tới production.
+
+Repo này triển khai **Continuous Delivery**, không tự động deploy production. CI tạo Server/Client image theo commit SHA và đẩy lên GHCR sau khi code đã vào `main`; release workflow gắn version khi con người merge release PR. Việc chọn môi trường, chạy migration, đổi image tag, smoke test và quan sát rollout vẫn là bước vận hành có chủ đích. Starter không sở hữu một production provider nên không được giả vờ rằng “image đã push” đồng nghĩa “khách hàng đang dùng phiên bản mới”.
+
+```mermaid
+flowchart TD
+    A[PR hoặc push main] --> B[Quality, backend E2E, browser E2E]
+    A --> C[Secret scan và dependency audit]
+    B -->|một gate đỏ| X[Không merge / không publish image]
+    C -->|một gate đỏ| X
+    B -->|tất cả xanh| F[Build Server + Client image]
+    C -->|tất cả xanh| F
+    F --> G[SBOM + vulnerability scan]
+    G -->|PR| D[Đủ điều kiện merge, không push image]
+    G -->|main| H[Push image tag SHA và latest lên GHCR]
+    H --> I[release-please mở hoặc cập nhật release PR]
+    I -->|Con người merge| J[Git tag + GitHub Release + version image tags]
+    J --> K[Operator deploy migration + image, smoke test, theo dõi]
+```
+
+Ba workflow có trách nhiệm khác nhau:
+
+- `.github/workflows/ci.yml` kiểm tra chất lượng, E2E và tạo hai image.
+- `.github/workflows/security.yml` tìm secret/lỗ hổng trên push, PR và theo lịch hằng tuần.
+- `.github/workflows/release.yml` quản lý version/changelog và gắn version cho image đã được CI build; nó không build lại và không deploy.
+
+### Luồng CI của một pull request
+
+Khi PR được mở hoặc cập nhật, các nhánh kiểm tra chạy độc lập để phản hồi sớm:
+
+- Job `quality`: frozen install → Prisma generate → kiểm tra Compose/env/docs/backup/alerts → lint → typecheck → unit test → build → performance/artifact verifier.
+- Job `Backend E2E`: dựng PostgreSQL và Redis dùng một lần → replay migration chain → build dependency → chạy API E2E trên database `_test`.
+- Job `Frontend browser E2E`: dựng PostgreSQL/Redis → migrate/seed → mở Chromium → chạy Admin rồi Client qua backend thật → lưu trace/video/screenshot khi lỗi.
+- Workflow security chạy secret scan và dependency audit song song.
 
 Job **Frontend browser E2E** còn quét tự động WCAG A/AA cho các trang Client đại diện, thử điều hướng bàn phím và chạy acceptance flow đăng nhập thật. Đây là regression gate, không phải tuyên bố toàn bộ sản phẩm đã đạt chứng nhận accessibility. JavaScript budget được đọc từ diagnostics của chính production build; nếu route quan trọng biến mất hoặc vượt 560 KiB thì CI dừng trước khi image được publish.
 
-- `.github/workflows/security.yml` — gitleaks secret scan (full history) và `pnpm audit --audit-level=high`, chạy trên push/PR và theo lịch hàng tuần. Audit bao gồm cả dependency production lẫn công cụ phát triển: package chỉ chạy trong CI vẫn có thể đọc source, token hoặc artifact nên không được mặc định bỏ qua. Các dependency bắc cầu có bản vá được khóa tập trung bằng `pnpm.overrides` ở `package.json`; mỗi override phải qua toàn bộ test/build trước khi merge. Gitleaks được pin phiên bản, tải cùng checksum chính thức và xác minh SHA-256 trước khi cài; không gọi API “latest release” trong mỗi job vì kết quả đó phụ thuộc rate limit và trạng thái GitHub API tại thời điểm chạy.
+Gitleaks secret scan đọc toàn bộ lịch sử; `pnpm audit --audit-level=high` kiểm tra cả dependency production lẫn công cụ phát triển. Package chỉ chạy trong CI vẫn có thể đọc source, token hoặc artifact nên không được mặc định bỏ qua. Các dependency bắc cầu có bản vá được khóa tập trung bằng `pnpm.overrides` ở `package.json`; mỗi override phải qua toàn bộ test/build trước khi merge. Gitleaks được pin phiên bản, tải cùng checksum chính thức và xác minh SHA-256 trước khi cài; không gọi API “latest release” trong mỗi job vì kết quả đó phụ thuộc rate limit và trạng thái GitHub API tại thời điểm chạy.
 
 Node được pin qua `.nvmrc`, pnpm qua trường `packageManager`. Các JavaScript action chính dùng runtime Node 24 (`checkout@v6`, `setup-node@v6`, `upload-artifact@v6`, `pnpm/action-setup@v4.4.0` và `release-please-action@v5`) để không phụ thuộc runtime Node 20 đã bị GitHub deprecate. Dependabot cập nhật npm dependencies và GitHub Actions hàng tuần (`.github/dependabot.yml`). Local có husky pre-commit (lint-staged + prettier) và commit-msg (commitlint, conventional commits).
 
@@ -450,7 +480,7 @@ Job `image` chạy ma trận cho hai artifact độc lập là `server` và `cli
 
 1. Build `server` bằng `apps/server/Dockerfile` và `client` bằng `apps/client/Dockerfile`.
 2. Tạo SBOM riêng cho từng image — danh sách package thực sự có trong image — và lưu chúng như artifact của CI.
-3. Dùng Trivy quét lỗ hổng mức HIGH/CRITICAL; lỗ hổng chưa có bản vá được ghi nhận nhưng không chặn job.
+3. Dùng Trivy quét lỗ hổng mức HIGH/CRITICAL; cấu hình hiện tại bỏ qua mục chưa có bản vá và chặn job nếu artifact chứa mục đã có cách vá ở hai mức này.
 4. Chỉ khi commit đã merge vào `main`, đẩy image lên GHCR với tag SHA và `latest`.
 
 Image được build bằng Docker engine đã có sẵn trên GitHub-hosted runner. Pipeline không khởi tạo thêm container Buildx chạy `moby/buildkit`: bước khởi tạo đó buộc CI kéo một image không thuộc sản phẩm từ Docker Hub trước khi đọc Dockerfile, nên một lần registry chậm hoặc timeout có thể làm hỏng job dù source code hoàn toàn hợp lệ. Đổi lại, job không export layer cache qua GitHub Actions; với một server image, độ tin cậy của quality gate được ưu tiên hơn thời gian build lại.
@@ -458,6 +488,12 @@ Image được build bằng Docker engine đã có sẵn trên GitHub-hosted run
 Docker build vẫn có thể cần kết nối registry để lấy base image được khai báo trong Dockerfile. Điểm khác biệt là lần tải này phục vụ trực tiếp artifact của dự án, thay vì chỉ khởi động một builder trung gian. Nếu registry lỗi ở đây, log sẽ chỉ ra base image cụ thể; người vận hành có thể retry job và không nhầm sự cố registry với lỗi code.
 
 Job phụ thuộc cả quality test lẫn E2E, nên code chưa qua gate không được publish. GHCR có hai package `server` và `client`, cùng tag bằng commit SHA để biết chính xác hai artifact sinh từ phiên bản source nào. Khi release-please tạo version, release workflow retag **cả hai** SHA artifact bằng cùng version và fail nếu thiếu một trong hai; workflow không build lại image. API và worker chạy cùng image `server`; worker chỉ đổi entry command thành `node dist/worker.js`. Next.js self-host chạy image `client`; Vercel vẫn có thể deploy trực tiếp từ source mà không dùng image này.
+
+### Khi một job thất bại thì hiểu thế nào?
+
+Đọc tên job trước khi đọc dòng lỗi cuối cùng. `quality` đỏ thường là contract source/build; `Backend E2E` đỏ là migration hoặc hành vi API với dependency thật; `Frontend browser E2E` đỏ là flow xuyên lớp; `image` đỏ là Docker build, SBOM, CVE hoặc registry; security đỏ là secret/dependency. Lỗi tải image/action từ registry có thể là sự cố mạng bên ngoài, nhưng chỉ retry sau khi log cho thấy source chưa hề được build hoặc test — không gắn nhãn “flaky” cho một assertion thật sự thất bại.
+
+Output của CI không phải deployment: PR chỉ có report; commit `main` có thêm hai image tag SHA; release PR được merge mới có version/tag/changelog. Production chỉ thay đổi khi operator làm theo deployment contract và xác nhận readiness/smoke test.
 
 Database dùng cho test phải có tên/phạm vi riêng; backend E2E đã có chốt chặn từ chối reset bất kỳ database nào không có hậu tố `_test`. Setup gọi `prisma db push` và `db:seed` qua package `@repo/database`, là nơi sở hữu schema, Prisma config và executable `tsx`; không dựa vào package hoisting hoặc `npx` tìm dependency từ thư mục Server.
 
@@ -467,7 +503,8 @@ Quy trình phát hành từng bước, cách quay lui và cách xử lý khi h�
 
 ```text
 merge reviewed change
-→ CI produces versioned image
+→ CI produces SHA-tagged Server/Client images
+→ release workflow adds a human-readable version tag when release PR is merged
 → deploy migration job
 → deploy application
 → health/readiness passes

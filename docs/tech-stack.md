@@ -10,6 +10,8 @@ Mỗi dòng trong các bảng trả lời ba câu: nếu thiếu thư viện nà
 
 Nguyên tắc thêm dependency mới: phải trả lời được "nếu không có nó thì mình phải tự viết cái gì, và đoạn đó có đáng viết không". Thêm thư viện là thêm bề mặt tấn công và một thứ phải nâng cấp mãi mãi.
 
+Chương này là bản đồ các công nghệ có ảnh hưởng tới kiến trúc hoặc cách làm việc, không phải bản sao của `package.json`. Các package kiểu `@types/*`, ESLint plugin, compiler loader và adapter nhỏ được gom dưới công cụ mà chúng phục vụ. Khi cần kiểm tra chính xác phiên bản hoặc toàn bộ dependency trực tiếp, `package.json` của workspace và `pnpm-lock.yaml` mới là nguồn sự thật.
+
 ## Nền tảng chung
 
 | Thư viện                             | Dùng để làm gì                                                                                                 | Ở đâu trong repo                         |
@@ -20,6 +22,20 @@ Nguyên tắc thêm dependency mới: phải trả lời được "nếu không 
 | **tsup**                             | Build các package dùng chung ra JS + file khai báo kiểu (`.d.ts`) cho cả ESM lẫn CJS.                          | `packages/*/tsup.config.ts`              |
 | **ESLint + Prettier**                | ESLint chặn lỗi logic và vi phạm ranh giới kiến trúc; Prettier format code để không ai tranh luận dấu cách.    | `packages/eslint-config/`, `.prettierrc` |
 | **husky + lint-staged + commitlint** | Chạy format và kiểm tra định dạng commit message ngay trên máy dev, trước khi code kịp lên CI.                 | `.husky/`, `commitlint.config.cjs`       |
+
+## Package dùng chung trong monorepo
+
+Các package dưới `packages/` không phải bốn “thùng tiện ích”. Mỗi package có một loại tài sản rõ ràng và application chỉ import phần thật sự cần:
+
+| Package                       | Sở hữu gì?                                                                                  | Không được chứa gì?                                                 |
+| ----------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| **`@repo/contracts`**         | Hợp đồng đi qua ranh giới application/context: event name, payload và permission constants. | Entity, repository implementation hoặc code phụ thuộc NestJS/React. |
+| **`@repo/types`**             | Kiểu dữ liệu thuần thực sự được nhiều application dùng chung.                               | Business rule và kiểu chỉ có ý nghĩa trong một feature.             |
+| **`@repo/database`**          | Prisma schema, migration history, generated client và seed.                                 | Quyết định nghiệp vụ đáng lẽ thuộc aggregate/use case.              |
+| **`@repo/typescript-config`** | Cấu hình TypeScript nền để các workspace kiểm tra kiểu nhất quán.                           | Alias hoặc rule bí mật dành riêng một application.                  |
+| **`@repo/eslint-config`**     | Rule code quality và dependency boundary dùng lại giữa workspace.                           | Logic runtime.                                                      |
+
+`tsup` build các package có code/kiểu cần được application import. Package cấu hình được tiêu thụ trực tiếp bởi TypeScript hoặc ESLint nên không tham gia runtime của sản phẩm.
 
 ## Backend (`apps/server`)
 
@@ -98,11 +114,34 @@ Nguyên tắc thêm dependency mới: phải trả lời được "nếu không 
 
 ## Client (`apps/client`)
 
-Client dùng **Next.js** với App Router, Server Components, Server Actions và middleware. Trình duyệt không giữ access token; Next.js giữ phiên trong cookie `HttpOnly` và gọi NestJS API ở phía server.
+| Thư viện                  | Dùng để làm gì                                                                                                                            | Ở đâu trong repo                                    |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| **Next.js + React 19**    | App Router, Server Components, Server Actions, Route Handlers và Proxy; dựng HTML ở server rồi chỉ gửi JavaScript cho phần cần tương tác. | `app/`, `proxy.ts`, `features/`                     |
+| **jose**                  | Mã hóa và giải mã session cookie bằng JWE; chạy được trong cả Node và runtime của Proxy.                                                  | `lib/session.ts`                                    |
+| **server-only**           | Làm build thất bại nếu module giữ token/server secret bị import vào Client Component.                                                     | Các API adapter và session module chạy phía server. |
+| **Tailwind CSS v4**       | Style UI bằng utility class, được tích hợp qua PostCSS của Next.js.                                                                       | `app/globals.css`, `postcss.config.mjs`             |
+| **Vitest**                | Kiểm tra session, API adapter, Server Action và logic server mà không cần browser DOM.                                                    | `**/*.test.ts`                                      |
+| **Playwright + axe-core** | Chạy flow thật qua browser và tự động quét các lỗi accessibility WCAG đại diện.                                                           | `e2e/`, `playwright.config.ts`                      |
 
-Client không cần thêm thư viện data-fetching vì server dùng `fetch` trực tiếp. Marker `server-only` làm build thất bại nếu code chứa token bị import nhầm vào Client Component. Thư viện `jose` mã hóa session cookie theo chuẩn JWE và dùng được cả trong edge runtime.
+Client không dùng TanStack Query hoặc Zustand vì dữ liệu chính được đọc trong Server Component/Server Action bằng `fetch`, còn phiên nằm trong cookie phía server. Nếu sau này có màn hình tương tác dài sống hoàn toàn trong browser, chỉ thêm client-state library sau khi xác định rõ dữ liệu nào không thể thuộc URL, form hoặc server cache. Xem [Client handbook](../apps/client/README.md) để theo flow đăng nhập đầy đủ.
 
-Các phần này được test bằng Vitest trong môi trường Node, không cần jsdom vì logic chạy phía server. Xem [Client handbook](../apps/client/README.md) để theo flow đăng nhập đầy đủ.
+## CI/CD và chuỗi cung ứng phần mềm
+
+Những công cụ này không chạy để phục vụ request người dùng. Chúng kiểm tra source, tạo artifact và giúp phát hành đúng thứ đã được kiểm thử:
+
+| Công nghệ                    | Dùng để làm gì                                                                                                            | Ở đâu trong repo                       |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| **GitHub Actions**           | Chạy CI, security scan và release workflow trên máy sạch sau mỗi push/PR.                                                 | `.github/workflows/`                   |
+| **Docker**                   | Đóng gói Server và Client thành image bất biến; cùng image Server chạy được API hoặc worker bằng entry command khác nhau. | `apps/*/Dockerfile`, `deploy/compose/` |
+| **GHCR**                     | Registry lưu image `server` và `client` theo commit SHA/version để deploy hoặc rollback đúng artifact.                    | Job `image` và `tag-image`             |
+| **Syft / SPDX SBOM**         | Liệt kê package thật sự nằm trong từng image; giúp biết một CVE có chạm artifact đang chạy hay không.                     | Job `image` trong `ci.yml`             |
+| **Trivy**                    | Quét image và chặn lỗ hổng HIGH/CRITICAL đã có bản vá.                                                                    | Job `image` trong `ci.yml`             |
+| **Gitleaks + pnpm audit**    | Tìm secret trong lịch sử Git và lỗ hổng dependency.                                                                       | `security.yml`                         |
+| **Playwright**               | Acceptance gate xuyên browser → frontend → API → database/Redis/WebSocket, bổ sung cho unit test.                         | Job `Frontend browser E2E`             |
+| **release-please**           | Đọc Conventional Commits, mở release PR, cập nhật changelog và tạo version/tag khi con người merge PR đó.                 | `release.yml`, release configuration   |
+| **Prometheus rule verifier** | Kiểm tra file cảnh báo có schema, nhãn và duration hợp lệ trước khi cấu hình được đưa sang hệ thống giám sát.             | `scripts/verify-prometheus-rules.mjs`  |
+
+Chi tiết CI/CD là gì, job phụ thuộc nhau ra sao và output cuối cùng là gì nằm ở [chương Development và Deployment](development-and-deployment.md#13-ci-và-cd-từ-commit-đến-artifact).
 
 ## Hạ tầng chạy kèm (Docker)
 
