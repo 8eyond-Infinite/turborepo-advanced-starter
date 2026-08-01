@@ -211,6 +211,8 @@ Không sửa migration đã được dùng bởi môi trường khác.
 
 ### Seed
 
+Seed import permission constants từ `@repo/contracts`. Vì clone mới chưa có `packages/contracts/dist`, script `@repo/database#db:seed` build package này trước rồi mới gọi Prisma seed. Không bỏ bước chuẩn bị đó hoặc gọi thẳng `prisma db seed` trong automation; máy đã từng build có thể chạy được nhờ artifact cũ và che mất lỗi onboarding.
+
 ```powershell
 pnpm db:seed
 ```
