@@ -6,6 +6,8 @@ import { GetAuditLogsQueryHandler } from './application/queries/handlers/get-aud
 import { AUDIT_WRITER } from './application/ports/audit-writer.port';
 import { PrismaAuditWriter } from './infrastructure/prisma-audit-writer';
 import { AuditRetentionService } from './infrastructure/audit-retention.service';
+import { AUDIT_LOG_READER } from './application/ports/audit-log-reader.port';
+import { PrismaAuditLogReader } from './infrastructure/prisma-audit-log.reader';
 
 @Module({
   imports: [CqrsModule, PrismaModule],
@@ -13,6 +15,7 @@ import { AuditRetentionService } from './infrastructure/audit-retention.service'
   providers: [
     GetAuditLogsQueryHandler,
     AuditRetentionService,
+    { provide: AUDIT_LOG_READER, useClass: PrismaAuditLogReader },
     {
       provide: AUDIT_WRITER,
       useClass: PrismaAuditWriter,

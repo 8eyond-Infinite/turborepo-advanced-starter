@@ -19,13 +19,13 @@ import { GetActiveSessionsQueryHandler } from './application/queries/handlers';
 import { UsersModule } from '../users/users.module';
 import { AuthController } from './presentation/controllers/auth.controller';
 import { JwtRefreshStrategy, JwtStrategy } from './infrastructure/strategies';
-import { SESSION_STORE } from './domain/ports/session-store.port';
+import { SESSION_STORE } from './application/ports/session-store.port';
 import { RedisSessionStore } from './infrastructure/stores/redis-session.store';
 import { AccessTokenValidator } from './application/services/access-token-validator.service';
 import { QueueModule } from '@infrastructure/queue/queue.module';
-import { PASSWORD_RESET_TOKEN_STORE } from './domain/ports/password-reset-token-store.port';
+import { PASSWORD_RESET_TOKEN_STORE } from './application/ports/password-reset-token-store.port';
 import { PrismaPasswordResetTokenStore } from './infrastructure/stores/prisma-password-reset-token.store';
-import { EMAIL_VERIFICATION_TOKEN_STORE } from './domain/ports/email-verification-token-store.port';
+import { EMAIL_VERIFICATION_TOKEN_STORE } from './application/ports/email-verification-token-store.port';
 import { PrismaEmailVerificationTokenStore } from './infrastructure/stores/prisma-email-verification-token.store';
 import { EmailVerificationService } from './application/services/email-verification.service';
 

@@ -72,6 +72,14 @@ Sở hữu Prisma schema, migration và client được sinh ra để export. Ch
 
 `@repo/eslint-config` và `@repo/typescript-config` chuẩn hóa bộ công cụ lint và TypeScript cho toàn repo. Chúng chỉ dùng lúc phát triển, không được nạp khi ứng dụng chạy.
 
+## Phần lõi và capability tùy chọn của starter
+
+Không phải dự án tạo từ starter đều cần dùng toàn bộ hệ thống ngay ngày đầu. Phần lõi là những quy ước nên giữ lại: ranh giới workspace, validation môi trường, authentication/authorization, migration dữ liệu, error contract, logging cơ bản và các quality gate trong CI. Chúng tạo ra một cách phát triển và phát hành nhất quán.
+
+Outbox, BullMQ worker, realtime, audit log, metrics, S3-compatible storage và bộ Docker Compose production-like là các capability mẫu. Hãy bật chúng khi bài toán thật cần giao việc bất đồng bộ, giao tiếp realtime, truy vết, quan sát vận hành, object storage hoặc self-hosting. Có thể bỏ một capability khỏi dự án con nếu đã gỡ cả module, biến môi trường, hạ tầng, test và tài liệu liên quan; không nên để một nửa implementation “phòng khi cần”.
+
+Điều làm repository này trở thành advanced starter không phải số lượng công nghệ phải dùng. Giá trị của nó là mỗi capability có ranh giới, contract, test và đường vận hành đủ rõ để đội dự án chọn có chủ đích.
+
 ## 3. Backend: bounded contexts và layers
 
 Backend nằm tại `apps/server/src`.
@@ -104,9 +112,21 @@ src/
 
 Không phải context nào cũng cần đủ bốn layer. CRUD/read-only context nhỏ có thể chỉ có application và presentation. Layer được tạo khi có trách nhiệm thật, không để thỏa mãn cây thư mục.
 
+Tên `contexts/` biểu thị ranh giới ownership, nhưng cấp thư mục không đồng nghĩa tất cả đều có cùng độ lớn. Taxonomy hiện tại là:
+
+| Cấp ownership              | Thành phần                    | Ý nghĩa                                                                                |
+| -------------------------- | ----------------------------- | -------------------------------------------------------------------------------------- |
+| Bounded context lớn        | `iam`                         | Identity & Access Management; chứa ba module cộng tác chặt.                            |
+| Module nghiệp vụ trong IAM | `auth`, `users`, `roles`      | Mỗi module sở hữu model/use case riêng nhưng dùng port công khai của nhau.             |
+| Bounded context hỗ trợ     | `audit`, `notifications`      | Sở hữu dữ liệu, rule và API độc lập; nhận tác động từ context khác qua contract/event. |
+| Capability nhỏ             | `analytics/dashboard`, `menu` | Read model/application capability; không tạo domain layer giả nếu không có invariant.  |
+| Technical capability       | `storage`                     | Cung cấp application port và adapter local/S3; không phải business domain.             |
+
+Vì vậy `menu` chỉ có application/presentation không phải “Clean Architecture thiếu file”. Dependency direction mới là điều bắt buộc; số thư mục không phải thước đo chất lượng.
+
 ### Domain
 
-Domain chứa entity, value object, domain event, exception và các port cần thiết để giữ invariant (những quy tắc nghiệp vụ luôn phải đúng). Domain không import NestJS, Prisma hay Redis.
+Domain chứa entity, value object, domain event, exception và repository contract làm việc với aggregate. Domain không import NestJS, Prisma, Redis hoặc application port kỹ thuật.
 
 Ví dụ: aggregate Users quyết định user đang active hay không, profile ra sao và những sự kiện nghiệp vụ nào đã xảy ra. Nó không tự gửi WebSocket hay xếp email vào queue.
 
@@ -154,6 +174,19 @@ Infrastructure ────────────────> Domain/Applicat
 Module lắp ráp (composition module) là nơi duy nhất biết cả interface trừu tượng lẫn class triển khai, để nối chúng lại với nhau. Domain không biết gì về nơi lắp ráp này.
 
 Shared domain chỉ chứa primitive thực sự dùng qua nhiều context. Một entity của Users không được chuyển vào shared chỉ vì Roles cần đọc user ID; hai context nên giao tiếp qua contract hoặc application port phù hợp.
+
+Dependency matrix dùng khi review import:
+
+| Code đang đứng ở | Được import                                                                  | Không được import                                              |
+| ---------------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| Domain           | Domain cùng module, `shared/domain`, contract thuần cần cho error/event name | Application, infrastructure, presentation, NestJS/Prisma/Redis |
+| Application      | Domain, repository contract và `application/ports`                           | Concrete infrastructure adapter hoặc controller                |
+| Infrastructure   | Domain, application port, SDK/driver kỹ thuật                                | Presentation; không tự quyết định business rule                |
+| Presentation     | Application command/query, DTO/presenter và public contract                  | Prisma repository/Redis adapter trực tiếp                      |
+| Module A         | Public port/contract của module B trong cùng bounded context                 | Entity nội bộ hoặc infrastructure của module B                 |
+| Context A        | Shared public contract/integration event                                     | Internal file của context B                                    |
+
+Port convention cố ý phân biệt hai nhóm. Repository contract nằm tại `domain/ports/*.repository.ts` vì nó nhận/trả aggregate. Dependency kỹ thuật do use case gọi nằm tại `application/ports/*.port.ts`, ví dụ password hasher, session store, token store, storage, audit, queue và realtime. Concrete implementation nằm trong `infrastructure` và thường mang suffix `.adapter.ts`, `.store.ts` hoặc `.repository.ts` theo loại công nghệ.
 
 ## 5. CQRS trong dự án
 

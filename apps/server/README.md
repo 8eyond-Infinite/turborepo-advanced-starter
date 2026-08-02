@@ -143,7 +143,7 @@ Retention cũng thuộc Audit context nhưng mặc định tắt: `AUDIT_RETENTI
 
 ### Analytics, Menu và Storage
 
-Analytics tổng hợp dữ liệu đọc cho dashboard. Menu tạo navigation tree dựa trên permission. Storage định nghĩa port upload/delete và có adapter local/S3. Đây là các context nhỏ hơn nhưng vẫn tuân theo ranh giới presentation/application/domain/infrastructure khi độ phức tạp yêu cầu.
+Analytics tổng hợp dữ liệu đọc cho dashboard; `dashboard` là module/read capability bên trong nó. Menu là read capability tạo navigation tree dựa trên permission. Storage là technical capability định nghĩa port upload/delete và có adapter local/S3. Chúng không cần tạo đủ bốn layer: layer chỉ xuất hiện khi có trách nhiệm thật, còn dependency direction luôn bắt buộc.
 
 ## 5. Một request sống từ lúc vào đến lúc trả response
 
@@ -323,6 +323,17 @@ Mở Maildev (`http://localhost:1083`) sẽ thấy mail chào mừng — bằng 
 
 ## 8. Domain event và outbox delivery
 
+Bốn loại message không được dùng lẫn tên hoặc interface:
+
+| Loại              | Diễn đạt điều gì?                                                   | Nơi định nghĩa/đi tới                                             |
+| ----------------- | ------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Domain event      | Sự kiện đã xảy ra với aggregate trong module sở hữu nghiệp vụ.      | `domain/events`; aggregate ghi nhận, repository đưa vào outbox.   |
+| Integration event | Contract ổn định cho module/context khác phản ứng sau commit.       | `@repo/contracts`; outbox router đọc type/payload đã version hóa. |
+| Queue job         | Mệnh lệnh chạy một tác vụ chậm/có retry, như gửi email.             | `application/queues`; BullMQ worker consume.                      |
+| Realtime event    | Payload delivery tới client đang kết nối; không phải nguồn sự thật. | `@repo/contracts/realtime`; Socket.IO emit sau processing.        |
+
+Pipeline điển hình là `domain event → transactional outbox → integration routing → queue job/notification → realtime signal`. Domain handler không gửi email, ghi notification và emit socket trong cùng một class; mỗi bước chuyển message qua contract có ownership rõ.
+
 Sau khi write transaction hoàn tất, `OutboxPublisherService` định kỳ quét (poll) các event đủ điều kiện gửi đi. Để nhận xử lý một event, publisher update trạng thái từ `PENDING` sang `PROCESSING` theo kiểu optimistic (update chỉ thành công nếu chưa ai nhận trước), tăng số lần thử và đặt `lockedAt`.
 
 `OutboxEventRouter` dựng lại object event từ dữ liệu đã lưu (rehydrate), rồi chuyển đến nơi xử lý tương ứng theo type:
@@ -362,7 +373,7 @@ Giao kiểu at-least-once (ít nhất một lần) nghĩa là consumer có thể
 - job queue;
 - realtime.
 
-Port kỹ thuật không nằm trong domain. Redis, BullMQ và Socket.IO càng không nằm trong `shared`.
+Repository contract làm việc với aggregate được phép nằm trong `domain/ports` và dùng tên `*.repository.ts`. Mọi dependency kỹ thuật mà handler gọi nằm trong `application/ports` và dùng suffix `*.port.ts`: password hasher, session/token store, storage, audit, cache, job queue và realtime. Redis, BullMQ, bcrypt, Prisma, S3 và Socket.IO là adapter trong infrastructure, không phải port và càng không nằm trong shared domain.
 
 Trước khi đưa file vào shared, hãy hỏi: “Nếu bỏ context hiện tại đi, khái niệm này còn có ý nghĩa độc lập cho nhiều context khác không?” Nếu câu trả lời là không, file phải ở context sở hữu nó.
 
@@ -529,7 +540,7 @@ Global setup của E2E chỉ reset database có tên kết thúc bằng `_test`,
 Đọc theo một flow thay vì đọc alphabet:
 
 1. `src/main.ts` và `src/app.module.ts` để hiểu ứng dụng khởi động và được lắp ráp thế nào.
-2. `src/shared/domain/base/aggregate-root.ts`, `result.ts` và `events/domain-event.ts`.
+2. `src/shared/domain/aggregate-root.ts`, `result.ts` và `events/domain-event.ts`.
 3. README Users, sau đó lần theo `UserController → Command → Handler → UserEntity → Repository`.
 4. `PrismaUserRepository.save()` để hiểu transaction + outbox.
 5. `OutboxPublisherService` và `OutboxEventRouter`.

@@ -1,16 +1,13 @@
-import type { PrismaService } from '@infrastructure/database/prisma.service';
+import type { AuditLogReader } from '../../ports/audit-log-reader.port';
 import { GetAuditLogsQuery } from '../get-audit-logs.query';
 import { GetAuditLogsQueryHandler } from './get-audit-logs.handler';
 
 describe('GetAuditLogsQueryHandler', () => {
-  it('searches correlation id together with the human-readable audit fields', async () => {
-    const prisma = {
-      auditLog: {
-        findMany: jest.fn().mockResolvedValue([]),
-        count: jest.fn().mockResolvedValue(0),
-      },
-    } as unknown as PrismaService;
-    const handler = new GetAuditLogsQueryHandler(prisma);
+  it('delegates normalized pagination to the read port', async () => {
+    const reader: AuditLogReader = {
+      findPage: jest.fn().mockResolvedValue({ logs: [], total: 0 }),
+    };
+    const handler = new GetAuditLogsQueryHandler(reader);
 
     await handler.execute(
       new GetAuditLogsQuery({
@@ -20,19 +17,10 @@ describe('GetAuditLogsQueryHandler', () => {
       }),
     );
 
-    expect(prisma.auditLog.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          OR: expect.arrayContaining([
-            {
-              correlationId: {
-                contains: 'correlation-123',
-                mode: 'insensitive',
-              },
-            },
-          ]),
-        },
-      }),
-    );
+    expect(reader.findPage).toHaveBeenCalledWith({
+      page: 1,
+      limit: 10,
+      search: 'correlation-123',
+    });
   });
 });

@@ -43,7 +43,7 @@ import {
   UpdateUserCommand,
   DeleteUserCommand,
   DeactivateUserCommand,
-  ToggleUserStatusCommand,
+  ActivateUserCommand,
 } from '../../application/commands';
 import { UserPresenter } from '../presenters/user.presenter';
 import { CreateUserDto, GetUsersQueryDto, UpdateUserDto } from '../dtos';
@@ -144,24 +144,20 @@ export class UserController {
     return UserPresenter.toResponse(user);
   }
 
-  @Patch(':id/toggle-status')
+  @Patch(':id/activate')
   @UseGuards(PermissionsGuard)
   @RequirePermissions(PERMISSIONS.USER.UPDATE)
   @UseInterceptors(CacheInvalidationInterceptor)
   @InvalidateCache('users:all', 'users:me:{id}')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Toggle user active/inactive status' })
+  @ApiOperation({ summary: 'Activate a user account' })
   @AuditLog(
-    'USER_TOGGLE_STATUS',
-    (req) =>
-      `Thay đổi trạng thái kích hoạt của tài khoản ID: ${String(req.params.id)}`,
+    'USER_ACTIVATE',
+    (req) => `Kích hoạt tài khoản ID: ${String(req.params.id)}`,
   )
-  async toggleUserStatus(
-    @Param('id') id: string,
-    @GetUser('id') adminId: string,
-  ) {
+  async activateUser(@Param('id') id: string, @GetUser('id') adminId: string) {
     const result = await this.commandBus.execute(
-      new ToggleUserStatusCommand({
+      new ActivateUserCommand({
         id,
         adminId,
       }),

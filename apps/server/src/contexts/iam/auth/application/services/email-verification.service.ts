@@ -13,7 +13,7 @@ import {
 import {
   EMAIL_VERIFICATION_TOKEN_STORE,
   type EmailVerificationTokenStore,
-} from '../../domain/ports/email-verification-token-store.port';
+} from '../ports/email-verification-token-store.port';
 
 const VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1_000;
 

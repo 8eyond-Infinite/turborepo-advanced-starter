@@ -1,7 +1,7 @@
 import type { UserRepository } from '@iam/users/domain/ports/user.repository';
-import type { PasswordHasher } from '@iam/users/domain/ports/password-hasher';
-import type { ISessionStore } from '../../../domain/ports/session-store.port';
-import type { PasswordResetTokenStore } from '../../../domain/ports/password-reset-token-store.port';
+import type { PasswordHasher } from '@iam/users/application/ports/password-hasher.port';
+import type { ISessionStore } from '../../ports/session-store.port';
+import type { PasswordResetTokenStore } from '../../ports/password-reset-token-store.port';
 import { InvalidPasswordResetTokenException } from '../../../domain/exceptions/invalid-password-reset-token.exception';
 import { ResetPasswordCommand } from '../reset-password.command';
 import { ResetPasswordHandler } from './reset-password.handler';

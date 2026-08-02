@@ -230,7 +230,7 @@ Trang và từ khóa tìm kiếm nằm trong URL. Nếu mutation hoặc thay đ�
 
 Các thao tác phá hủy hoặc đổi trạng thái phải chờ Promise mutation hoàn tất. `ConfirmDialog` giữ dialog mở, khóa nút trong lúc pending, chỉ đóng sau khi mutation và cache invalidation thành công; nếu thất bại dialog giữ nguyên ngữ cảnh để người dùng thử lại. Không được dùng mutation fire-and-forget cho flow cần xác nhận.
 
-Users mutations trả cả pending tổng và identity đang xử lý (`togglingUserId`, `deletingUserId`). Bảng dùng identity để thông báo đúng row; action xung đột vẫn bị khóa trong thời gian command chạy. Form create/edit chỉ đóng sau khi mutation cùng invalidation thành công. Lỗi mutation do hook thông báo, còn draft form được giữ nguyên để sửa hoặc thử lại.
+Users mutations trả cả pending tổng và identity đang xử lý (`changingStatusUserId`, `deletingUserId`). Bảng dùng identity để thông báo đúng row; action xung đột vẫn bị khóa trong thời gian command chạy. Switch trên UI chọn một trong hai intent rõ ràng là `activate` hoặc `deactivate`; backend không cung cấp endpoint toggle phụ thuộc trạng thái hiện tại. Form create/edit chỉ đóng sau khi mutation cùng invalidation thành công. Lỗi mutation do hook thông báo, còn draft form được giữ nguyên để sửa hoặc thử lại.
 
 ### Flow quản lý vai trò và quyền
 

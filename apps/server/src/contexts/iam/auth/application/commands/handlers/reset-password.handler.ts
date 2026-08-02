@@ -4,7 +4,7 @@ import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import {
   PASSWORD_HASHER,
   type PasswordHasher,
-} from '@iam/users/domain/ports/password-hasher';
+} from '@iam/users/application/ports/password-hasher.port';
 import {
   USER_REPOSITORY,
   type UserRepository,
@@ -12,11 +12,11 @@ import {
 import {
   SESSION_STORE,
   type ISessionStore,
-} from '../../../domain/ports/session-store.port';
+} from '../../ports/session-store.port';
 import {
   PASSWORD_RESET_TOKEN_STORE,
   type PasswordResetTokenStore,
-} from '../../../domain/ports/password-reset-token-store.port';
+} from '../../ports/password-reset-token-store.port';
 import { InvalidPasswordResetTokenException } from '../../../domain/exceptions/invalid-password-reset-token.exception';
 import { ResetPasswordCommand } from '../reset-password.command';
 

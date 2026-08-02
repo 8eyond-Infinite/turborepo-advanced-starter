@@ -1,4 +1,4 @@
-import type { JwtPayload } from '@repo/contracts';
+import type { JwtPayload } from '@shared/application/auth/jwt-payload';
 import { ConfigService } from '@nestjs/config';
 import { JwtStrategy } from './jwt.strategy';
 import type { AccessTokenValidator } from '../../application/services/access-token-validator.service';

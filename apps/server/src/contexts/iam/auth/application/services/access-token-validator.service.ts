@@ -1,13 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { AuthenticatedPrincipal, JwtPayload } from '@repo/contracts';
+import type { AuthenticatedPrincipal } from '@repo/contracts';
+import type { JwtPayload } from '@shared/application/auth/jwt-payload';
 import {
   USER_REPOSITORY,
   type UserRepository,
 } from '@iam/users/domain/ports/user.repository';
-import {
-  SESSION_STORE,
-  type ISessionStore,
-} from '../../domain/ports/session-store.port';
+import { SESSION_STORE, type ISessionStore } from '../ports/session-store.port';
 
 @Injectable()
 export class AccessTokenValidator {

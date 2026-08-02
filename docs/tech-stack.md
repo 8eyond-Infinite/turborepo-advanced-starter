@@ -27,13 +27,15 @@ Chương này là bản đồ các công nghệ có ảnh hưởng tới kiến 
 
 Các package dưới `packages/` không phải bốn “thùng tiện ích”. Mỗi package có một loại tài sản rõ ràng và application chỉ import phần thật sự cần:
 
-| Package                       | Sở hữu gì?                                                                                  | Không được chứa gì?                                                 |
-| ----------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| **`@repo/contracts`**         | Hợp đồng đi qua ranh giới application/context: event name, payload và permission constants. | Entity, repository implementation hoặc code phụ thuộc NestJS/React. |
-| **`@repo/types`**             | Kiểu dữ liệu thuần thực sự được nhiều application dùng chung.                               | Business rule và kiểu chỉ có ý nghĩa trong một feature.             |
-| **`@repo/database`**          | Prisma schema, migration history, generated client và seed.                                 | Quyết định nghiệp vụ đáng lẽ thuộc aggregate/use case.              |
-| **`@repo/typescript-config`** | Cấu hình TypeScript nền để các workspace kiểm tra kiểu nhất quán.                           | Alias hoặc rule bí mật dành riêng một application.                  |
-| **`@repo/eslint-config`**     | Rule code quality và dependency boundary dùng lại giữa workspace.                           | Logic runtime.                                                      |
+| Package                       | Sở hữu gì?                                                                                                                         | Không được chứa gì?                                                                            |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| **`@repo/contracts`**         | Hợp đồng hành vi đi qua ranh giới application/context: error shape, permission, integration/realtime event và principal công khai. | Domain entity, Prisma model, backend exception class hoặc raw JWT signing schema.              |
+| **`@repo/types`**             | Read-model/API data shape có thể serialize mà nhiều frontend cùng đọc: User, Role, AuditLog, Notification và pagination.           | Business rule, object có method, persistence model hoặc kiểu chỉ có ý nghĩa trong một feature. |
+| **`@repo/database`**          | Prisma schema, migration history, generated client và seed.                                                                        | Quyết định nghiệp vụ đáng lẽ thuộc aggregate/use case.                                         |
+| **`@repo/typescript-config`** | Cấu hình TypeScript nền để các workspace kiểm tra kiểu nhất quán.                                                                  | Alias hoặc rule bí mật dành riêng một application.                                             |
+| **`@repo/eslint-config`**     | Rule code quality và dependency boundary dùng lại giữa workspace.                                                                  | Logic runtime.                                                                                 |
+
+Ranh giới giữa hai package không dựa trên câu “đều là TypeScript type”. `contracts` mô tả protocol/hành vi ổn định giữa các process; `types` hiện chỉ chứa read model dạng JSON. Raw `JwtPayload` là chi tiết ký/xác minh của Server nên nằm trong `apps/server/src/shared/application/auth`, không export cho browser. Nếu `@repo/types` bắt đầu chứa command, error hoặc business rule, phải chuyển về contract/context thay vì biến package thành sọt rác.
 
 `tsup` build các package có code/kiểu cần được application import. Package cấu hình được tiêu thụ trực tiếp bởi TypeScript hoặc ESLint nên không tham gia runtime của sản phẩm.
 

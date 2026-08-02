@@ -53,9 +53,9 @@ export const useUsers = (options?: {
     },
   });
 
-  // 4. Toggle User Status Mutation
-  const toggleStatusMutation = useMutation({
-    mutationFn: userApi.toggleStatus,
+  const changeStatusMutation = useMutation({
+    mutationFn: ({ id, activate }: { id: string; activate: boolean }) =>
+      activate ? userApi.activate(id) : userApi.deactivate(id),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: userKeys.all });
       toast.success("Thay đổi trạng thái tài khoản thành công!");
@@ -99,7 +99,7 @@ export const useUsers = (options?: {
     roles,
     createUser: createUserMutation.mutateAsync,
     updateUser: updateUserMutation.mutateAsync,
-    toggleStatus: toggleStatusMutation.mutateAsync,
+    changeStatus: changeStatusMutation.mutateAsync,
     deleteUser: deleteUserMutation.mutateAsync,
     isLoading: usersQuery.isLoading,
     isError: usersQuery.isError,
@@ -108,8 +108,8 @@ export const useUsers = (options?: {
     isFetching: usersQuery.isFetching,
     isCreating: createUserMutation.isPending,
     isUpdating: updateUserMutation.isPending,
-    isToggling: toggleStatusMutation.isPending,
-    togglingUserId: toggleStatusMutation.variables ?? null,
+    isChangingStatus: changeStatusMutation.isPending,
+    changingStatusUserId: changeStatusMutation.variables?.id ?? null,
     isDeleting: deleteUserMutation.isPending,
     deletingUserId: deleteUserMutation.variables ?? null,
     isRolesLoading: rolesQuery.isLoading,

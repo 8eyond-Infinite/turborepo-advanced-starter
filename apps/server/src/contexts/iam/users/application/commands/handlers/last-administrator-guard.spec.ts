@@ -3,11 +3,9 @@ import { LastAdministratorRequiredException } from '@iam/users/domain/exceptions
 import { UserEntity } from '@iam/users/domain/user.entity';
 import { UpdateUserCommand } from '../update-user.command';
 import { DeactivateUserCommand } from '../deactivate-user.command';
-import { ToggleUserStatusCommand } from '../toggle-user-status.command';
 import { DeleteUserCommand } from '../delete-user.command';
 import { UpdateUserCommandHandler } from './update-user.handler';
 import { DeactivateUserCommandHandler } from './deactivate-user.handler';
-import { ToggleUserStatusCommandHandler } from './toggle-user-status.handler';
 import { DeleteUserCommandHandler } from './delete-user.handler';
 
 describe('last administrator application guard', () => {
@@ -46,15 +44,6 @@ describe('last administrator application guard', () => {
       createHandler: (repository: UserRepository) =>
         new DeactivateUserCommandHandler(repository),
       command: new DeactivateUserCommand({
-        id: 'last-admin-id',
-        adminId: 'operator-id',
-      }),
-    },
-    {
-      name: 'toggle the account to inactive',
-      createHandler: (repository: UserRepository) =>
-        new ToggleUserStatusCommandHandler(repository),
-      command: new ToggleUserStatusCommand({
         id: 'last-admin-id',
         adminId: 'operator-id',
       }),

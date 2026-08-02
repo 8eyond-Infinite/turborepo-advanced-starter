@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { StoragePort, type UploadFile } from '../../domain/ports/storage.port';
+import {
+  StoragePort,
+  type UploadFile,
+} from '../../application/ports/storage.port';
 import * as fs from 'fs';
 import * as path from 'path';
 

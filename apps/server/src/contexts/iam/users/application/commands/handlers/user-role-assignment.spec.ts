@@ -1,4 +1,4 @@
-import type { PasswordHasher } from '@iam/users/domain/ports/password-hasher';
+import type { PasswordHasher } from '@iam/users/application/ports/password-hasher.port';
 import type { UserRepository } from '@iam/users/domain/ports/user.repository';
 import { InvalidUserRolesException } from '@iam/users/domain/exceptions/invalid-user-roles.exception';
 import { UserEntity } from '@iam/users/domain/user.entity';

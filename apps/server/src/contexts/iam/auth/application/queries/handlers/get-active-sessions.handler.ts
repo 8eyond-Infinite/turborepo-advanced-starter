@@ -5,7 +5,7 @@ import {
   SESSION_STORE,
   ISessionStore,
   SessionData,
-} from '../../../domain/ports/session-store.port';
+} from '../../ports/session-store.port';
 import { Result } from '@shared/domain/result';
 import { DomainException } from '@shared/domain/exceptions/domain.exception';
 

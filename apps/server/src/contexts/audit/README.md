@@ -81,7 +81,7 @@ Thực hiện một mutation có decorator audit rồi xem record xuất hiện:
 
 ```bash
 # 1. Toggle trạng thái một user bất kỳ (endpoint này có @AuditLog)
-curl -s -X PATCH http://localhost:3001/users/<id>/toggle-status \
+curl -s -X PATCH http://localhost:3001/users/<id>/deactivate \
   -H "Authorization: Bearer <admin token>"
 
 # 2. Đọc lại qua chính API audit

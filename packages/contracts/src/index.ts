@@ -1,5 +1,4 @@
 export * from './errors/errors.js';
-export * from './auth/jwt-payload.js';
 export * from './auth/current-user.js';
 export * from './auth/authenticated-principal.js';
 export * from './auth/permissions.js';

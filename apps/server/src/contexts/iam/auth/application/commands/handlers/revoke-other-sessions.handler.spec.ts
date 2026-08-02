@@ -1,4 +1,4 @@
-import type { ISessionStore } from '../../../domain/ports/session-store.port';
+import type { ISessionStore } from '../../ports/session-store.port';
 import { RevokeOtherSessionsCommand } from '../revoke-other-sessions.command';
 import { RevokeOtherSessionsCommandHandler } from './revoke-other-sessions.handler';
 

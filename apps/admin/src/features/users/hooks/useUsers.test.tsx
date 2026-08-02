@@ -10,7 +10,8 @@ const { userApi, roleApi, toast } = vi.hoisted(() => ({
     getUsers: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
-    toggleStatus: vi.fn(),
+    activate: vi.fn(),
+    deactivate: vi.fn(),
     remove: vi.fn(),
   },
   roleApi: { getRoles: vi.fn() },
@@ -128,7 +129,7 @@ describe("useUsers", () => {
 
   it("invalidates user data after update, status change and delete", async () => {
     userApi.update.mockResolvedValue({ id: "user-1" });
-    userApi.toggleStatus.mockResolvedValue({ id: "user-1" });
+    userApi.deactivate.mockResolvedValue({ id: "user-1" });
     userApi.remove.mockResolvedValue(undefined);
     const invalidate = vi.spyOn(queryClient, "invalidateQueries");
     const { result } = renderHook(() => useUsers(), { wrapper });
@@ -141,12 +142,12 @@ describe("useUsers", () => {
         username: "updated",
         roles: ["USER"],
       });
-      await result.current.toggleStatus("user-1");
+      await result.current.changeStatus({ id: "user-1", activate: false });
       await result.current.deleteUser("user-1");
     });
 
     expect(userApi.update).toHaveBeenCalledOnce();
-    expect(userApi.toggleStatus.mock.calls[0]?.[0]).toBe("user-1");
+    expect(userApi.deactivate.mock.calls[0]?.[0]).toBe("user-1");
     expect(userApi.remove.mock.calls[0]?.[0]).toBe("user-1");
     expect(invalidate).toHaveBeenCalledTimes(3);
     expect(invalidate).toHaveBeenNthCalledWith(1, {

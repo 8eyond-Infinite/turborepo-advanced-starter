@@ -2,8 +2,6 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { PrismaModule } from '@infrastructure/database/prisma.module';
 import { RedisModule } from '@infrastructure/cache/redis.module';
 import { QueueModule } from '@infrastructure/queue/queue.module';
@@ -55,9 +53,7 @@ import { createPinoHttpOptions } from '@infrastructure/observability/logger.conf
     AuditLogModule,
     HealthModule,
   ],
-  controllers: [AppController],
   providers: [
-    AppService,
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
