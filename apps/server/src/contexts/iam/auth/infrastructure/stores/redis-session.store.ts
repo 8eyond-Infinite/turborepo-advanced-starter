@@ -12,7 +12,7 @@ import {
   RefreshTokens,
   RefreshRotationResult,
   SessionData,
-} from '../../domain/ports/session-store.port';
+} from '../../application/ports/session-store.port';
 
 const REFRESH_REPLAY_TTL_SECONDS = 5;
 interface StoredRefreshReplay {

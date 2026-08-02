@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { StoragePort } from './domain/ports/storage.port';
+import { StoragePort } from './application/ports/storage.port';
 import { LocalStorageAdapter } from './infrastructure/adapters/local-storage.adapter';
 import { S3StorageAdapter } from './infrastructure/adapters/s3-storage.adapter';
 import { StorageController } from './presentation/controllers/storage.controller';

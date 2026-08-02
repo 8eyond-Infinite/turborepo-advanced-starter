@@ -19,7 +19,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { StoragePort } from '../../domain/ports/storage.port';
+import { StoragePort } from '../../application/ports/storage.port';
 import { JwtAuthGuard } from '@presentation/guards';
 
 interface UploadedFilePayload {

@@ -6,7 +6,7 @@ import { ConfigService } from '@nestjs/config';
 import {
   SESSION_STORE,
   ISessionStore,
-} from '../../domain/ports/session-store.port';
+} from '../../application/ports/session-store.port';
 import {
   USER_REPOSITORY,
   type UserRepository,

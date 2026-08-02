@@ -3,9 +3,12 @@ import { Inject } from '@nestjs/common';
 import { GetDashboardStatsQuery } from '../get-dashboard-stats.query';
 import { Result } from '@shared/domain/result';
 import { DomainException } from '@shared/domain/exceptions/domain.exception';
-import { PrismaService } from '@infrastructure/database/prisma.service';
 import { CACHE_PORT } from '@shared/application/ports/cache.port';
 import type { ICachePort } from '@shared/application/ports/cache.port';
+import {
+  DASHBOARD_STATS_READER,
+  type DashboardStatsReader,
+} from '../../ports/dashboard-stats-reader.port';
 
 import { Errors } from '@repo/contracts';
 
@@ -30,88 +33,29 @@ export class GetDashboardStatsQueryHandler implements IQueryHandler<
   Result<DashboardStats, DomainException>
 > {
   constructor(
-    private readonly prisma: PrismaService,
+    @Inject(DASHBOARD_STATS_READER)
+    private readonly statsReader: DashboardStatsReader,
     @Inject(CACHE_PORT)
     private readonly cache: ICachePort,
   ) {}
 
   async execute(): Promise<Result<DashboardStats, DomainException>> {
     try {
-      // 1. Fetch User status metrics
-      const totalUsers = await this.prisma.user.count({
-        where: { isDeleted: false },
-      });
-      const activeUsers = await this.prisma.user.count({
-        where: { isDeleted: false, isActive: true },
-      });
+      const databaseStats = await this.statsReader.read();
+      const { totalUsers, activeUsers } = databaseStats;
       const inactiveUsers = totalUsers - activeUsers;
 
       // 2. Fetch Active sessions from Redis
       const sessionKeys = await this.cache.scan('refresh_token:*');
       const activeSessionsCount = sessionKeys.length;
 
-      // 3. Fetch Role distribution
-      const roles = await this.prisma.role.findMany({
-        where: { isDeleted: false },
-        include: {
-          _count: {
-            select: { userRoles: true },
-          },
-        },
-      });
-      const rolesDistribution = roles.map((r) => ({
-        role: r.name,
-        count: r._count.userRoles,
-      }));
-
-      // 4. Fetch Registration Trend for last 7 days
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
-      sevenDaysAgo.setHours(0, 0, 0, 0);
-
-      const usersCreated = await this.prisma.user.findMany({
-        where: {
-          isDeleted: false,
-          createdAt: {
-            gte: sevenDaysAgo,
-          },
-        },
-        select: {
-          createdAt: true,
-        },
-      });
-
-      // Initialize last 7 days map
-      const trendMap: Record<string, number> = {};
-      for (let i = 0; i < 7; i++) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        const dateStr = d.toISOString().split('T')[0];
-        trendMap[dateStr] = 0;
-      }
-
-      // Aggregate user count by date
-      usersCreated.forEach((u) => {
-        const dateStr = u.createdAt.toISOString().split('T')[0];
-        if (trendMap[dateStr] !== undefined) {
-          trendMap[dateStr]++;
-        }
-      });
-
-      const userRegistrationTrend = Object.keys(trendMap)
-        .sort()
-        .map((date) => ({
-          date,
-          count: trendMap[date],
-        }));
-
       return Result.ok({
         totalUsers,
         activeUsers,
         inactiveUsers,
         activeSessionsCount,
-        rolesDistribution,
-        userRegistrationTrend,
+        rolesDistribution: databaseStats.rolesDistribution,
+        userRegistrationTrend: databaseStats.userRegistrationTrend,
       });
     } catch (error: unknown) {
       return Result.fail(

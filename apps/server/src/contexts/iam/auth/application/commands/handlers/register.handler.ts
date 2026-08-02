@@ -13,7 +13,7 @@ import {
 import {
   PASSWORD_HASHER,
   type PasswordHasher,
-} from '@iam/users/domain/ports/password-hasher';
+} from '@iam/users/application/ports/password-hasher.port';
 import { ConfigService } from '@nestjs/config';
 import { EmailVerificationService } from '../../services/email-verification.service';
 

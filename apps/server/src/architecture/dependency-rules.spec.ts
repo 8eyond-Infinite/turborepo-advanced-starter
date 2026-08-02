@@ -1,5 +1,5 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 
 const sourceRoot = join(__dirname, '..');
 
@@ -38,5 +38,44 @@ describe('architecture dependency rules', () => {
       .join('\n');
 
     expect(sharedDomain).not.toMatch(/BullMQ|Redis|Socket|WebSocket|Prisma/);
+  });
+
+  it('keeps application code independent from infrastructure and presentation', () => {
+    const applicationFiles = collectTypeScriptFiles(
+      join(sourceRoot, 'contexts'),
+    ).filter((file) => file.includes(`${join('', 'application')}`));
+    const violations = applicationFiles.flatMap((file) => {
+      const source = readFileSync(file, 'utf8');
+      const forbiddenImport =
+        /from ['"][^'"]*(infrastructure|presentation)[^'"]*['"]/g;
+      return [...source.matchAll(forbiddenImport)].map(
+        (match) => `${file}: ${match[0]}`,
+      );
+    });
+
+    expect(violations).toEqual([]);
+  });
+
+  it('uses one unambiguous placement and suffix for outbound ports', () => {
+    const contextFiles = collectTypeScriptFiles(join(sourceRoot, 'contexts'));
+    const invalidDomainPorts = contextFiles
+      .filter((file) => file.includes(join('domain', 'ports')))
+      .filter((file) => !basename(file).endsWith('.repository.ts'));
+    const invalidApplicationPorts = contextFiles
+      .filter((file) => file.includes(join('application', 'ports')))
+      .filter((file) => !basename(file).endsWith('.port.ts'));
+
+    expect(invalidDomainPorts).toEqual([]);
+    expect(invalidApplicationPorts).toEqual([]);
+  });
+
+  it('keeps shared domain abstractions on one canonical import path', () => {
+    const sharedDomainFiles = collectTypeScriptFiles(
+      join(sourceRoot, 'shared', 'domain'),
+    );
+
+    expect(
+      sharedDomainFiles.filter((file) => file.includes(join('domain', 'base'))),
+    ).toEqual([]);
   });
 });

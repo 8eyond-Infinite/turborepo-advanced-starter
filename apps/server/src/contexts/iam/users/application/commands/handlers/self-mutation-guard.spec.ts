@@ -2,10 +2,10 @@ import type { UserRepository } from '@iam/users/domain/ports/user.repository';
 import { UserSelfMutationForbiddenException } from '@iam/users/domain/exceptions/user-self-mutation-forbidden.exception';
 import { DeactivateUserCommand } from '../deactivate-user.command';
 import { DeleteUserCommand } from '../delete-user.command';
-import { ToggleUserStatusCommand } from '../toggle-user-status.command';
+import { ActivateUserCommand } from '../activate-user.command';
 import { DeactivateUserCommandHandler } from './deactivate-user.handler';
 import { DeleteUserCommandHandler } from './delete-user.handler';
-import { ToggleUserStatusCommandHandler } from './toggle-user-status.handler';
+import { ActivateUserCommandHandler } from './activate-user.handler';
 
 describe('user self-mutation guard', () => {
   const repository = {
@@ -27,9 +27,9 @@ describe('user self-mutation guard', () => {
       }),
     },
     {
-      name: 'toggle status',
-      handler: new ToggleUserStatusCommandHandler(repository),
-      command: new ToggleUserStatusCommand({
+      name: 'activate',
+      handler: new ActivateUserCommandHandler(repository),
+      command: new ActivateUserCommand({
         id: 'admin-id',
         adminId: 'admin-id',
       }),

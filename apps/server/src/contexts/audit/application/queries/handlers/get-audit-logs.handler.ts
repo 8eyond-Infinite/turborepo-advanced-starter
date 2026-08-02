@@ -2,13 +2,16 @@ import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
 import { GetAuditLogsQuery } from '../get-audit-logs.query';
 import { Result } from '@shared/domain/result';
 import { DomainException } from '@shared/domain/exceptions/domain.exception';
-import { PrismaService } from '@infrastructure/database/prisma.service';
+import { Inject } from '@nestjs/common';
+import {
+  AUDIT_LOG_READER,
+  type AuditLogReader,
+  type AuditLogRecord,
+} from '../../ports/audit-log-reader.port';
 
 import { Errors } from '@repo/contracts';
-import type { AuditLog, Prisma } from '@repo/database';
-
 export interface AuditLogPage {
-  logs: AuditLog[];
+  logs: AuditLogRecord[];
   total: number;
 }
 
@@ -23,38 +26,18 @@ export class GetAuditLogsQueryHandler implements IQueryHandler<
   GetAuditLogsQuery,
   Result<AuditLogPage, DomainException>
 > {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(AUDIT_LOG_READER) private readonly auditLogReader: AuditLogReader,
+  ) {}
 
   async execute(
     query: GetAuditLogsQuery,
   ): Promise<Result<AuditLogPage, DomainException>> {
     try {
-      const { page = 1, limit = 10, search } = query.paginationQuery;
-      const skip = (page - 1) * limit;
-
-      const where: Prisma.AuditLogWhereInput = {};
-      if (search) {
-        where.OR = [
-          { action: { contains: search, mode: 'insensitive' } },
-          { details: { contains: search, mode: 'insensitive' } },
-          { userEmail: { contains: search, mode: 'insensitive' } },
-          { correlationId: { contains: search, mode: 'insensitive' } },
-        ];
-      }
-
-      const [logs, total] = await Promise.all([
-        this.prisma.auditLog.findMany({
-          where,
-          skip,
-          take: limit,
-          orderBy: {
-            createdAt: 'desc',
-          },
-        }),
-        this.prisma.auditLog.count({ where }),
-      ]);
-
-      return Result.ok({ logs, total });
+      const { page = 1, limit = 10, search } = query.pagination;
+      return Result.ok(
+        await this.auditLogReader.findPage({ page, limit, search }),
+      );
     } catch (error: unknown) {
       return Result.fail(
         new GetAuditLogsException(

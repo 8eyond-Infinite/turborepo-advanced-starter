@@ -6,10 +6,7 @@ import { InvalidCredentialsException } from '@iam/users/domain/exceptions/invali
 import { UserDeactivatedException } from '@iam/users/domain/exceptions/user-deactivated.exception';
 import { Result } from '@shared/domain/result';
 import { DomainException } from '@shared/domain/exceptions/domain.exception';
-import {
-  SESSION_STORE,
-  ISessionStore,
-} from '../../../domain/ports/session-store.port';
+import { SESSION_STORE, ISessionStore } from '../../ports/session-store.port';
 import {
   USER_REPOSITORY,
   type UserRepository,
@@ -17,7 +14,7 @@ import {
 import {
   PASSWORD_HASHER,
   type PasswordHasher,
-} from '@iam/users/domain/ports/password-hasher';
+} from '@iam/users/application/ports/password-hasher.port';
 import { ConfigService } from '@nestjs/config';
 import {
   getRefreshSessionAbsoluteExpiry,

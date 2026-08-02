@@ -1,7 +1,7 @@
 import { ConfigService } from '@nestjs/config';
 import { UserEntity } from '@iam/users/domain/user.entity';
 import type { IJobQueuePort } from '@shared/application/ports/job-queue.port';
-import type { EmailVerificationTokenStore } from '../../domain/ports/email-verification-token-store.port';
+import type { EmailVerificationTokenStore } from '../ports/email-verification-token-store.port';
 import { EmailVerificationService } from './email-verification.service';
 
 describe('EmailVerificationService', () => {

@@ -12,7 +12,7 @@ import {
 import {
   PASSWORD_HASHER,
   type PasswordHasher,
-} from '@iam/users/domain/ports/password-hasher';
+} from '@iam/users/application/ports/password-hasher.port';
 import { InvalidUserRolesException } from '@iam/users/domain/exceptions/invalid-user-roles.exception';
 
 @CommandHandler(CreateUserCommand)

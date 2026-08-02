@@ -38,7 +38,13 @@ export class AuditLogController {
     description: 'Return paginated list of audit logs',
   })
   async getAuditLogs(@Query() query: PaginationQueryDto) {
-    const result = await this.queryBus.execute(new GetAuditLogsQuery(query));
+    const result = await this.queryBus.execute(
+      new GetAuditLogsQuery({
+        page: query.page,
+        limit: query.limit,
+        search: query.search,
+      }),
+    );
     const { logs, total } = result.unwrap();
 
     const page = query.page || 1;

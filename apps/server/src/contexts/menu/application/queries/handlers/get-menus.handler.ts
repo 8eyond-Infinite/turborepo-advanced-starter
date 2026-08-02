@@ -2,7 +2,8 @@ import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
 import { GetMenusQuery } from '../get-menus.query';
 import { Result } from '@shared/domain/result';
 import { DomainException } from '@shared/domain/exceptions/domain.exception';
-import { PrismaService } from '@infrastructure/database/prisma.service';
+import { Inject } from '@nestjs/common';
+import { MENU_READER, type MenuReader } from '../../ports/menu-reader.port';
 
 export interface MenuItem {
   title: string;
@@ -16,16 +17,14 @@ export class GetMenusQueryHandler implements IQueryHandler<
   GetMenusQuery,
   Result<MenuItem[], DomainException>
 > {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(MENU_READER) private readonly menuReader: MenuReader) {}
 
   async execute(
     query: GetMenusQuery,
   ): Promise<Result<MenuItem[], DomainException>> {
     const { permissions = [] } = query;
 
-    const allMenus = await this.prisma.menu.findMany({
-      orderBy: [{ order: 'asc' }],
-    });
+    const allMenus = await this.menuReader.findAllOrdered();
 
     const allowedMenus = allMenus.filter((menu) => {
       if (!menu.permission) return true;

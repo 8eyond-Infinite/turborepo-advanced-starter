@@ -4,7 +4,7 @@ import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import {
   EMAIL_VERIFICATION_TOKEN_STORE,
   type EmailVerificationTokenStore,
-} from '../../../domain/ports/email-verification-token-store.port';
+} from '../../ports/email-verification-token-store.port';
 import {
   USER_REPOSITORY,
   type UserRepository,

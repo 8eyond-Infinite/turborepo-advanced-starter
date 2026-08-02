@@ -1,6 +1,6 @@
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import type { ISessionStore } from '../../../domain/ports/session-store.port';
+import type { ISessionStore } from '../../ports/session-store.port';
 import type { UserRepository } from '@iam/users/domain/ports/user.repository';
 import { RefreshCommand } from '../refresh.command';
 import { RefreshCommandHandler } from './refresh.handler';

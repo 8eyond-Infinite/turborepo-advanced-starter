@@ -2,7 +2,8 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
-import type { AuthenticatedPrincipal, JwtPayload } from '@repo/contracts';
+import type { AuthenticatedPrincipal } from '@repo/contracts';
+import type { JwtPayload } from '@shared/application/auth/jwt-payload';
 import { AccessTokenValidator } from '../../application/services/access-token-validator.service';
 
 @Injectable()

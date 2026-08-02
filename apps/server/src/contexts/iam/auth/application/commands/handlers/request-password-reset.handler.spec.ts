@@ -2,7 +2,7 @@ import { ConfigService } from '@nestjs/config';
 import { UserEntity } from '@iam/users/domain/user.entity';
 import type { UserRepository } from '@iam/users/domain/ports/user.repository';
 import type { IJobQueuePort } from '@shared/application/ports/job-queue.port';
-import type { PasswordResetTokenStore } from '../../../domain/ports/password-reset-token-store.port';
+import type { PasswordResetTokenStore } from '../../ports/password-reset-token-store.port';
 import { RequestPasswordResetCommand } from '../request-password-reset.command';
 import { RequestPasswordResetHandler } from './request-password-reset.handler';
 

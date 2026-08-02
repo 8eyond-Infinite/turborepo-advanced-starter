@@ -5,7 +5,7 @@ import { DomainException } from '@shared/domain/exceptions/domain.exception';
 import {
   SESSION_STORE,
   type ISessionStore,
-} from '../../../domain/ports/session-store.port';
+} from '../../ports/session-store.port';
 import { RevokeOtherSessionsCommand } from '../revoke-other-sessions.command';
 
 @CommandHandler(RevokeOtherSessionsCommand)

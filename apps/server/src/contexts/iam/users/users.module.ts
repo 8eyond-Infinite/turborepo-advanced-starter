@@ -9,11 +9,11 @@ import { GetUserByIdQueryHandler } from './application/queries/handlers/get-user
 import { DeactivateUserCommandHandler } from './application/commands/handlers/deactivate-user.handler';
 import { CreateUserCommandHandler } from './application/commands/handlers/create-user.handler';
 import { DeleteUserCommandHandler } from './application/commands/handlers/delete-user.handler';
-import { ToggleUserStatusCommandHandler } from './application/commands/handlers/toggle-user-status.handler';
+import { ActivateUserCommandHandler } from './application/commands/handlers/activate-user.handler';
 import { UpdateUserCommandHandler } from './application/commands/handlers/update-user.handler';
 import { USER_QUEUE } from './application/queues/user-queue.constants';
 import { USER_REPOSITORY } from './domain/ports/user.repository';
-import { PASSWORD_HASHER } from './domain/ports/password-hasher';
+import { PASSWORD_HASHER } from './application/ports/password-hasher.port';
 
 @Module({
   // registerQueue chỉ tạo producer (đẩy job vào queue). Consumer
@@ -34,7 +34,7 @@ import { PASSWORD_HASHER } from './domain/ports/password-hasher';
     DeactivateUserCommandHandler,
     CreateUserCommandHandler,
     DeleteUserCommandHandler,
-    ToggleUserStatusCommandHandler,
+    ActivateUserCommandHandler,
     UpdateUserCommandHandler,
   ],
   exports: [USER_REPOSITORY, PASSWORD_HASHER, BullModule],

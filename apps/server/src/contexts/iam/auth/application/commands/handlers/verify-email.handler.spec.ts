@@ -1,5 +1,5 @@
 import type { UserRepository } from '@iam/users/domain/ports/user.repository';
-import type { EmailVerificationTokenStore } from '../../../domain/ports/email-verification-token-store.port';
+import type { EmailVerificationTokenStore } from '../../ports/email-verification-token-store.port';
 import { InvalidEmailVerificationTokenException } from '../../../domain/exceptions/invalid-email-verification-token.exception';
 import { VerifyEmailCommand } from '../verify-email.command';
 import { VerifyEmailHandler } from './verify-email.handler';

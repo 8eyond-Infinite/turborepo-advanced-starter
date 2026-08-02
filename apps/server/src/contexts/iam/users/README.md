@@ -209,15 +209,16 @@ Password reset đi qua `UserRepository.changePassword()`, một credential write
 
 ## 9. API surface
 
-| Endpoint                         | Permission    | Hành vi              |
-| -------------------------------- | ------------- | -------------------- |
-| `GET /users/me`                  | Authenticated | Profile hiện tại     |
-| `GET /users`                     | `USER.READ`   | Danh sách users      |
-| `POST /users`                    | `USER.CREATE` | Admin tạo user       |
-| `PUT /users/:id`                 | `USER.UPDATE` | Update profile/roles |
-| `PATCH /users/:id/toggle-status` | `USER.UPDATE` | Toggle active state  |
-| `PATCH /users/:id/deactivate`    | `USER.UPDATE` | Deactivate rõ nghĩa  |
-| `DELETE /users/:id`              | `USER.DELETE` | Soft delete          |
+| Endpoint                      | Permission    | Hành vi               |
+| ----------------------------- | ------------- | --------------------- |
+| `GET /users/me`               | Authenticated | Profile hiện tại      |
+| `GET /users`                  | `USER.READ`   | Danh sách users       |
+| `POST /users`                 | `USER.CREATE` | Admin tạo user        |
+| `PUT /users/:id`              | `USER.UPDATE` | Update profile/roles  |
+| `PATCH /users/:id/activate`   | `USER.UPDATE` | Kích hoạt tài khoản   |
+| `PATCH /users/:id/deactivate` | `USER.UPDATE` | Vô hiệu hóa tài khoản |
+| `PATCH /users/:id/deactivate` | `USER.UPDATE` | Deactivate rõ nghĩa   |
+| `DELETE /users/:id`           | `USER.DELETE` | Soft delete           |
 
 Controller chỉ gắn guard, khai báo permission, audit và cache metadata. Mọi thay đổi dữ liệu nghiệp vụ phải đi qua command handler.
 

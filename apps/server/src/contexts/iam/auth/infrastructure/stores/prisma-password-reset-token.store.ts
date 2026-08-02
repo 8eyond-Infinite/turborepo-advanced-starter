@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@infrastructure/database/prisma.service';
-import type { PasswordResetTokenStore } from '../../domain/ports/password-reset-token-store.port';
+import type { PasswordResetTokenStore } from '../../application/ports/password-reset-token-store.port';
 
 @Injectable()
 export class PrismaPasswordResetTokenStore implements PasswordResetTokenStore {

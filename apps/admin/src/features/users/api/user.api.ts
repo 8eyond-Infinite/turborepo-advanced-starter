@@ -32,7 +32,7 @@ export const userApi = {
   create: (input: CreateUserInput) => ApiClient.post<User>("/users", input),
   update: ({ id, ...input }: UpdateUserInput) =>
     ApiClient.put<User>(`/users/${id}`, input),
-  toggleStatus: (id: string) =>
-    ApiClient.patch<User>(`/users/${id}/toggle-status`),
+  activate: (id: string) => ApiClient.patch<User>(`/users/${id}/activate`),
+  deactivate: (id: string) => ApiClient.patch<User>(`/users/${id}/deactivate`),
   remove: (id: string) => ApiClient.delete<void>(`/users/${id}`),
 };

@@ -140,8 +140,8 @@ export const UserTable = () => {
           isError={usersState.isError}
           error={usersState.error}
           isFetching={usersState.isFetching}
-          isToggling={usersState.isToggling}
-          togglingUserId={usersState.togglingUserId}
+          isToggling={usersState.isChangingStatus}
+          togglingUserId={usersState.changingStatusUserId}
           isDeleting={usersState.isDeleting}
           deletingUserId={usersState.deletingUserId}
           onRetry={() => void usersState.refetch()}
@@ -171,7 +171,10 @@ export const UserTable = () => {
         }
         onConfirm={async () => {
           if (!togglingUser) return;
-          await usersState.toggleStatus(togglingUser.id);
+          await usersState.changeStatus({
+            id: togglingUser.id,
+            activate: !togglingUser.isActive,
+          });
           setTogglingUser(null);
         }}
       />

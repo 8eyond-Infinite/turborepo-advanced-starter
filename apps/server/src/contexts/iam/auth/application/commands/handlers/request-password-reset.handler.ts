@@ -17,7 +17,7 @@ import {
 import {
   PASSWORD_RESET_TOKEN_STORE,
   type PasswordResetTokenStore,
-} from '../../../domain/ports/password-reset-token-store.port';
+} from '../../ports/password-reset-token-store.port';
 import { RequestPasswordResetCommand } from '../request-password-reset.command';
 
 const RESET_TOKEN_TTL_MS = 30 * 60 * 1_000;

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@infrastructure/database/prisma.service';
-import type { EmailVerificationTokenStore } from '../../domain/ports/email-verification-token-store.port';
+import type { EmailVerificationTokenStore } from '../../application/ports/email-verification-token-store.port';
 
 @Injectable()
 export class PrismaEmailVerificationTokenStore implements EmailVerificationTokenStore {
