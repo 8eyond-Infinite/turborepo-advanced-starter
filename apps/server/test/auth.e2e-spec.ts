@@ -750,7 +750,7 @@ describe('AuthController (E2E)', () => {
     await request(app.getHttpServer())
       .delete(`/users/${adminUser?.id}`)
       .set('Authorization', `Bearer ${accessAdmin}`)
-      .expect(HttpStatus.FORBIDDEN)
+      .expect(HttpStatus.CONFLICT)
       .expect(({ body }) => {
         expect(body.code).toBe('USER_SELF_MUTATION_FORBIDDEN');
       });
