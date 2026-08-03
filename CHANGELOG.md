@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.1.2](https://github.com/8eyond-Infinite/turborepo-advanced-starter/compare/v1.1.1...v1.1.2) (2026-08-03)
+
+
+### Tái cấu trúc
+
+* standardize architecture boundaries and documentation ([#92](https://github.com/8eyond-Infinite/turborepo-advanced-starter/issues/92)) ([64f4236](https://github.com/8eyond-Infinite/turborepo-advanced-starter/commit/64f42365215825c95646d3a7b2f4ab24bf78e6a9))
+
+
+### Tài liệu
+
+* standardize handbook and deployment guidance ([#90](https://github.com/8eyond-Infinite/turborepo-advanced-starter/issues/90)) ([3aa5859](https://github.com/8eyond-Infinite/turborepo-advanced-starter/commit/3aa5859a16a6180cb4778785d56f73245822070b))
+
 ## [1.1.1](https://github.com/8eyond-Infinite/turborepo-advanced-starter/compare/v1.1.0...v1.1.1) (2026-08-01)
 
 
