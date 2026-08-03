@@ -23,4 +23,4 @@ import { PrismaAuditLogReader } from './infrastructure/prisma-audit-log.reader';
   ],
   exports: [AUDIT_WRITER],
 })
-export class AuditLogModule {}
+export class AuditModule {}

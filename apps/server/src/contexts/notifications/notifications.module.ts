@@ -26,4 +26,4 @@ const QueryHandlers = [GetNotificationsHandler];
   ],
   exports: [NOTIFICATION_REPOSITORY],
 })
-export class NotificationModule {}
+export class NotificationsModule {}

@@ -145,6 +145,8 @@ Retention cũng thuộc Audit context nhưng mặc định tắt: `AUDIT_RETENTI
 
 Analytics tổng hợp dữ liệu đọc cho dashboard; `dashboard` là module/read capability bên trong nó. Menu là read capability tạo navigation tree dựa trên permission. Storage là technical capability định nghĩa port upload/delete và có adapter local/S3. Chúng không cần tạo đủ bốn layer: layer chỉ xuất hiện khi có trách nhiệm thật, còn dependency direction luôn bắt buộc.
 
+Đọc handbook đặt cạnh code khi sửa từng capability: [Dashboard](src/contexts/analytics/dashboard/README.md), [Menu](src/contexts/menu/README.md) và [Storage](src/contexts/storage/README.md).
+
 ## 5. Một request sống từ lúc vào đến lúc trả response
 
 Một HTTP request thông thường đi theo chuỗi sau:

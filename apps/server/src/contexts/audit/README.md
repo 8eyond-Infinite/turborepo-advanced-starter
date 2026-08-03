@@ -41,7 +41,7 @@ audit/
 │   └── prisma-audit-writer.ts
 ├── presentation/
 │   └── controllers/audit-log.controller.ts
-└── audit-log.module.ts
+└── audit.module.ts
 ```
 
 Decorator và interceptor dùng chung cho cả ứng dụng nằm ở thư mục `presentation/` gốc; còn port, cấu trúc bản ghi và query thuộc quyền sở hữu của Audit context.
@@ -179,7 +179,7 @@ Các bài toán xuất dữ liệu, chống sửa trộm bản ghi, legal hold v
 
 ## 9. Ý nghĩa từng file
 
-`audit-writer.port.ts` là interface tách tầng application khỏi database: application chỉ biết “hãy ghi bản ghi này”, không biết ghi vào đâu. `prisma-audit-writer.ts` nhận bản ghi đó và INSERT vào bảng AuditLog qua Prisma. `get-audit-logs.*` là use case đọc. `audit-log.controller.ts` nhận request HTTP và trả response. `audit-log.module.ts` khai báo interface writer sẽ do adapter Prisma đảm nhiệm và đăng ký các provider.
+`audit-writer.port.ts` là interface tách tầng application khỏi database: application chỉ biết “hãy ghi bản ghi này”, không biết ghi vào đâu. `prisma-audit-writer.ts` nhận bản ghi đó và INSERT vào bảng AuditLog qua Prisma. `get-audit-logs.*` là use case đọc. `audit-log.controller.ts` nhận request HTTP và trả response. `audit.module.ts` khai báo interface writer sẽ do adapter Prisma đảm nhiệm và đăng ký các provider.
 
 `audit-retention.service.ts` là lifecycle adapter của chính Audit context. Nó đọc policy từ configuration, quản lý timer và chờ cleanup đang chạy khi application shutdown. Nó không nằm trong query handler hoặc writer vì xóa theo tuổi là maintenance concern, không phải một phần của write/read use case.
 
