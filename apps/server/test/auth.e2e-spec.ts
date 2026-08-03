@@ -83,6 +83,28 @@ describe('AuthController (E2E)', () => {
     );
   };
 
+  const waitForNotification = async (
+    prisma: PrismaService,
+    userId: string,
+    title: string,
+  ) => {
+    const deadline = Date.now() + 5_000;
+
+    while (Date.now() < deadline) {
+      const notification = await prisma.notification.findFirst({
+        where: { userId, title },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (notification) return notification;
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+
+    throw new Error(
+      `Notification "${title}" for ${userId} was not created within 5 seconds`,
+    );
+  };
+
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -187,6 +209,20 @@ describe('AuthController (E2E)', () => {
       'iam.user.registered.v1',
     );
     expect(outboxEvent.status).toBe('PUBLISHED');
+
+    // Verify the complete asynchronous chain, not only its first outbox row:
+    // registration → router → notification command → notification outbox.
+    const notification = await waitForNotification(
+      prisma,
+      response.body.id,
+      'Welcome!',
+    );
+    const notificationOutbox = await waitForOutboxPublished(
+      prisma,
+      notification.id,
+      'notifications.notification.created.v1',
+    );
+    expect(notificationOutbox.status).toBe('PUBLISHED');
   });
 
   it('/auth/register (POST) -> rejects an invalid runtime payload', async () => {
@@ -614,7 +650,7 @@ describe('AuthController (E2E)', () => {
     await waitForUnauthorizedRefresh(refresh2);
   });
 
-  it('/users/:id/deactivate (PATCH) -> Nên hủy kích hoạt user, xóa cache users:all, users:me và buộc đăng xuất', async () => {
+  it('/users lifecycle -> deactivates, reactivates and protects self deletion', async () => {
     // 1. Tạo User B
     const userBEmail = `user.b.${Date.now()}@example.com`;
     const userBPassword = 'userbpassword';
@@ -698,5 +734,36 @@ describe('AuthController (E2E)', () => {
 
     // Thử refresh token của User B phải bị lỗi 401
     await waitForUnauthorizedRefresh(refreshB);
+
+    // Explicit activation restores the account and permits a new session.
+    await request(app.getHttpServer())
+      .patch(`/users/${userBId}/activate`)
+      .set('Authorization', `Bearer ${accessAdmin}`)
+      .expect(HttpStatus.OK);
+
+    await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: userBEmail, password: userBPassword })
+      .expect(HttpStatus.OK);
+
+    // The token owner cannot delete their own administrator account.
+    await request(app.getHttpServer())
+      .delete(`/users/${adminUser?.id}`)
+      .set('Authorization', `Bearer ${accessAdmin}`)
+      .expect(HttpStatus.CONFLICT)
+      .expect(({ body }) => {
+        expect(body.code).toBe('USER_SELF_MUTATION_FORBIDDEN');
+      });
+
+    // Deleting another account is an explicit soft-delete operation.
+    await request(app.getHttpServer())
+      .delete(`/users/${userBId}`)
+      .set('Authorization', `Bearer ${accessAdmin}`)
+      .expect(HttpStatus.NO_CONTENT);
+
+    await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: userBEmail, password: userBPassword })
+      .expect(HttpStatus.UNAUTHORIZED);
   });
 });

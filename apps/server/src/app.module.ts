@@ -11,8 +11,8 @@ import { AnalyticsModule } from './contexts/analytics/analytics.module';
 import { StorageModule } from './contexts/storage/storage.module';
 import { MenuModule } from './contexts/menu/menu.module';
 import { RealtimeModule } from '@infrastructure/realtime/realtime.module';
-import { NotificationModule } from './contexts/notifications/notification.module';
-import { AuditLogModule } from './contexts/audit/audit-log.module';
+import { NotificationsModule } from './contexts/notifications/notifications.module';
+import { AuditModule } from './contexts/audit/audit.module';
 
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { AuditLogInterceptor } from '@presentation/interceptors/audit-log.interceptor';
@@ -49,8 +49,8 @@ import { createPinoHttpOptions } from '@infrastructure/observability/logger.conf
     StorageModule,
     MenuModule,
     RealtimeModule,
-    NotificationModule,
-    AuditLogModule,
+    NotificationsModule,
+    AuditModule,
     HealthModule,
   ],
   providers: [

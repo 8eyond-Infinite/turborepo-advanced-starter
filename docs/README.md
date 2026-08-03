@@ -54,6 +54,12 @@ Mỗi chương ở phần này sở hữu một nhóm quy tắc nghiệp vụ. H
 12. [Chương 12 — Notifications: thông báo và realtime](../apps/server/src/contexts/notifications/README.md)
 13. [Chương 13 — Audit: dấu vết hành động](../apps/server/src/contexts/audit/README.md)
 
+Ba capability nhỏ cũng có handbook đặt cạnh code. Chúng không được đánh số thành chương nghiệp vụ độc lập vì không sở hữu aggregate lớn, nhưng phải đọc trước khi sửa capability tương ứng:
+
+- [Dashboard: số liệu tổng quan](../apps/server/src/contexts/analytics/dashboard/README.md)
+- [Menu: navigation theo quyền](../apps/server/src/contexts/menu/README.md)
+- [Storage: local và S3-compatible adapters](../apps/server/src/contexts/storage/README.md)
+
 Mỗi chương bắt đầu bằng một câu chuyện nghiệp vụ, chỉ ra phần nào chịu trách nhiệm, lần theo đường đi thành công rồi giải thích những chỗ có thể lỗi. Sau đó chương mới đi vào transaction, quy tắc bắt buộc, bản đồ file và cách mở rộng.
 
 ## Phần IV — Xây dựng, phát hành và vận hành

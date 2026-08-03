@@ -1,5 +1,5 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { basename, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 
 const sourceRoot = join(__dirname, '..');
 
@@ -77,5 +77,17 @@ describe('architecture dependency rules', () => {
     expect(
       sharedDomainFiles.filter((file) => file.includes(join('domain', 'base'))),
     ).toEqual([]);
+  });
+
+  it('names each bounded-context composition root after its directory', () => {
+    const moduleFiles = collectTypeScriptFiles(
+      join(sourceRoot, 'contexts'),
+    ).filter((file) => file.endsWith('.module.ts'));
+    const violations = moduleFiles.filter((file) => {
+      const contextName = basename(dirname(file));
+      return basename(file) !== `${contextName}.module.ts`;
+    });
+
+    expect(violations).toEqual([]);
   });
 });

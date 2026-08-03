@@ -92,6 +92,6 @@ Event realtime chỉ invalidate root key. Nó không tự chèn payload vào cac
 
 ## 8. Bản đồ code và câu hỏi tự kiểm tra
 
-Khi bắt đầu điều tra notification, mở `notification.module.ts` để thấy composition root của context. Từ endpoint HTTP, đi vào `presentation/controllers`; từ một event được phát, bắt đầu ở handler/router tạo notification. Repository adapter là nơi duy nhất nên biết Prisma, còn Admin integration nằm ở feature notification của `apps/admin`.
+Khi bắt đầu điều tra notification, mở `notifications.module.ts` để thấy composition root của context. Từ endpoint HTTP, đi vào `presentation/controllers`; từ một event được phát, bắt đầu ở handler/router tạo notification. Repository adapter là nơi duy nhất nên biết Prisma, còn Admin integration nằm ở feature notification của `apps/admin`.
 
 Trước khi sửa context, hãy tự giải thích được ba điều bằng lời của mình: vì sao realtime event chỉ invalidate cache, vì sao mark-read phải kiểm tra `userId`, và chuyện gì xảy ra nếu browser offline lúc notification được tạo. Nếu chưa trả lời được, đọc lại flow tạo và cache lifecycle trước khi code.
