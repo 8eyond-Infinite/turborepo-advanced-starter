@@ -1,0 +1,6 @@
+interface:
+  display_name: "Turborepo Advanced Starter"
+  short_description: "Repo-specific patterns and workflows for turborepo-advanced-starter"
+  default_prompt: "Use the turborepo-advanced-starter repo skill to follow existing architecture, testing, and workflow conventions."
+policy:
+  allow_implicit_invocation: true
