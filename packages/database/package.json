@@ -29,22 +29,22 @@
     "db:push": "prisma db push"
   },
   "dependencies": {
-    "@prisma/client": "^7.8.0",
+    "@prisma/client": "^7.9.1",
     "@repo/contracts": "workspace:*"
   },
   "devDependencies": {
-    "@prisma/adapter-pg": "^7.8.0",
+    "@prisma/adapter-pg": "^7.9.1",
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@types/bcrypt": "^6.0.0",
     "@types/node": "^26.1.1",
-    "@types/pg": "^8.20.0",
+    "@types/pg": "^8.21.0",
     "bcrypt": "^6.0.0",
     "eslint": "^9.39.1",
-    "pg": "^8.22.0",
-    "prisma": "^7.8.0",
+    "pg": "^8.23.0",
+    "prisma": "^7.9.1",
     "tsup": "^8",
-    "tsx": "^4.20.0",
+    "tsx": "^4.23.12",
     "typescript": "6.0.3"
   }
 }
